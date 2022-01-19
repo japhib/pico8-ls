@@ -1,7 +1,24 @@
-import { CompletionItem, createConnection, Diagnostic, DidChangeConfigurationNotification, InitializeParams, InitializeResult, ProposedFeatures, TextDocumentPositionParams, TextDocuments, TextDocumentSyncKind } from 'vscode-languageserver/node';
+import {
+  CompletionItem,
+  createConnection,
+  Diagnostic,
+  DiagnosticSeverity,
+  DidChangeConfigurationNotification,
+  InitializeParams,
+  InitializeResult,
+  ProposedFeatures,
+  TextDocumentPositionParams,
+  TextDocuments,
+  TextDocumentSyncKind
+} from 'vscode-languageserver/node';
 import { TextDocument } from 'vscode-languageserver-textdocument';
+import Parser from './parser/parser';
+import { isSyntaxError } from './parser/errors';
+import { setLogger } from './logger';
 
 const connection = createConnection(ProposedFeatures.all);
+setLogger((msg: string) => connection.console.log(msg));
+
 const documents = new TextDocuments(TextDocument);
 
 let hasConfigurationCapability = false;
@@ -106,9 +123,28 @@ function getDocumentSettings(resource: string): Thenable<ExampleSettings> {
 async function validateTextDocument(textDocument: TextDocument) {
   const settings = await getDocumentSettings(textDocument.uri);
 
-  // TODO parse document and discover problems
-
   const diagnostics: Diagnostic[] = [];
+
+  // parse document and discover problems
+  const parser = new Parser(textDocument.getText());
+  try {
+    connection.console.log(JSON.stringify(parser.parseChunk()));
+  } catch (e) {
+    if (isSyntaxError(e)) {
+      const diagnostic: Diagnostic = {
+        severity: DiagnosticSeverity.Error,
+        range: {
+          start: textDocument.positionAt(e.location.index),
+          end: textDocument.positionAt(e.location.index),
+        },
+        message: e.message,
+        source: 'PICO-8 LS'
+      };
+
+      diagnostics.push(diagnostic);
+    }
+  }
+
   connection.sendDiagnostics({ uri: textDocument.uri, diagnostics });
 }
 

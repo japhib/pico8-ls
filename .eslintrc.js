@@ -20,6 +20,8 @@ const TS_OVERRIDE = {
     '@typescript-eslint/no-unsafe-assignment': 'off',
     '@typescript-eslint/comma-dangle': ['error', 'always-multiline'],
     '@typescript-eslint/no-non-null-assertion': 'off',
+    '@typescript-eslint/explicit-module-boundary-types': 'off',
+    '@typescript-eslint/no-inferrable-types': 'off',
     '@typescript-eslint/quotes': [
       'error',
       'single',
