@@ -1,0 +1,84 @@
+{
+	"name": "pico8-ls",
+	"description": "PICO-8 Language Server",
+	"author": "JanPaul Bergeson",
+	"license": "MIT",
+	"version": "0.0.1",
+	"engines": {
+		"vscode": "^1.63.0"
+	},
+	"activationEvents": [
+		"onLanguage:pico-8"
+	],
+	"main": "./client/out/extension",
+	"contributes": {
+		"configuration": {
+			"type": "object",
+			"title": "Example configuration",
+			"properties": {
+				"languageServerExample.maxNumberOfProblems": {
+					"scope": "resource",
+					"type": "number",
+					"default": 100,
+					"description": "Controls the maximum number of problems produced by the server."
+				},
+				"languageServerExample.trace.server": {
+					"scope": "window",
+					"type": "string",
+					"enum": [
+						"off",
+						"messages",
+						"verbose"
+					],
+					"default": "off",
+					"description": "Traces the communication between VS Code and the language server."
+				}
+			}
+		},
+		"languages": [
+			{
+				"id": "pico-8",
+				"aliases": [
+					"PICO-8",
+					"pico-8",
+					"PICO8",
+					"pico8"
+				],
+				"extensions": [
+					".p8"
+				]
+			},
+			{ "id": "pico-8-lua" }
+		],
+		"grammars": [
+			{
+				"language": "pico-8",
+				"scopeName": "source.pico8",
+				"path": "./syntaxes/pico-8.tmLanguage.json"
+			},
+			{
+				"language": "pico-8-lua",
+				"scopeName": "source.pico8.lua",
+				"path": "syntaxes/pico-8-lua.tmLanguage.json"
+			}
+		]
+	},
+	"scripts": {
+		"vscode:prepublish": "npm run compile",
+		"compile": "tsc -b",
+		"watch": "tsc -b -w",
+		"lint": "eslint ./client/src ./server/src --ext .ts,.tsx",
+		"lint:fix": "eslint ./client/src ./server/src --ext .ts,.tsx --fix",
+		"postinstall": "cd client && npm install && cd ../server && npm install && cd ..",
+		"test": "sh ./scripts/e2e.sh"
+	},
+	"devDependencies": {
+		"@types/mocha": "^8.2.2",
+		"@types/node": "^12.12.0",
+		"@typescript-eslint/eslint-plugin": "^4.23.0",
+		"@typescript-eslint/parser": "^4.23.0",
+		"eslint": "^7.26.0",
+		"mocha": "^8.3.2",
+		"typescript": "^4.4.3"
+	}
+}

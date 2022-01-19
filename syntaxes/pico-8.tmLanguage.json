@@ -1,0 +1,21 @@
+{
+    "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+    "name": "PICO-8",
+    "scopeName": "source.pico8",
+    "patterns": [ { "include": "#lua" } ],
+    "repository": {
+      "lua": {
+        "begin": "__lua__",
+        "end": "(__gfx__|__label__|__gff__|__map__)",
+        "beginCaptures": {
+          "0": { "name": "punctuation.code.open" }
+        },
+        "endCaptures": {
+          "0": { "name": "punctuation.code.close" }
+        },
+        "name": "meta.embedded.block.pico-8-lua",
+        "patterns": [ { "include": "source.pico8.lua" } ]
+      }
+    }
+  }
+  

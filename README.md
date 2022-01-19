@@ -1,0 +1,1 @@
+# PICO-8 Language Server
