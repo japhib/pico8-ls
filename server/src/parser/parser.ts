@@ -618,8 +618,8 @@ export default class Parser {
 
     if (!isAssignmentOperator(this.token))
       errors.raiseUnexpectedToken('assignment operator', this.token);
-    this.lexer.next();
     const operator = this.token.value as string;
+    this.lexer.next();
 
     const values = [];
     do {

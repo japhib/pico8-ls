@@ -10,7 +10,6 @@ export enum TokenType {
   BooleanLiteral = 'BooleanLiteral',
   NilLiteral = 'NilLiteral',
   VarargLiteral = 'VarargLiteral',
-  Empty = 'Empty',
 }
 
 export type TokenValue = string | boolean | number | null;

@@ -241,8 +241,7 @@ export default class Lexer {
     case 94: // ^, ^= (exponentiation), ^^, ^^= (xor)
       if (61 === next) return this.scanPunctuator('^=');
       if (94 === next) {
-        const uberNext = this.input.charCodeAt(this.index + 2);
-        if (uberNext === 61) this.scanPunctuator('^^=');
+        if (61 === this.input.charCodeAt(this.index + 2)) return this.scanPunctuator('^^=');
         return this.scanPunctuator('^^');
       }
       return this.scanPunctuator('^');
@@ -263,10 +262,13 @@ export default class Lexer {
       return this.scanPunctuator(this.input.charAt(this.index));
 
     case 35: // #
+    case 36: // $
     case 40: // (
     case 41: // )
     case 44: // ,
     case 59: // ;
+    case 63: // ?
+    case 64: // @
     case 93: // ]
     case 123: // {
     case 125: // }
@@ -338,10 +340,8 @@ export default class Lexer {
 
   // Once a punctuator reaches this function it should already have been
   // validated so we simply return it as a token.
-
   scanPunctuator(value: string): Token {
     this.index += value.length;
-
     return this.makeToken(TokenType.Punctuator, value);
   }
 

@@ -45,6 +45,110 @@ function assertPrintHi(tokens: Token[]) {
 }
 
 describe('Lexer', () => {
+  describe('all token types', () => {
+    it('StringLiteral', () => {
+      let tokens = getLexedTokens('"hi"');
+      assertNextToken(tokens, TokenType.StringLiteral, 'hi');
+      assertNoMoreTokens(tokens);
+
+      tokens = getLexedTokens('\'hi\'');
+      assertNextToken(tokens, TokenType.StringLiteral, 'hi');
+      assertNoMoreTokens(tokens);
+    });
+
+    // TODO
+    // it('StringLiteral with escape characters', () => {});
+
+    it('Keyword', () => {
+      const tokens = getLexedTokens('function break goto if then while end');
+      assertNextToken(tokens, TokenType.Keyword, 'function');
+      assertNextToken(tokens, TokenType.Keyword, 'break');
+      assertNextToken(tokens, TokenType.Keyword, 'goto');
+      assertNextToken(tokens, TokenType.Keyword, 'if');
+      assertNextToken(tokens, TokenType.Keyword, 'then');
+      assertNextToken(tokens, TokenType.Keyword, 'while');
+      assertNextToken(tokens, TokenType.Keyword, 'end');
+      assertNoMoreTokens(tokens);
+    });
+
+    it('Identifier', () => {
+      const tokens = getLexedTokens('func a b this_is_my_var camelCase _startsWithUnderscore containsNumbers1234');
+      assertNextToken(tokens, TokenType.Identifier, 'func');
+      assertNextToken(tokens, TokenType.Identifier, 'a');
+      assertNextToken(tokens, TokenType.Identifier, 'b');
+      assertNextToken(tokens, TokenType.Identifier, 'this_is_my_var');
+      assertNextToken(tokens, TokenType.Identifier, 'camelCase');
+      assertNextToken(tokens, TokenType.Identifier, '_startsWithUnderscore');
+      assertNextToken(tokens, TokenType.Identifier, 'containsNumbers1234');
+      assertNoMoreTokens(tokens);
+    });
+
+    it('NumericLiteral', () => {
+      // TODO more types of numeric literals
+      const tokens = getLexedTokens('123 45.03 .03');
+      assertNextToken(tokens, TokenType.NumericLiteral, 123);
+      assertNextToken(tokens, TokenType.NumericLiteral, 45.03);
+      assertNextToken(tokens, TokenType.NumericLiteral, .03);
+      assertNoMoreTokens(tokens);
+    });
+
+    describe('Punctuators', () => {
+      function assertLexesOperators(...ops: string[]) {
+        const tokens = getLexedTokens(ops.join(' '));
+        for (const op of ops) {
+          assertNextToken(tokens, TokenType.Punctuator, op);
+        }
+        assertNoMoreTokens(tokens);
+      }
+
+      it('lexes arithmetic operators', () => {
+        assertLexesOperators('-', '+', '/', '\\', '%', '^');
+      });
+
+      it('lexes bitwise operators', () => {
+        assertLexesOperators('~', '|', '&', '^^', '<<', '>>', '>>>', '<<>', '>><');
+      });
+
+      it('lexes memory operators', () => {
+        assertLexesOperators('@', '%', '$');
+      });
+
+      it('lexes comparison operators', () => {
+        assertLexesOperators('<', '>', '<=', '>=', '==', '~=', '!=');
+      });
+
+      it('lexes assignment operators', () => {
+        assertLexesOperators('=', '+=', '-=', '*=', '/=', '\\=', '%=', '^=', '..=', '|=', '&=', '^^=', '<<=', '>>=', '>>>=', '<<>=', '>><=');
+      });
+
+      it('lexes misc punctuators', () => {
+        assertLexesOperators('.', '..', ':', '[', ']', '(', ')', '#', ',', ';', '{', '}', '?');
+      });
+    });
+
+    it('BooleanLiteral', () => {
+      const tokens = getLexedTokens('true false truee falsee _true _false');
+      assertNextToken(tokens, TokenType.BooleanLiteral, true);
+      assertNextToken(tokens, TokenType.BooleanLiteral, false);
+      for (let i = 0; i < 4; i++)
+        assertNextToken(tokens, TokenType.Identifier);
+      assertNoMoreTokens(tokens);
+    });
+
+    it('NilLiteral', () => {
+      const tokens = getLexedTokens('nil nile');
+      assertNextToken(tokens, TokenType.NilLiteral, null);
+      assertNextToken(tokens, TokenType.Identifier);
+      assertNoMoreTokens(tokens);
+    });
+
+    it('VarargLiteral', () => {
+      const tokens = getLexedTokens('...');
+      assertNextToken(tokens, TokenType.VarargLiteral, '...');
+      assertNoMoreTokens(tokens);
+    });
+  });
+
   describe('lexes basic lua', () => {
     it('Assignment Statement', () => {
       const tokens = getLexedTokens('i = 1');
@@ -149,10 +253,13 @@ describe('Lexer', () => {
       assertNoMoreTokens(tokens);
     });
 
-    it('Repeat Statement', () => {});
-
-    it('Return Statement', () => {});
-
-    it('While Statement', () => {});
+    it('Vararg Literal', () => {
+      const tokens = getLexedTokens('function(...)');
+      assertNextToken(tokens, TokenType.Keyword, 'function');
+      assertNextToken(tokens, TokenType.Punctuator, '(');
+      assertNextToken(tokens, TokenType.VarargLiteral, '...');
+      assertNextToken(tokens, TokenType.Punctuator, ')');
+      assertNoMoreTokens(tokens);
+    });
   });
 });
