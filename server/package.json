@@ -6,7 +6,8 @@
 	  "compile": "tsc -p ./",
 	  "lint": "eslint src --ext ts",
 	  "lint:fix": "eslint src --ext ts --fix",
-	  "test": "echo \"Error: no test specified\" && exit 1"
+	  "pretest": "npm run compile",
+	  "test": "mocha **/*.test.js"
 	},
 	"author": "JanPaul Bergeson",
 	"license": "MIT",
