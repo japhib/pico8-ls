@@ -41,6 +41,11 @@ export default class Lexer {
   length: number;
   encodingMode: EncodingMode;
 
+  // Special flag that indicates we shouldn't skip over a newline, instead
+  // treating it as a special newline token. This is useful for the special
+  // PICO-8 one-line if statement.
+  newlineSignificant: boolean = false;
+
   constructor(input: string) {
     this.input = input;
     this.length = this.input.length;
@@ -694,8 +699,14 @@ export default class Lexer {
 
   next() {
     this.previousToken = this.token;
-    this.token = this.lookahead;
-    this.lookahead = this.lex();
+
+    if (this.newlineSignificant && this.token?.line !== this.lookahead.line) {
+      this.token = this.makeToken(TokenType.Newline, '\n');
+      // lookahead remains the same
+    } else {
+      this.token = this.lookahead;
+      this.lookahead = this.lex();
+    }
   }
 
   // Consume a token if its value matches. Once consumed or not, return the

@@ -344,7 +344,8 @@ export default class Parser {
     if (!this.lexer.consume('then')) {
       if (canBeOneLiner) {
         // Handle special PICO-8 one-line if statement
-        // TODO make sure it's actually only one line
+
+        this.lexer.newlineSignificant = true;
 
         this.createScope();
         flowContext.pushScope();
@@ -366,7 +367,11 @@ export default class Parser {
           clauses.push(this.finishNode(AST.elseClause([elseStatement])));
         }
 
-        this.lexer.consumeEOL();
+        // Consume the significant newline
+        if (this.token.type == TokenType.Newline) {
+          this.lexer.next();
+        }
+        this.lexer.newlineSignificant = false;
 
         return this.finishNode(AST.ifStatement(clauses));
       } else {
@@ -573,7 +578,6 @@ export default class Parser {
         this.lexer.expect(')');
         lvalue = false;
       } else {
-        console.log(this.token);
         this.unexpectedToken(this.token);
       }
 
