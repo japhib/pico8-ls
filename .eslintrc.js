@@ -22,6 +22,7 @@ const TS_OVERRIDE = {
     '@typescript-eslint/no-non-null-assertion': 'off',
     '@typescript-eslint/explicit-module-boundary-types': 'off',
     '@typescript-eslint/no-inferrable-types': 'off',
+    '@typescript-eslint/object-curly-spacing': ['error', 'always'],
     '@typescript-eslint/quotes': [
       'error',
       'single',
@@ -74,5 +75,6 @@ module.exports = {
     'no-trailing-spaces': 'warn',
     'no-constant-condition': 'off',
     'no-case-declarations': 'off',
+    'object-curly-spacing': 'off',
   },
 };

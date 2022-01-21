@@ -1,3 +1,4 @@
+import { ParseError } from './errors';
 import { BinaryExpression, CallExpression, Comment_, Expression, GeneralTableField, Identifier, Indexer,
   IndexExpression, Variable, Literal, LogicalExpression, MemberExpression, StringCallExpression, StringLiteral,
   TableCallExpression, TableConstructorExpression, TableKey, TableKeyString, TableValue, UnaryExpression,
@@ -154,10 +155,11 @@ export default class AST {
     };
   }
 
-  static chunk(body: Statement[]): Chunk {
+  static chunk(body: Statement[], errors: ParseError[]): Chunk {
     return {
       type: 'Chunk',
-      body: body,
+      body,
+      errors,
     };
   }
 

@@ -31,6 +31,9 @@ export default class Parser {
   // A list of all global identifier nodes.
   globals: Identifier[] = [];
 
+  // Keep track of all errors that occurred while parsing.
+  errors: errors.ParseError[] = [];
+
   constructor(input: string) {
     this.lexer = new Lexer(input);
   }
@@ -62,7 +65,7 @@ export default class Parser {
   }
 
   unexpectedToken(found: Token): never {
-    const near = this.lexer.lookahead.value;
+    const near = this.lexer.lookahead!.value;
 
     let type;
     switch (found.type) {
@@ -155,11 +158,24 @@ export default class Parser {
     const flowContext = new FlowContext();
     flowContext.allowVararg = true;
     flowContext.pushScope();
-    const body = this.parseBlock(flowContext);
+    const body = this.parseBlock(flowContext, true);
     flowContext.popScope();
     this.destroyScope();
-    if (this.token.type !== TokenType.EOF) this.unexpectedToken(this.token);
-    return this.finishNode(AST.chunk(body));
+
+    if (this.token.type !== TokenType.EOF) {
+      // This is kinda dumb but we just want the error _object_ from unexpectedToken()
+      try {
+        this.unexpectedToken(this.token);
+      } catch (e) {
+        if (errors.isParseError(e)) {
+          this.errors.push(e);
+        } else {
+          throw e;
+        }
+      }
+    }
+
+    return this.finishNode(AST.chunk(body, this.errors));
   }
 
   // A block contains a list of statements with an optional return statement
@@ -167,15 +183,34 @@ export default class Parser {
   //
   //     block ::= {stat} [retstat]
 
-  parseBlock(flowContext: FlowContext): Statement[] {
+  parseBlock(flowContext: FlowContext, endsWithEOF?: boolean): Statement[] {
     const block: Statement[] = [];
+    const endingFunction = endsWithEOF ? isEndOfFile : isBlockFollow;
 
-    while (!isBlockFollow(this.token)) {
-      const statement = this.parseStatement(flowContext);
-      this.lexer.consume(';');
-      // Statements are only added if they are returned, this allows us to
-      // ignore some statements, such as EmptyStatement.
-      if (statement) block.push(statement);
+    while (!endingFunction(this.token)) {
+      try {
+        const statement = this.parseStatement(flowContext);
+        this.lexer.consume(';');
+        // Statements are only added if they are returned, this allows us to
+        // ignore some statements, such as EmptyStatement.
+        if (statement) block.push(statement);
+      } catch (e) {
+        if (errors.isParseError(e)) {
+          // Caught a parse error. Add it to errors and synchronize.
+          this.errors.push(e);
+
+          // Discard tokens until we get to the end of the block.
+          while (!endingFunction(this.token))
+            this.lexer.next();
+
+          // Since we discarded tokens until we got to the end of the block,
+          // we're now outside the block so we need to break out of the loop.
+          break;
+        } else {
+          // whoops, it was some other error, shouldn't have caught it
+          throw e;
+        }
+      }
     }
 
     // Doesn't really need an ast node
@@ -748,7 +783,7 @@ export default class Parser {
         value = this.parseExpectedExpression(flowContext);
         fields.push(this.finishNode(AST.tableKey(key, value)));
       } else if (this.token.type === TokenType.Identifier) {
-        if ('=' === this.lexer.lookahead.value) {
+        if ('=' === this.lexer.lookahead!.value) {
           key = this.parseIdentifier();
           this.lexer.next();
           value = this.parseExpectedExpression(flowContext);
@@ -1061,4 +1096,8 @@ function isBlockFollow(token: Token) {
   default:
     return false;
   }
+}
+
+function isEndOfFile(token: Token) {
+  return token.type === TokenType.EOF;
 }

@@ -1,3 +1,4 @@
+import { ParseError } from './errors';
 import { Comment_, Expression, Identifier, VarargLiteral, Variable, MemberExpression } from './expressions';
 import { Node_ } from './types';
 
@@ -112,6 +113,7 @@ export type Statement = LabelStatement | BreakStatement | GotoStatement | Return
 export type Chunk = {
   type: 'Chunk',
   body: Statement[],
+  errors: ParseError[],
   comments?: Comment_[],
   globals?: Identifier[],
 };

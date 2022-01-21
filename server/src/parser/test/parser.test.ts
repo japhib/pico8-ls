@@ -188,7 +188,27 @@ __gfx__
   });
 
   it('parses low.p8', () => {
-    // TODO check for errors when errors no longer throw exceptions
-    parse(getTestFileContents('low.p8'));
+    const { errors } = parse(getTestFileContents('low.p8'));
+    eq(errors, []);
+  });
+
+  describe.only('error handling', () => {
+    it('handles malformed function definition', () => {
+      const { errors } = parse('function[] end');
+      deepEquals(errors, [{ message: '<name> expected near \'[\'' }]);
+    });
+
+    it('if an error occurs inside a block, it breaks out of the block and continues parsing', () => {
+      const { body, errors } = parse(`
+      i = 1
+      function somefn()
+        blah blah blah
+      end
+      i = 2
+      `);
+
+      deepEquals(errors, [{ message: 'assignment operator expected near \'blah\'' }]);
+      deepEquals(body, [{ type: 'AssignmentStatement' }, { type: 'FunctionDeclaration' }, { type: 'AssignmentStatement' }]);
+    });
   });
 });

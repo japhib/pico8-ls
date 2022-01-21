@@ -1,9 +1,11 @@
 import * as assert from 'assert';
+import { ParseError } from '../errors';
 import Lexer from '../lexer';
 import { Token, TokenType, TokenValue } from '../tokens';
 
 function getLexedTokens(input: string): Token[] {
   const lexer = new Lexer(input);
+
   const tokens: Token[] = [];
 
   do {
@@ -85,10 +87,13 @@ describe('Lexer', () => {
 
     it('NumericLiteral', () => {
       // TODO more types of numeric literals
-      const tokens = getLexedTokens('123 45.03 .03');
+      const tokens = getLexedTokens('123 45.03 .03 0x34 0x3p1 0x3p-2');
       assertNextToken(tokens, TokenType.NumericLiteral, 123);
       assertNextToken(tokens, TokenType.NumericLiteral, 45.03);
       assertNextToken(tokens, TokenType.NumericLiteral, .03);
+      assertNextToken(tokens, TokenType.NumericLiteral, 52);
+      assertNextToken(tokens, TokenType.NumericLiteral, 6);
+      assertNextToken(tokens, TokenType.NumericLiteral, 0.75);
       assertNoMoreTokens(tokens);
     });
 
@@ -272,5 +277,31 @@ __gfx__
 0000000000001156eed0ed0eeeeeee`;
     const tokens = getLexedTokens(code);
     assertNoMoreTokens(tokens);
+  });
+
+  describe('error handling', () => {
+    it('returns an error for an unterminated string literal', () => {
+      assert.throws(() => { getLexedTokens('"asdf'); }, ParseError);
+    });
+
+    it('doesn\'t return an error the second time next() is called', () => {
+      const lexer = new Lexer('"asdf');
+
+      assert.throws(() => { lexer.next(); }, ParseError);
+      lexer.next();
+      assert.strictEqual(lexer.token!.type, TokenType.EOF);
+    });
+
+    it('errors on unterminated long string literal', () => {
+      assert.throws(() => { getLexedTokens('[[asdf'); }, ParseError);
+    });
+
+    it('errors on malformed hex number literal', () => {
+      assert.throws(() => { getLexedTokens('0xZ'); }, ParseError);
+    });
+
+    it('errors on hex number literal with malformed binary exponent', () => {
+      assert.throws(() => { getLexedTokens('0x3pQ'); }, ParseError);
+    });
   });
 });

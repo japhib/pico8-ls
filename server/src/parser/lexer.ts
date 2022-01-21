@@ -32,7 +32,7 @@ export default class Lexer {
   lineStart = 0;
   tokenStart = 0;
   comments: Comment_[] = [];
-  lookahead: Token;
+  lookahead: Token | undefined;
   previousToken: Token | undefined;
   token: Token | undefined;
   fullP8File: boolean = false;
@@ -55,7 +55,6 @@ export default class Lexer {
 
     // prime the pump
     this.skipHeader();
-    this.lookahead = this.lex();
   }
 
   skipHeader() {
@@ -105,7 +104,7 @@ export default class Lexer {
   // If there's no token in the buffer it means we have reached <eof>.
 
   unexpectedToken(found: Token): never {
-    const near = this.lookahead.value;
+    const near = this.lookahead!.value;
 
     let type;
     switch (found.type) {
@@ -375,13 +374,19 @@ export default class Lexer {
     let stringStart = this.index;
     let string = this.encodingMode.discardStrings ? null : '';
 
-    for (; ;) {
+    for (;;) {
       this.charCode = this.input.charCodeAt(this.index++);
       if (delimiter === this.charCode) break;
       // EOF or `\n` terminates a string literal. If we haven't found the
       // ending delimiter by now, raise an exception.
       if (this.index > this.length || isLineTerminator(this.charCode)) {
         string += this.input.slice(stringStart, this.index - 1);
+
+        // Get ready for next time lex() is called
+        if (isLineTerminator(this.charCode)) {
+          this.consumeEOL();
+        }
+
         this.raiseErr(errMessages.unfinishedString, this.input.slice(this.tokenStart, this.index - 1));
       }
       if (92 === this.charCode) { // backslash
@@ -694,10 +699,8 @@ export default class Lexer {
       }
     }
 
-    this.raiseErr(isComment ?
-      errMessages.unfinishedLongComment :
-      errMessages.unfinishedLongString,
-    firstLine, '<eof>');
+    const errMessage = isComment ? errMessages.unfinishedLongComment : errMessages.unfinishedLongString;
+    this.raiseErr(errMessage, firstLine, '<eof>');
   }
 
   // ## Lex functions and helpers.
@@ -710,9 +713,15 @@ export default class Lexer {
   next() {
     this.previousToken = this.token;
 
+    if (this.lookahead === undefined) {
+      // First time calling next(), we'll call lex() twice to get lookahead in
+      // the right state
+      this.lookahead = this.lex();
+    }
+
     if (this.newlineSignificant && this.token?.line !== this.lookahead.line) {
       this.token = this.makeToken(TokenType.Newline, '\n');
-      // lookahead remains the same
+      // lookahead remains the same until newlineSignificant is turned off
     } else {
       this.token = this.lookahead;
       this.lookahead = this.lex();

@@ -13,7 +13,7 @@ import {
 } from 'vscode-languageserver/node';
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import Parser from './parser/parser';
-import { isSyntaxError } from './parser/errors';
+import { isParseError } from './parser/errors';
 import { setLogger } from './logger';
 
 const connection = createConnection(ProposedFeatures.all);
@@ -62,7 +62,6 @@ connection.onInitialize((params: InitializeParams) => {
 connection.onInitialized(() => {
   if (hasConfigurationCapability) {
     // Register for all config changes
-    // eslint-disable-next-line @typescript-eslint/no-floating-promises
     connection.client.register(DidChangeConfigurationNotification.type, undefined);
   }
 
@@ -130,7 +129,7 @@ async function validateTextDocument(textDocument: TextDocument) {
   try {
     connection.console.log(JSON.stringify(parser.parseChunk()));
   } catch (e) {
-    if (isSyntaxError(e)) {
+    if (isParseError(e)) {
       const diagnostic: Diagnostic = {
         severity: DiagnosticSeverity.Error,
         range: {
