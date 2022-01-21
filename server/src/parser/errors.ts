@@ -28,8 +28,8 @@ export const errMessages = Object.freeze({
   invalidCodeUnit: 'code unit U+%1 is not allowed in the current encoding mode',
 });
 
-export class SyntaxError_ extends Error {
-  type = 'SyntaxError_';
+export class ParseError extends Error {
+  type = 'ParseError';
   message: string;
   location: LocationExt;
 
@@ -40,9 +40,8 @@ export class SyntaxError_ extends Error {
   }
 }
 
-// eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
-export function isSyntaxError(e: any): e is SyntaxError_ {
-  return typeof(e) == 'object' && e.type == 'SyntaxError_';
+export function isSyntaxError(e: any): e is ParseError {
+  return typeof(e) == 'object' && e.type == 'ParseError';
 }
 
 // #### Raise an exception.
@@ -61,7 +60,7 @@ export function isSyntaxError(e: any): e is SyntaxError_ {
 export function raiseErr(loc: LocationExt, fmtMessage: string, ...rest: any[]): never {
   // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
   const message = sprintf(fmtMessage, ...rest);
-  const error = new SyntaxError_(sprintf('[%1:%2] %3', loc.line, loc.column, message), loc);
+  const error = new ParseError(sprintf('[%1:%2] %3', loc.line, loc.column, message), loc);
   throw error;
 }
 
@@ -71,7 +70,7 @@ export function raiseErrForToken(token: Token, fmtMessage: string, ...rest: any[
   let col = 0;
 
   col = token.range[0] - token.lineStart;
-  const error = new SyntaxError_(sprintf('[%1:%2] %3', token.line, col, message), {index: token.index, line: token.line, column: col});
+  const error = new ParseError(sprintf('[%1:%2] %3', token.line, col, message), {index: token.index, line: token.line, column: col});
   throw error;
 }
 

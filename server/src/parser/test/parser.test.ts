@@ -1,6 +1,7 @@
 import { strictEqual as eq } from 'assert';
 import Parser from '../parser';
 import { Chunk } from '../statements';
+import { getTestFileContents } from './test-utils';
 
 function parse(input: string): Chunk {
   return new Parser(input).parseChunk();
@@ -174,5 +175,20 @@ describe('Parser', () => {
         }],
       },
     ]);
+  });
+
+  it('skips header and footer sections', () => {
+    const code = `pico-8 cartridge // http://www.pico-8.com
+version 29
+__lua__
+
+__gfx__
+0000000000001156eed0ed0eeeeeee`;
+    deepEqualsAST(code, []);
+  });
+
+  it('parses low.p8', () => {
+    // TODO check for errors when errors no longer throw exceptions
+    parse(getTestFileContents('low.p8'));
   });
 });

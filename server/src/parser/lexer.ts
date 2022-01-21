@@ -36,6 +36,7 @@ export default class Lexer {
   previousToken: Token | undefined;
   token: Token | undefined;
   fullP8File: boolean = false;
+  reachedEnd: boolean = false;
 
   input: string;
   length: number;
@@ -155,6 +156,10 @@ export default class Lexer {
   }
 
   lex(): Token {
+    if (this.reachedEnd) {
+      return this.makeToken(TokenType.EOF, '<eof>');
+    }
+
     this.skipWhiteSpace();
 
     while (
@@ -336,6 +341,11 @@ export default class Lexer {
     } else if ('nil' === value) {
       type = TokenType.NilLiteral;
       value = null;
+    } else if (isP8EndOfCodeSection(value)
+        && this.lineStart === this.tokenStart // has to be the only thing on the line
+        && isLineTerminator(this.input.charCodeAt(this.index))) {
+      this.reachedEnd = true;
+      type = TokenType.EOF;
     } else {
       type = TokenType.Identifier;
     }
@@ -792,4 +802,11 @@ function isKeyword(id: string): boolean {
     return 'function' === id;
   }
   return false;
+}
+
+function isP8EndOfCodeSection(value: string): boolean {
+  return value === '__gfx__'
+    || value === '__label__'
+    || value === '__gff__'
+    || value === '__map__';
 }

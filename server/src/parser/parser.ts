@@ -54,7 +54,7 @@ export default class Parser {
   finishNode<T>(node: T): T {
     // Pop a `Marker` off the location-array and attach its location data.
     const location = this.locations.pop();
-    if (location) {
+    if (location && this.previousToken) {
       location.complete(this.previousToken);
       location.bless(node);
     }
