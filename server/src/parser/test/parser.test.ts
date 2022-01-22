@@ -74,6 +74,23 @@ describe('Parser', () => {
     }]);
   });
 
+  it('parses function declaration with multiple args', () => {
+    deepEqualsAST('function fn(x, y, z) return end', [{
+      type: 'FunctionDeclaration',
+      isLocal: false,
+      identifier: { name: 'fn' },
+      parameters: [
+        { type: 'Identifier', name: 'x' },
+        { type: 'Identifier', name: 'y' },
+        { type: 'Identifier', name: 'z' },
+      ],
+      body: [{
+        type: 'ReturnStatement',
+        arguments: [],
+      }],
+    }]);
+  });
+
   it('parses call statement', () => {
     deepEqualsAST('print("hi")', [{
       type: 'CallStatement',
@@ -189,10 +206,10 @@ __gfx__
 
   it('parses low.p8', () => {
     const { errors } = parse(getTestFileContents('low.p8'));
-    eq(errors, []);
+    eq(errors.length, 0, 'Unexpected errors: ' + errors.map(e => `[${e.location.line}:${e.location.column}] ${e.message}`).join(','));
   });
 
-  describe.only('error handling', () => {
+  describe('error handling', () => {
     it('handles malformed function definition', () => {
       const { errors } = parse('function[] end');
       deepEquals(errors, [{ message: '<name> expected near \'[\'' }]);
@@ -209,6 +226,18 @@ __gfx__
 
       deepEquals(errors, [{ message: 'assignment operator expected near \'blah\'' }]);
       deepEquals(body, [{ type: 'AssignmentStatement' }, { type: 'FunctionDeclaration' }, { type: 'AssignmentStatement' }]);
+    });
+
+    it('can catch an error in both the function parameters and function body', () => {
+      const { errors } = parse(`
+      function somefn(i + 1, i + 2, i + 3)
+        blah() * 3
+      end
+      `);
+      deepEquals(errors, [
+        { message: '\')\' expected near \'+\'' },
+        { message: 'unexpected symbol \'*\' near \'3\'' },
+      ]);
     });
   });
 });

@@ -64,7 +64,7 @@ export default class Parser {
     return node;
   }
 
-  unexpectedToken(found: Token): never {
+  getUnexpectedTokenErr(found: Token): errors.ParseError {
     const near = this.lexer.lookahead!.value;
 
     let type;
@@ -76,14 +76,16 @@ export default class Parser {
     case TokenType.Punctuator:      type = 'symbol';      break;
     case TokenType.BooleanLiteral:  type = 'boolean';     break;
     case TokenType.NilLiteral:
-      errors.raiseErrForToken(found, errMessages.unexpected, 'symbol', 'nil', near);
-      break;
+      return errors.createErrForToken(found, errMessages.unexpected, 'symbol', 'nil', near);
     case TokenType.EOF:
-      errors.raiseErrForToken(found, errMessages.unexpectedEOF);
-      break;
+      return errors.createErrForToken(found, errMessages.unexpectedEOF);
     }
 
-    errors.raiseErrForToken(found, errMessages.unexpected, type, found.value, near);
+    return errors.createErrForToken(found, errMessages.unexpected, type, found.value, near);
+  }
+
+  unexpectedToken(found: Token): never {
+    throw this.getUnexpectedTokenErr(found);
   }
 
   // Location tracking
@@ -163,16 +165,7 @@ export default class Parser {
     this.destroyScope();
 
     if (this.token.type !== TokenType.EOF) {
-      // This is kinda dumb but we just want the error _object_ from unexpectedToken()
-      try {
-        this.unexpectedToken(this.token);
-      } catch (e) {
-        if (errors.isParseError(e)) {
-          this.errors.push(e);
-        } else {
-          throw e;
-        }
-      }
+      this.errors.push(this.getUnexpectedTokenErr(this.token));
     }
 
     return this.finishNode(AST.chunk(body, this.errors));
@@ -702,25 +695,39 @@ export default class Parser {
     if (!this.lexer.consume(')')) {
       // Arguments are a comma separated list of identifiers, optionally ending
       // with a Vararg.
-      while (true) {
+      do {
         if (this.token.type === TokenType.Identifier) {
           const parameter = this.parseIdentifier();
           // parameters are local.
           this.scopeIdentifier(parameter);
-
           parameters.push(parameter);
-
-          if (this.lexer.consume(',')) continue;
         }
-        // No arguments are allowed after a Vararg.
         else if (this.token.type === TokenType.VarargLiteral) {
           flowContext.allowVararg = true;
           parameters.push(this.parsePrimaryExpression(flowContext) as VarargLiteral);
+          // No arguments are allowed after a Vararg.
+          break;
         } else {
-          errors.raiseUnexpectedToken('<name> or \'...\'', this.token);
+          console.log('erroR!');
+          this.errors.push(errors.createErrForToken(this.token, errMessages.expectedToken, '<name> or \'...\'', this.token.value));
+
+          // Discard tokens until we get a ')' or ','
+          console.log(this.token.value);
+          while (this.token.value !== ')' && this.token.value !== ',') {
+            console.log(`discarding: ${this.token.type} ${this.token.value}`);
+            this.lexer.next();
+          }
+          console.log('after', this.token.value);
         }
-        this.lexer.expect(')');
-        break;
+      } while (this.lexer.consume(','));
+
+      if (!this.lexer.consume(')')) {
+        this.errors.push(errors.createErrForToken(this.token, errMessages.expected, ')', this.token.value));
+
+        // Discard tokens until we get a ')'
+        while (this.token.value !== ')') this.lexer.next();
+        // consume the ')'
+        this.lexer.next();
       }
     }
 

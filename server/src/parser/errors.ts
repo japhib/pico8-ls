@@ -57,21 +57,27 @@ export function isParseError(e: any): e is ParseError {
 //     // [1:0] expected [ near (
 //     raise(token, "expected %1 near %2", '[', token.value);
 
-export function raiseErr(loc: LocationExt, fmtMessage: string, ...rest: any[]): never {
+export function createErr(loc: LocationExt, fmtMessage: string, ...rest: any[]): ParseError {
   // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
   const message = sprintf(fmtMessage, ...rest);
-  const error = new ParseError(message, loc);
-  throw error;
+  return new ParseError(message, loc);
 }
 
-export function raiseErrForToken(token: Token, fmtMessage: string, ...rest: any[]): never {
+export function raiseErr(loc: LocationExt, fmtMessage: string, ...rest: any[]): never {
+  throw createErr(loc, fmtMessage, ...rest);
+}
+
+export function createErrForToken(token: Token, fmtMessage: string, ...rest: any[]): ParseError {
   // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
   const message = sprintf(fmtMessage, ...rest);
   let col = 0;
 
   col = token.range[0] - token.lineStart;
-  const error = new ParseError(message, { index: token.index, line: token.line, column: col });
-  throw error;
+  return new ParseError(message, { index: token.index, line: token.line, column: col });
+}
+
+export function raiseErrForToken(token: Token, fmtMessage: string, ...rest: any[]): never {
+  throw createErrForToken(token, fmtMessage, ...rest);
 }
 
 // #### Raise an unexpected token error.
