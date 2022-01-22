@@ -13,8 +13,9 @@ import {
 } from 'vscode-languageserver/node';
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import Parser from './parser/parser';
-import { isParseError } from './parser/errors';
 import { setLogger } from './logger';
+
+console.log('Server starting.');
 
 const connection = createConnection(ProposedFeatures.all);
 setLogger((msg: string) => connection.console.log(msg));
@@ -122,27 +123,21 @@ function getDocumentSettings(resource: string): Thenable<ExampleSettings> {
 async function validateTextDocument(textDocument: TextDocument) {
   const settings = await getDocumentSettings(textDocument.uri);
 
-  const diagnostics: Diagnostic[] = [];
-
   // parse document and discover problems
   const parser = new Parser(textDocument.getText());
-  try {
-    connection.console.log(JSON.stringify(parser.parseChunk()));
-  } catch (e) {
-    if (isParseError(e)) {
-      const diagnostic: Diagnostic = {
-        severity: DiagnosticSeverity.Error,
-        range: {
-          start: textDocument.positionAt(e.location.index),
-          end: textDocument.positionAt(e.location.index),
-        },
-        message: e.message,
-        source: 'PICO-8 LS'
-      };
+  parser.parse();
 
-      diagnostics.push(diagnostic);
-    }
-  }
+  const diagnostics: Diagnostic[] = parser.errors.map(err => {
+    return {
+      message: err.message,
+      range: {
+        start: textDocument.positionAt(err.bounds.start.index),
+        end: textDocument.positionAt(err.bounds.end.index),
+      },
+      severity: DiagnosticSeverity.Error,
+      source: 'PICO-8 LS',
+    };
+  });
 
   connection.sendDiagnostics({ uri: textDocument.uri, diagnostics });
 }
@@ -172,3 +167,5 @@ documents.listen(connection);
 
 // Listen on the connection
 connection.listen();
+
+console.log('Server launched.');

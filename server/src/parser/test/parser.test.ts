@@ -206,7 +206,7 @@ __gfx__
 
   it('parses low.p8', () => {
     const { errors } = parse(getTestFileContents('low.p8'));
-    eq(errors.length, 0, 'Unexpected errors: ' + errors.map(e => `[${e.location.line}:${e.location.column}] ${e.message}`).join(','));
+    eq(errors.length, 0, 'Unexpected errors: ' + errors.map(e => `[${e.bounds.start.line}:${e.bounds.end.column}] ${e.message}`).join(','));
   });
 
   describe('error handling', () => {

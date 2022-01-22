@@ -1,27 +1,27 @@
 import { ParseError } from './errors';
 import { Comment_, Expression, Identifier, VarargLiteral, Variable, MemberExpression } from './expressions';
-import { Node_ } from './types';
+import { ASTNode } from './types';
 
-export type LabelStatement = Node_ & {
+export type LabelStatement = ASTNode & {
   type: 'LabelStatement',
   label: Identifier
 };
 
-export type BreakStatement = Node_ & {
+export type BreakStatement = ASTNode & {
   type: 'BreakStatement',
 };
 
-export type GotoStatement = Node_ & {
+export type GotoStatement = ASTNode & {
   type: 'GotoStatement',
   label: Identifier,
 };
 
-export type ReturnStatement = Node_ & {
+export type ReturnStatement = ASTNode & {
   type: 'ReturnStatement',
   arguments: Expression[],
 };
 
-export type IfStatement = Node_ & {
+export type IfStatement = ASTNode & {
   type: 'IfStatement',
   clauses: GeneralIfClause[],
 };
@@ -45,42 +45,42 @@ export type ElseClause = {
 
 export type GeneralIfClause = IfClause | ElseifClause | ElseClause;
 
-export type WhileStatement = Node_ & {
+export type WhileStatement = ASTNode & {
   type: 'WhileStatement',
   condition: Expression,
   body: Statement[],
 };
 
-export type DoStatement = Node_ & {
+export type DoStatement = ASTNode & {
   type: 'DoStatement',
   body: Statement[],
 };
 
-export type RepeatStatement = Node_ & {
+export type RepeatStatement = ASTNode & {
   type: 'RepeatStatement',
   condition: Expression,
   body: Statement[],
 };
 
-export type LocalStatement = Node_ & {
+export type LocalStatement = ASTNode & {
   type: 'LocalStatement',
   variables: Variable[],
   init: Expression[],
 };
 
-export type AssignmentStatement = Node_ & {
+export type AssignmentStatement = ASTNode & {
   type: 'AssignmentStatement',
   variables: Variable[],
   operator: string,
   init: Expression[],
 };
 
-export type CallStatement = Node_ & {
+export type CallStatement = ASTNode & {
   type: 'CallStatement',
   expression: Expression | null,
 };
 
-export type ForNumericStatement = Node_ & {
+export type ForNumericStatement = ASTNode & {
   type: 'ForNumericStatement',
   variable: Variable,
   start: Expression,
@@ -89,7 +89,7 @@ export type ForNumericStatement = Node_ & {
   body: Statement[],
 };
 
-export type ForGenericStatement = Node_ & {
+export type ForGenericStatement = ASTNode & {
   type: 'ForGenericStatement',
   variables: Variable[],
   iterators: Expression[],
@@ -98,7 +98,7 @@ export type ForGenericStatement = Node_ & {
 
 export type FunctionParameter = Identifier | VarargLiteral;
 
-export type FunctionDeclaration = Node_ & {
+export type FunctionDeclaration = ASTNode & {
   type: 'FunctionDeclaration',
   identifier: Identifier | MemberExpression | null,
   isLocal: boolean,

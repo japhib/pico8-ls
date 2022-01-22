@@ -1,41 +1,20 @@
 import { Token } from './tokens';
-import { Bounds, Node_, Range_ } from './types';
+import { Bounds, ASTNode } from './types';
 
 export default class Marker {
-  loc?: Bounds;
-  range?: Range_;
+  loc: Bounds;
 
   constructor(token: Token) {
-    this.loc = {
-      start: {
-        line: token.line,
-        column: token.range[0] - token.lineStart,
-      },
-      end: {
-        line: 0,
-        column: 0,
-      },
-    };
+    this.loc = token.bounds;
   }
 
   // Complete the location data stored in the `Marker` by adding the location
   // of the *previous token* as an end location.
   complete(previousToken: Token) {
-    this.loc!.end.line = previousToken.lastLine || previousToken.line;
-    this.loc!.end.column = previousToken.range[1] - (previousToken.lastLineStart || previousToken.lineStart);
+    this.loc.end = previousToken.bounds.end;
   }
 
-  bless(node: Node_) {
-    const loc = this.loc!;
-    node.loc = {
-      start: {
-        line: loc.start.line,
-        column: loc.start.column,
-      },
-      end: {
-        line: loc.end.line,
-        column: loc.end.column,
-      },
-    };
+  bless(node: ASTNode) {
+    node.loc = this.loc;
   }
 }

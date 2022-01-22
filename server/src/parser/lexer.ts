@@ -4,7 +4,7 @@ import * as errors from './errors';
 import { errMessages } from './errors';
 import { Comment_ } from './expressions';
 import { Token, TokenType, TokenValue } from './tokens';
-import { LocationExt } from './types';
+import { Bounds, CodeLocation } from './types';
 
 // Lexer
 // -----
@@ -25,12 +25,20 @@ import { LocationExt } from './types';
 //
 // `lex()` starts lexing and returns the following token in the stream.
 export default class Lexer {
-  charCode = 0;
-  peekCharCodeindex = 0;
-  index = 0;
-  line = 1;
-  lineStart = 0;
-  tokenStart = 0;
+  charCode: number = 0;
+  peekCharCodeindex: number = 0;
+
+  // where we currently are
+  index: number = 0;
+  line: number = 1;
+  // Index where the current line started
+  lineStart: number = 0;
+
+  // Keep track of where the current token started
+  tokenStart: number = 0;
+  tokenStartLine: number = 0;
+  tokenStartLineIdx: number = 0;
+
   comments: Comment_[] = [];
   lookahead: Token | undefined;
   previousToken: Token | undefined;
@@ -132,14 +140,17 @@ export default class Lexer {
 
   raiseErr(fmtMessage: string, ...rest: any[]): never {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-    errors.raiseErr(this.getLocation(), fmtMessage, ...rest);
+    errors.raiseErr(this.getCurrentBounds(), fmtMessage, ...rest);
   }
 
-  getLocation(): LocationExt {
+  getLocation(): CodeLocation {
+    return { index: this.index, line: this.line, column: this.index - this.lineStart + 1 };
+  }
+
+  getCurrentBounds(): Bounds {
     return {
-      index: this.index,
-      line: this.line,
-      column: this.index - this.lineStart + 1,
+      start: { index: this.tokenStart, line: this.tokenStartLine, column: this.tokenStart - this.tokenStartLineIdx },
+      end: { index: this.index, line: this.line, column: this.index - this.lineStart },
     };
   }
 
@@ -147,10 +158,7 @@ export default class Lexer {
     return {
       type: type,
       value: value,
-      index: this.index,
-      line: this.line,
-      lineStart: this.lineStart,
-      range: [this.tokenStart, this.index],
+      bounds: this.getCurrentBounds(),
     };
   }
 
@@ -179,6 +187,8 @@ export default class Lexer {
 
     // Memorize the range index where the token begins.
     this.tokenStart = this.index;
+    this.tokenStartLine = this.line;
+    this.tokenStartLineIdx = this.index;
     if (isIdentifierStart(charCode)) return this.scanIdentifierOrKeyword();
 
     switch (charCode) {
@@ -644,10 +654,9 @@ export default class Lexer {
     // `Marker`s depend on tokens available in the parser and as comments are
     // intercepted in the lexer all location data is set manually.
     node.loc = {
-      start: { line: lineComment, column: this.tokenStart - lineStartComment },
-      end: { line: this.line, column: this.index - this.lineStart },
+      start: { index: this.tokenStart, line: lineComment, column: this.tokenStart - lineStartComment },
+      end: { index: this.index, line: this.line, column: this.index - this.lineStart },
     };
-    node.range = [this.tokenStart, this.index];
     this.comments.push(node);
   }
 
@@ -719,7 +728,7 @@ export default class Lexer {
       this.lookahead = this.lex();
     }
 
-    if (this.newlineSignificant && this.token?.line !== this.lookahead.line) {
+    if (this.newlineSignificant && this.token?.bounds.start.line !== this.lookahead.bounds.start.line) {
       this.token = this.makeToken(TokenType.Newline, '\n');
       // lookahead remains the same until newlineSignificant is turned off
     } else {

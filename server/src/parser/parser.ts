@@ -1061,7 +1061,7 @@ export default class Parser {
 
     if (literals.includes(type)) {
       this.pushLocation(marker);
-      const raw = this.lexer.input.slice(this.token.range[0], this.token.range[1]);
+      const raw = this.lexer.input.slice(this.token.bounds.start.index, this.token.bounds.end.index);
       this.lexer.next();
       return this.finishNode(AST.literal(type, value, raw));
     } else if (type === TokenType.Keyword && 'function' === value) {

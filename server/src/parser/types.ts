@@ -1,22 +1,14 @@
-export type Location_ = {
-  line: number,
-  column: number,
-};
-
-export type LocationExt = {
+export type CodeLocation = {
   line: number,
   column: number,
   index: number,
 };
 
 export type Bounds = {
-  start: Location_,
-  end: Location_,
+  start: CodeLocation,
+  end: CodeLocation,
 };
 
-export type Range_ = [begin: number, end: number];
-
-export type Node_ = {
+export type ASTNode = {
   loc?: Bounds,
-  range?: Range_,
 };

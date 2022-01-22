@@ -1,9 +1,9 @@
 import { errMessages, raiseErr } from './errors';
-import { LocationExt } from './types';
+import { CodeLocation } from './types';
 
 export type EncodingMode = {
   discardStrings: boolean;
-  fixup: (loc: LocationExt, s: string) => string;
+  fixup: (loc: CodeLocation, s: string) => string;
   encodeByte: (value: null | number) => string;
   encodeUTF8: (codepoint: number, highMask?: number) => string | null;
 };
@@ -44,11 +44,11 @@ function toHex(num: number, digits: number): string {
   return result;
 }
 
-function checkChars(loc: LocationExt, s: string, rx: RegExp) {
+function checkChars(loc: CodeLocation, s: string, rx: RegExp) {
   const m = rx.exec(s);
   if (!m)
     return s;
-  raiseErr(loc, errMessages.invalidCodeUnit, toHex(m[0].charCodeAt(0), 4).toUpperCase());
+  raiseErr({ start: loc, end: loc }, errMessages.invalidCodeUnit, toHex(m[0].charCodeAt(0), 4).toUpperCase());
 }
 
 // TODO fix this up so it converts PICO-8 special characters into the right "ascii" characters or whatever
@@ -60,7 +60,7 @@ function checkChars(loc: LocationExt, s: string, rx: RegExp) {
 class PseudoLatin1 implements EncodingMode {
   discardStrings = false;
 
-  fixup(loc: LocationExt, s: string): string {
+  fixup(loc: CodeLocation, s: string): string {
     return checkChars(loc, s, /[^\x00-\xff]/);
   }
 
@@ -80,7 +80,7 @@ class PseudoLatin1 implements EncodingMode {
 class XUserDefined implements EncodingMode {
   discardStrings = false;
 
-  fixup(loc: LocationExt, s: string): string {
+  fixup(loc: CodeLocation, s: string): string {
     return checkChars(loc, s, /[^\x00-\x7f\uf780-\uf7ff]/);
   }
 
@@ -103,6 +103,7 @@ class NoEncodingMode implements EncodingMode {
   discardStrings = true;
 
   fixup(s: any): any {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
     return s;
   }
 
@@ -123,7 +124,7 @@ export enum EncodingModeType {
   None = 'none',
 }
 
-export const encodingModes: {[key in EncodingModeType]: EncodingMode} = {
+export const encodingModes: { [key in EncodingModeType]: EncodingMode } = {
   'pseudo-latin1': new PseudoLatin1(),
   'x-user-defined': new XUserDefined(),
   'none': new NoEncodingMode(),

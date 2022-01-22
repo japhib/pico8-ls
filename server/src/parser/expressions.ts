@@ -1,7 +1,7 @@
 import { FunctionDeclaration } from './statements';
-import { Node_ } from './types';
+import { ASTNode } from './types';
 
-export type Identifier = Node_ & {
+export type Identifier = ASTNode & {
   type: 'Identifier',
   name: string,
   isLocal?: boolean,
@@ -9,29 +9,29 @@ export type Identifier = Node_ & {
 
 export type Variable = Identifier | MemberExpression;
 
-export type StringLiteral = Node_ & {
+export type StringLiteral = ASTNode & {
   type: 'StringLiteral',
   value: string,
   raw: string,
 };
 
-export type NumericLiteral = Node_ & {
+export type NumericLiteral = ASTNode & {
   type: 'NumericLiteral',
   value: number,
   raw: string,
 };
 
-export type BooleanLiteral = Node_ & {
+export type BooleanLiteral = ASTNode & {
   type: 'BooleanLiteral',
   value: boolean,
 };
 
-export type NilLiteral = Node_ & {
+export type NilLiteral = ASTNode & {
   type: 'NilLiteral'
 };
 
 // A VarargLiteral is '...'
-export type VarargLiteral = Node_ & {
+export type VarargLiteral = ASTNode & {
   type: 'VarargLiteral',
   value: any,
   raw: string,
@@ -58,26 +58,26 @@ export type TableValue = {
 
 export type GeneralTableField = TableKey | TableKeyString | TableValue;
 
-export type TableConstructorExpression = Node_ & {
+export type TableConstructorExpression = ASTNode & {
   type: 'TableConstructorExpression',
   fields: GeneralTableField[],
 };
 
-export type BinaryExpression = Node_ & {
+export type BinaryExpression = ASTNode & {
   type: 'BinaryExpression',
   operator: string,
   left: Expression,
   right: Expression,
 };
 
-export type LogicalExpression = Node_ & {
+export type LogicalExpression = ASTNode & {
   type: 'LogicalExpression',
   operator: 'and' | 'or',
   left: Expression,
   right: Expression,
 };
 
-export type UnaryExpression = Node_ & {
+export type UnaryExpression = ASTNode & {
   type: 'UnaryExpression',
   operator: string,
   argument: Expression,
@@ -85,33 +85,33 @@ export type UnaryExpression = Node_ & {
 
 export type Indexer = '.' | ':';
 
-export type MemberExpression = Node_ & {
+export type MemberExpression = ASTNode & {
   type: 'MemberExpression',
   indexer: Indexer,
   identifier: Identifier,
   base: Identifier | MemberExpression,
 };
 
-export type IndexExpression = Node_ & {
+export type IndexExpression = ASTNode & {
   type: 'IndexExpression',
   base: Identifier | MemberExpression,
   index: Expression,
 };
 
-export type CallExpression = Node_ & {
+export type CallExpression = ASTNode & {
   type: 'CallExpression',
   base: Expression,
   arguments: Expression[],
 };
 
-export type TableCallExpression = Node_ & {
+export type TableCallExpression = ASTNode & {
   type: 'TableCallExpression',
   base: Expression,
   arguments: TableConstructorExpression,
   argument: TableConstructorExpression,
 };
 
-export type StringCallExpression = Node_ & {
+export type StringCallExpression = ASTNode & {
   type: 'StringCallExpression',
   base: Expression,
   argument: StringLiteral,
@@ -121,7 +121,7 @@ export type Expression = TableConstructorExpression | BinaryExpression | Logical
   | MemberExpression | IndexExpression | CallExpression | TableCallExpression | StringCallExpression | Literal
   | Identifier | FunctionDeclaration;
 
-export type Comment_ = Node_ & {
+export type Comment_ = ASTNode & {
   type: 'Comment',
   value: string,
   raw: string,

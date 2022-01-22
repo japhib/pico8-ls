@@ -2,7 +2,7 @@
 // will be different in some situations.
 
 import { Token } from './tokens';
-import { LocationExt } from './types';
+import { Bounds } from './types';
 import { sprintf } from './util';
 
 export const errMessages = Object.freeze({
@@ -31,12 +31,12 @@ export const errMessages = Object.freeze({
 export class ParseError extends Error {
   type = 'ParseError';
   message: string;
-  location: LocationExt;
+  bounds: Bounds;
 
-  constructor(message: string, location: LocationExt) {
+  constructor(message: string, bounds: Bounds) {
     super();
     this.message = message;
-    this.location = location;
+    this.bounds = bounds;
   }
 }
 
@@ -57,23 +57,18 @@ export function isParseError(e: any): e is ParseError {
 //     // [1:0] expected [ near (
 //     raise(token, "expected %1 near %2", '[', token.value);
 
-export function createErr(loc: LocationExt, fmtMessage: string, ...rest: any[]): ParseError {
+export function createErr(bounds: Bounds, fmtMessage: string, ...rest: any[]): ParseError {
   // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
   const message = sprintf(fmtMessage, ...rest);
-  return new ParseError(message, loc);
+  return new ParseError(message, bounds);
 }
 
-export function raiseErr(loc: LocationExt, fmtMessage: string, ...rest: any[]): never {
-  throw createErr(loc, fmtMessage, ...rest);
+export function raiseErr(bounds: Bounds, fmtMessage: string, ...rest: any[]): never {
+  throw createErr(bounds, fmtMessage, ...rest);
 }
 
 export function createErrForToken(token: Token, fmtMessage: string, ...rest: any[]): ParseError {
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-  const message = sprintf(fmtMessage, ...rest);
-  let col = 0;
-
-  col = token.range[0] - token.lineStart;
-  return new ParseError(message, { index: token.index, line: token.line, column: col });
+  return new ParseError(sprintf(fmtMessage, ...rest), token.bounds);
 }
 
 export function raiseErrForToken(token: Token, fmtMessage: string, ...rest: any[]): never {

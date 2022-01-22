@@ -20,7 +20,7 @@ export type Local = {
 };
 
 export type FlowScope = {
-  labels: {[key: string]: Label},
+  labels: { [key: string]: Label },
   locals: Local[],
   deferredGotos: Goto[],
   isLoop: boolean,
@@ -119,7 +119,7 @@ export class FlowContext {
 
     scope.labels[name] = {
       localCount: scope.locals.length,
-      line: token.line,
+      line: token.bounds.start.line,
     };
   }
 

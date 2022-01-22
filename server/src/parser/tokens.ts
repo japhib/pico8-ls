@@ -1,4 +1,4 @@
-import { Range_ } from './types';
+import { Bounds } from './types';
 
 export enum TokenType {
   EOF = 'EOF',
@@ -18,10 +18,5 @@ export type TokenValue = string | boolean | number | null;
 export type Token = {
   type: TokenType,
   value: TokenValue,
-  index: number,
-  line: number,
-  lineStart: number,
-  range: Range_,
-  lastLine?: number,
-  lastLineStart?: number,
+  bounds: Bounds,
 };
