@@ -52,7 +52,7 @@ connection.onInitialize((params: InitializeParams) => {
         resolveProvider: true,
       },
       documentSymbolProvider: true,
-      definitionProvider: true,
+      // definitionProvider: true,
     },
   };
 
@@ -183,10 +183,10 @@ connection.onDocumentSymbol((params: DocumentSymbolParams) => {
   return documentSymbols.get(params.textDocument.uri);
 });
 
-connection.onDefinition((params: DefinitionParams) => {
-  console.log(params);
-  return [];
-})
+// connection.onDefinition((params: DefinitionParams) => {
+//   console.log(params);
+//   return [];
+// })
 
 connection.onDidChangeWatchedFiles(_change => {
   // Monitored files have change in VS Code

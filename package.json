@@ -1,7 +1,7 @@
 {
 	"name": "pico8-ls",
 	"description": "PICO-8 Language Server",
-	"icon": "icon.png",
+	"icon": "img/icon.png",
 	"author": "JanPaul Bergeson",
 	"publisher": "PollywogGames",
 	"license": "MIT",
@@ -55,8 +55,8 @@
 				],
 				"configuration": "./syntaxes/language-configuration.json",
 				"icon": {
-					"light": "./icon.png",
-					"dark": "./icon.png"
+					"light": "./img/light/icon.png",
+					"dark": "./img/dark/icon.png"
 				}
 			},
 			{
