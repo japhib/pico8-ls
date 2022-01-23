@@ -81,6 +81,7 @@ export default class Parser {
     case TokenType.NumericLiteral:  type = 'number';      break;
     case TokenType.Punctuator:      type = 'symbol';      break;
     case TokenType.BooleanLiteral:  type = 'boolean';     break;
+    case TokenType.Newline:         type = 'newline';     break;
     case TokenType.NilLiteral:
       return errors.createErrForToken(found, errMessages.unexpected, 'symbol', 'nil', near);
     case TokenType.EOF:
@@ -176,7 +177,7 @@ export default class Parser {
 
     const chunk = this.finishNode(AST.chunk(body, this.errors, []));
 
-    this.findSymbols(chunk);
+    this.resolveSymbols(chunk);
     chunk.symbols = this.symbols;
 
     return chunk;
@@ -203,13 +204,19 @@ export default class Parser {
           // Caught a parse error. Add it to errors and synchronize.
           this.errors.push(e);
 
-          // Discard tokens until we get to the end of the block.
-          while (!endingFunction(this.token))
+          // Discard tokens until we get to the end of the line or end of the block
+          this.lexer.newlineSignificant = true;
+          while (this.token.type !== TokenType.Newline && !endingFunction(this.token))
             this.lexer.next();
+          this.lexer.newlineSignificant = false;
 
-          // Since we discarded tokens until we got to the end of the block,
-          // we're now outside the block so we need to break out of the loop.
-          break;
+          if (this.token.type === TokenType.Newline)
+            // If we got to a newline, consume the newline token and continue parsing.
+            this.lexer.next();
+          else
+            // Otherwise we got to the end of the block so we should stop.
+            break;
+
         } else {
           // whoops, it was some other error, shouldn't have caught it
           throw e;
@@ -1117,7 +1124,13 @@ export default class Parser {
     this.getTopSymbolsScope().add(name);
   }
 
-  findSymbols(chunk: Chunk) {
+  // Goes through and parses the symbol data from the AST.
+  // This provides us with the data we need for several different requests:
+  //   - List symbols in document
+  //   - Go to definition
+  //   - Find usages
+  //   - Rename
+  resolveSymbols(chunk: Chunk) {
     this.findSymbolsInBlock(chunk.body);
   }
 

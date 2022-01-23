@@ -729,7 +729,7 @@ export default class Lexer {
     }
 
     if (this.newlineSignificant && this.token?.bounds.start.line !== this.lookahead.bounds.start.line) {
-      this.token = this.makeToken(TokenType.Newline, '\n');
+      this.token = this.makeToken(TokenType.Newline, '\\n');
       // lookahead remains the same until newlineSignificant is turned off
     } else {
       this.token = this.lookahead;

@@ -229,6 +229,20 @@ __gfx__
       deepEquals(body, [{ type: 'AssignmentStatement' }, { type: 'FunctionDeclaration' }, { type: 'AssignmentStatement' }]);
     });
 
+    it('finds multiple errors on different lines in a block', () => {
+      const { errors } = parse(`
+      blah blah blah
+      blah blah blah
+      blah blah blah
+      `);
+
+      deepEquals(errors, [
+        { message: 'assignment operator expected near \'blah\'' },
+        { message: 'assignment operator expected near \'blah\'' },
+        { message: 'assignment operator expected near \'blah\'' },
+      ]);
+    });
+
     it('can catch an error in both the function parameters and function body', () => {
       const { errors } = parse(`
       function somefn(i + 1, i + 2, i + 3)
@@ -242,7 +256,7 @@ __gfx__
     });
   });
 
-  describe.only('symbols', () => {
+  describe('symbols', () => {
     it('defines a symbol for a function', () => {
       const { symbols } = parse(`
       function somefn(x, y, z)

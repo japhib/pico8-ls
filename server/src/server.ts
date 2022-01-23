@@ -2,6 +2,7 @@ import * as path from 'path';
 import {
   CompletionItem,
   createConnection,
+  DefinitionParams,
   Diagnostic,
   DiagnosticSeverity,
   DidChangeConfigurationNotification,
@@ -51,6 +52,7 @@ connection.onInitialize((params: InitializeParams) => {
         resolveProvider: true,
       },
       documentSymbolProvider: true,
+      definitionProvider: true,
     },
   };
 
@@ -180,6 +182,11 @@ async function validateTextDocument(textDocument: TextDocument) {
 connection.onDocumentSymbol((params: DocumentSymbolParams) => {
   return documentSymbols.get(params.textDocument.uri);
 });
+
+connection.onDefinition((params: DefinitionParams) => {
+  console.log(params);
+  return [];
+})
 
 connection.onDidChangeWatchedFiles(_change => {
   // Monitored files have change in VS Code
