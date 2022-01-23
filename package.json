@@ -46,9 +46,13 @@
 				],
 				"extensions": [
 					".p8"
-				]
+				],
+				"configuration": "./syntaxes/language-configuration.json"
 			},
-			{ "id": "pico-8-lua" }
+			{
+				"id": "pico-8-lua",
+				"configuration": "./syntaxes/language-configuration.json"
+			}
 		],
 		"grammars": [
 			{

@@ -1,6 +1,6 @@
 import { ParseError } from './errors';
-import { Comment_, Expression, Identifier, VarargLiteral, Variable, MemberExpression } from './expressions';
-import { ASTNode } from './types';
+import { Comment_, Expression, Identifier, VarargLiteral, Variable, MemberExpression, getMemberExpressionName } from './expressions';
+import { ASTNode, CodeSymbol } from './types';
 
 export type LabelStatement = ASTNode & {
   type: 'LabelStatement',
@@ -65,6 +65,7 @@ export type RepeatStatement = ASTNode & {
 export type LocalStatement = ASTNode & {
   type: 'LocalStatement',
   variables: Variable[],
+  operator?: string,
   init: Expression[],
 };
 
@@ -106,6 +107,14 @@ export type FunctionDeclaration = ASTNode & {
   body: Statement[],
 };
 
+export function getFunctionDeclarationName(funcDeclaration: FunctionDeclaration): string {
+  if (!funcDeclaration.identifier)
+    return '<anonymous function>';
+
+  return funcDeclaration.identifier.type === 'Identifier' ?
+    funcDeclaration.identifier.name : getMemberExpressionName(funcDeclaration.identifier);
+}
+
 export type Statement = LabelStatement | BreakStatement | GotoStatement | ReturnStatement | IfStatement
   | WhileStatement | DoStatement | RepeatStatement | LocalStatement | AssignmentStatement | CallStatement
   | FunctionDeclaration | ForNumericStatement | ForGenericStatement;
@@ -114,6 +123,7 @@ export type Chunk = {
   type: 'Chunk',
   body: Statement[],
   errors: ParseError[],
+  symbols: CodeSymbol[],
   comments?: Comment_[],
   globals?: Identifier[],
 };

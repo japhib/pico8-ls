@@ -1,6 +1,7 @@
 import { strictEqual as eq } from 'assert';
 import Parser from '../parser';
 import { Chunk } from '../statements';
+import { CodeSymbolType } from '../types';
 import { getTestFileContents } from './test-utils';
 
 function parse(input: string): Chunk {
@@ -237,6 +238,127 @@ __gfx__
       deepEquals(errors, [
         { message: '\')\' expected near \'+\'' },
         { message: 'unexpected symbol \'*\' near \'3\'' },
+      ]);
+    });
+  });
+
+  describe.only('symbols', () => {
+    it('defines a symbol for a function', () => {
+      const { symbols } = parse(`
+      function somefn(x, y, z)
+        return x + y + z
+      end
+      `);
+
+      deepEquals(symbols, [{
+        name: 'somefn',
+        type: CodeSymbolType.Function,
+        parentName: undefined,
+      }]);
+    });
+
+    it('defines a symbol for nested functions', () => {
+      const { symbols } = parse(`
+      function somefn(x)
+
+        function nested(y) print(y) end
+
+        return x
+      end
+      `);
+
+      deepEquals(symbols, [
+        {
+          name: 'somefn',
+          type: CodeSymbolType.Function,
+          parentName: undefined,
+        },
+        {
+          name: 'nested',
+          type: CodeSymbolType.Function,
+          parentName: 'somefn',
+        },
+      ]);
+    });
+
+    it('defines a symbol for a top-level global variable', () => {
+      const { symbols } = parse('i = 1');
+      deepEquals(symbols, [{
+        name: 'i',
+        type: CodeSymbolType.GlobalVariable,
+        parentName: undefined,
+      }]);
+    });
+
+    it('doesn\'t repeat symbol for global variable re-assigned later', () => {
+      const { symbols } = parse(`
+      i = 1
+      i = 2
+      `);
+      deepEquals(symbols, [{
+        name: 'i',
+        type: CodeSymbolType.GlobalVariable,
+        parentName: undefined,
+      }]);
+    });
+
+    it('defines a symbol for a top-level local variable', () => {
+      const { symbols } = parse('local i = 1');
+      deepEquals(symbols, [{
+        name: 'i',
+        type: CodeSymbolType.LocalVariable,
+        parentName: undefined,
+      }]);
+    });
+
+    it('doesn\'t repeat symbol for local variable assigned later', () => {
+      const { symbols } = parse(`
+      local i
+      i = 1
+      `);
+      deepEquals(symbols, [{
+        name: 'i',
+        type: CodeSymbolType.LocalVariable,
+        parentName: undefined,
+      }]);
+    });
+
+    it('defines symbol for global and local variables in function, with parentName set appropriately', () => {
+      const { symbols } = parse(`
+      function somefn()
+        some_global = 0
+        local i = 1
+      end
+      `);
+      deepEquals(symbols, [
+        { name: 'somefn', type: CodeSymbolType.Function },
+        {
+          name: 'some_global',
+          type: CodeSymbolType.GlobalVariable,
+          // Note the global doesn't have parentName
+          parentName: undefined,
+        },
+        {
+          name: 'i',
+          type: CodeSymbolType.LocalVariable,
+          parentName: 'somefn',
+        },
+      ]);
+    });
+
+    it('does not repeat symbols for local/global variable re-use', () => {
+      const { symbols } = parse(`
+      function somefn()
+        some_global = 0
+        local i = 1
+        i = 47
+        some_global = 29
+      end
+      `);
+      deepEquals(symbols, [
+        { name: 'somefn', type: CodeSymbolType.Function },
+        { name: 'some_global', type: CodeSymbolType.GlobalVariable, parentName: undefined },
+        { name: 'i', type: CodeSymbolType.LocalVariable, parentName: 'somefn' },
       ]);
     });
   });

@@ -50,6 +50,7 @@ function getClientOptions(): LanguageClientOptions {
     documentSelector: [{ scheme: 'file', language: 'pico-8' }],
     synchronize: {
       // Notify the server about file changes to .pico8ls files in the workspace
+      // (we'll use that file for config later on)
       fileEvents: workspace.createFileSystemWatcher('**/.pico8ls'),
     },
   };

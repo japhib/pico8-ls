@@ -7,6 +7,7 @@ import { AssignmentStatement, BreakStatement, CallStatement, Chunk, DoStatement,
   ForGenericStatement, ForNumericStatement, FunctionDeclaration, FunctionParameter, GeneralIfClause,
   GotoStatement, IfClause, IfStatement, LabelStatement, LocalStatement, RepeatStatement, ReturnStatement,
   Statement, WhileStatement } from './statements';
+import { CodeSymbol } from './types';
 
 // ### Abstract Syntax Tree
 //
@@ -90,20 +91,21 @@ export default class AST {
     };
   }
 
-  static localStatement(variables: Variable[], init: Expression[]): LocalStatement {
+  static localStatement(variables: Variable[], operator: string | undefined, init: Expression[]): LocalStatement {
     return {
       type: 'LocalStatement',
-      variables: variables,
-      init: init,
+      variables,
+      operator,
+      init,
     };
   }
 
   static assignmentStatement(variables: Variable[], operator: string, init: Expression[]): AssignmentStatement {
     return {
       type: 'AssignmentStatement',
-      variables: variables,
+      variables,
       operator,
-      init: init,
+      init,
     };
   }
 
@@ -155,11 +157,12 @@ export default class AST {
     };
   }
 
-  static chunk(body: Statement[], errors: ParseError[]): Chunk {
+  static chunk(body: Statement[], errors: ParseError[], symbols: CodeSymbol[]): Chunk {
     return {
       type: 'Chunk',
       body,
       errors,
+      symbols,
     };
   }
 

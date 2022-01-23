@@ -92,6 +92,13 @@ export type MemberExpression = ASTNode & {
   base: Identifier | MemberExpression,
 };
 
+export function getMemberExpressionName(memberExpression: MemberExpression): string {
+  const baseName = memberExpression.base.type === 'Identifier' ? memberExpression.base.name
+    : getMemberExpressionName(memberExpression.base);
+
+  return baseName + memberExpression.indexer + memberExpression.identifier.name;
+}
+
 export type IndexExpression = ASTNode & {
   type: 'IndexExpression',
   base: Identifier | MemberExpression,

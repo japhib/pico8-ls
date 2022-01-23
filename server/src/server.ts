@@ -1,24 +1,27 @@
+import * as path from 'path';
 import {
   CompletionItem,
   createConnection,
   Diagnostic,
   DiagnosticSeverity,
   DidChangeConfigurationNotification,
+  DocumentSymbolParams,
   InitializeParams,
   InitializeResult,
   ProposedFeatures,
+  SymbolInformation,
+  SymbolKind,
   TextDocumentPositionParams,
   TextDocuments,
   TextDocumentSyncKind
 } from 'vscode-languageserver/node';
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import Parser from './parser/parser';
-import { setLogger } from './logger';
+import { CodeSymbolType } from './parser/types';
 
 console.log('Server starting.');
 
 const connection = createConnection(ProposedFeatures.all);
-setLogger((msg: string) => connection.console.log(msg));
 
 const documents = new TextDocuments(TextDocument);
 
@@ -47,6 +50,7 @@ connection.onInitialize((params: InitializeParams) => {
         triggerCharacters: ['.', ':'],
         resolveProvider: true,
       },
+      documentSymbolProvider: true,
     },
   };
 
@@ -75,22 +79,26 @@ connection.onInitialized(() => {
 });
 
 // The example settings
-interface ExampleSettings {
+interface DocumentSettings {
   maxNumberOfProblems: number;
 }
 
 // The global settings, used when the `workspace/configuration` request is not supported by the client.
 // Please note that this is not the case when using this server with the client provided in this example
 // but could happen with other clients.
-const defaultSettings: ExampleSettings = { maxNumberOfProblems: 1000 };
-let globalSettings: ExampleSettings = defaultSettings;
+const defaultSettings: DocumentSettings = { maxNumberOfProblems: 1000 };
+let globalSettings: DocumentSettings = defaultSettings;
 
-// Cache the settings of all open documents
-const documentSettings: Map<string, Thenable<ExampleSettings>> = new Map();
-// When a document is closed, purge its entry from the cache
-documents.onDidClose(e => documentSettings.delete(e.document.uri));
 // Set up validation handler for when document changes
 documents.onDidChangeContent(change => validateTextDocument(change.document));
+
+// Cache the settings of all open documents
+const documentSettings: Map<string, Thenable<DocumentSettings>> = new Map();
+// When a document is closed, purge its entry from the cache
+documents.onDidClose(e => documentSettings.delete(e.document.uri));
+
+// Symbols for open documents
+const documentSymbols: Map<string, SymbolInformation[]> = new Map();
 
 connection.onDidChangeConfiguration(change => {
   if (hasConfigurationCapability) {
@@ -105,7 +113,7 @@ connection.onDidChangeConfiguration(change => {
   documents.all().forEach(validateTextDocument);
 });
 
-function getDocumentSettings(resource: string): Thenable<ExampleSettings> {
+function getDocumentSettings(resource: string): Thenable<DocumentSettings> {
   if (!hasConfigurationCapability)
     return Promise.resolve(globalSettings);
 
@@ -120,14 +128,41 @@ function getDocumentSettings(resource: string): Thenable<ExampleSettings> {
   return result;
 }
 
+const symbolTypeLookup = {
+  [CodeSymbolType.Function]: SymbolKind.Function,
+  [CodeSymbolType.LocalVariable]: SymbolKind.Variable,
+  // Obviously a global variable is not a class, but we use it since it has a nicer symbol
+  [CodeSymbolType.GlobalVariable]: SymbolKind.Class,
+}
+
 async function validateTextDocument(textDocument: TextDocument) {
   const settings = await getDocumentSettings(textDocument.uri);
 
   // parse document and discover problems
   const parser = new Parser(textDocument.getText());
-  parser.parse();
+  const { errors, symbols } = parser.parse();
 
-  const diagnostics: Diagnostic[] = parser.errors.map(err => {
+  const symbolInfo: SymbolInformation[] = [];
+  symbolInfo.push(SymbolInformation.create(
+    path.basename(textDocument.uri, '.p8'),
+    SymbolKind.Module,
+    {
+      start: textDocument.positionAt(0),
+      end: textDocument.positionAt(Number.MAX_VALUE),
+    }));
+  symbolInfo.push(...symbols.map(sym => {
+    return SymbolInformation.create(
+      sym.name,
+      symbolTypeLookup[sym.type],
+      {
+        start: textDocument.positionAt(sym.loc.start.index),
+        end: textDocument.positionAt(sym.loc.end.index),
+      },
+      sym.parentName);
+  }));
+  documentSymbols.set(textDocument.uri, symbolInfo);
+
+  const diagnostics: Diagnostic[] = errors.map(err => {
     return {
       message: err.message,
       range: {
@@ -141,6 +176,10 @@ async function validateTextDocument(textDocument: TextDocument) {
 
   connection.sendDiagnostics({ uri: textDocument.uri, diagnostics });
 }
+
+connection.onDocumentSymbol((params: DocumentSymbolParams) => {
+  return documentSymbols.get(params.textDocument.uri);
+});
 
 connection.onDidChangeWatchedFiles(_change => {
   // Monitored files have change in VS Code

@@ -12,3 +12,16 @@ export type Bounds = {
 export type ASTNode = {
   loc?: Bounds,
 };
+
+export enum CodeSymbolType {
+  Function = 'Function',
+  LocalVariable = 'LocalVariable',
+  GlobalVariable = 'GlobalVariable',
+}
+
+export type CodeSymbol = {
+  name: string,
+  loc: Bounds,
+  type: CodeSymbolType,
+  parentName?: string,
+};

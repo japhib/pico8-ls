@@ -8,9 +8,10 @@ import { CallExpression, Expression, Identifier, Variable, Literal, MemberExpres
 import Lexer from './lexer';
 import Marker from './marker';
 import { AssignmentStatement, BreakStatement, CallStatement, Chunk, DoStatement, ForGenericStatement, ForNumericStatement,
-  FunctionDeclaration, GeneralIfClause, GotoStatement, IfStatement, LabelStatement, LocalStatement, RepeatStatement,
+  FunctionDeclaration, GeneralIfClause, getFunctionDeclarationName, GotoStatement, IfStatement, LabelStatement, LocalStatement, RepeatStatement,
   ReturnStatement, Statement, WhileStatement } from './statements';
 import { Token, TokenType } from './tokens';
+import { Bounds, CodeSymbol, CodeSymbolType } from './types';
 import { indexOfObject } from './util';
 
 export type Scope = string[];
@@ -33,6 +34,11 @@ export default class Parser {
 
   // Keep track of all errors that occurred while parsing.
   errors: errors.ParseError[] = [];
+
+  // Keep track of all the symbols we encounter while parsing.
+  symbols: CodeSymbol[] = [];
+  globalSymbols: Set<string> = new Set();
+  localSymbols: Set<string>[] = [];
 
   constructor(input: string) {
     this.lexer = new Lexer(input);
@@ -168,7 +174,12 @@ export default class Parser {
       this.errors.push(this.getUnexpectedTokenErr(this.token));
     }
 
-    return this.finishNode(AST.chunk(body, this.errors));
+    const chunk = this.finishNode(AST.chunk(body, this.errors, []));
+
+    this.findSymbols(chunk);
+    chunk.symbols = this.symbols;
+
+    return chunk;
   }
 
   // A block contains a list of statements with an optional return statement
@@ -539,7 +550,11 @@ export default class Parser {
         flowContext.addLocal(name.name, declToken);
       } while (this.lexer.consume(','));
 
-      if (this.lexer.consume('=')) {
+      let operator: string | undefined = undefined;
+      if (isAssignmentOperator(this.token)) {
+        operator = this.token.value as string;
+        this.lexer.next();
+
         do {
           const expression = this.parseExpectedExpression(flowContext);
           init.push(expression);
@@ -555,7 +570,7 @@ export default class Parser {
         }
       }
 
-      return this.finishNode(AST.localStatement(variables, init));
+      return this.finishNode(AST.localStatement(variables, operator, init));
     }
     if (this.lexer.consume('function')) {
       name = this.parseIdentifier();
@@ -1075,6 +1090,92 @@ export default class Parser {
     }
 
     return null;
+  }
+
+  getTopSymbolsScope(): Set<string> {
+    if (this.localSymbols.length > 0) {
+      return this.localSymbols[this.localSymbols.length - 1];
+    }
+
+    return this.globalSymbols;
+  }
+
+  pushSymbolsScope() {
+    this.localSymbols.push(new Set<string>());
+  }
+
+  popSymbolsScope() {
+    this.localSymbols.pop();
+  }
+
+  isSymbolInScope(symbolName: string) {
+    return this.getTopSymbolsScope().has(symbolName);
+  }
+
+  addSymbol(name: string, type: CodeSymbolType, loc: Bounds, parentName?: string) {
+    this.symbols.push({ name, type, loc, parentName });
+    this.getTopSymbolsScope().add(name);
+  }
+
+  findSymbols(chunk: Chunk) {
+    this.findSymbolsInBlock(chunk.body);
+  }
+
+  findSymbolsInBlock(block: Statement[], parentName?: string) {
+    for (const statement of block) {
+      switch (statement.type) {
+      case 'FunctionDeclaration':
+        const name = getFunctionDeclarationName(statement);
+
+        if (statement.identifier) {
+          // Only add the symbol if the function has a name
+          this.addSymbol(
+            name,
+            CodeSymbolType.Function,
+            statement.loc!,
+            parentName);
+        }
+
+        this.pushSymbolsScope();
+        this.findSymbolsInBlock(statement.body, name);
+        this.popSymbolsScope();
+        break;
+
+      case 'AssignmentStatement':
+        // Only global symbols can come out of this function call, so we unset parentName
+        this.findSymbolsInAssignment(statement, undefined);
+        break;
+
+      case 'LocalStatement':
+        // Similar to AssignmentStatement, but first we add all variable names
+        // to the current scope
+        for (const variable of statement.variables) {
+          this.addSymbol(
+            (variable as Identifier).name,
+            CodeSymbolType.LocalVariable,
+            statement.loc!,
+            parentName);
+        }
+        this.findSymbolsInAssignment(statement, parentName);
+        break;
+      }
+    }
+  }
+
+  findSymbolsInAssignment(statement: AssignmentStatement | LocalStatement, parentName: string | undefined) {
+    for (const variable of statement.variables) {
+      if (variable.type !== 'Identifier')
+        continue;
+
+      const name = variable.name;
+      if (!this.isSymbolInScope(name)) {
+        this.addSymbol(
+          variable.name,
+          CodeSymbolType.GlobalVariable,
+          statement.loc!,
+          parentName);
+      }
+    }
   }
 }
 
