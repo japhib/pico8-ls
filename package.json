@@ -1,9 +1,15 @@
 {
 	"name": "pico8-ls",
 	"description": "PICO-8 Language Server",
+	"icon": "icon.png",
 	"author": "JanPaul Bergeson",
+	"publisher": "PollywogGames",
 	"license": "MIT",
 	"version": "0.0.1",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/japhib/pico8-ls"
+	},
 	"engines": {
 		"vscode": "^1.63.0"
 	},
@@ -47,7 +53,11 @@
 				"extensions": [
 					".p8"
 				],
-				"configuration": "./syntaxes/language-configuration.json"
+				"configuration": "./syntaxes/language-configuration.json",
+				"icon": {
+					"light": "./icon.png",
+					"dark": "./icon.png"
+				}
 			},
 			{
 				"id": "pico-8-lua",

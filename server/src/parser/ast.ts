@@ -212,11 +212,11 @@ export default class AST {
       value: value,
     };
   }
-  static tableKeyString(key: Expression, value: Expression): TableKeyString {
+  static tableKeyString(key: Identifier, value: Expression): TableKeyString {
     return {
       type: 'TableKeyString',
-      key: key,
-      value: value,
+      key,
+      value,
     };
   }
   static tableValue(value: Expression): TableValue {
@@ -286,7 +286,6 @@ export default class AST {
       type: 'TableCallExpression',
       base: base,
       'arguments': args,
-      argument: args,
     };
   }
 

@@ -47,7 +47,7 @@ export type TableKey = {
 
 export type TableKeyString = {
   type: 'TableKeyString',
-  key: Expression,
+  key: Identifier,
   value: Expression,
 };
 
@@ -115,7 +115,6 @@ export type TableCallExpression = ASTNode & {
   type: 'TableCallExpression',
   base: Expression,
   arguments: TableConstructorExpression,
-  argument: TableConstructorExpression,
 };
 
 export type StringCallExpression = ASTNode & {
