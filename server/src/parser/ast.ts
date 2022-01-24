@@ -132,7 +132,7 @@ export default class AST {
   }
 
   static forNumericStatement(
-    variable: Variable,
+    variable: Identifier,
     start: Expression,
     end: Expression,
     step: Expression | null,
@@ -148,7 +148,7 @@ export default class AST {
     };
   }
 
-  static forGenericStatement(variables: Variable[], iterators: Expression[], body: Statement[]): ForGenericStatement {
+  static forGenericStatement(variables: Identifier[], iterators: Expression[], body: Statement[]): ForGenericStatement {
     return {
       type: 'ForGenericStatement',
       variables: variables,

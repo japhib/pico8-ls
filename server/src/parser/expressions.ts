@@ -39,19 +39,22 @@ export type VarargLiteral = ASTNode & {
 
 export type Literal = StringLiteral | NumericLiteral | BooleanLiteral | NilLiteral | VarargLiteral;
 
-export type TableKey = {
+// { [keyExpr] = value }
+export type TableKey = ASTNode & {
   type: 'TableKey',
   key: Expression,
   value: Expression,
 };
 
-export type TableKeyString = {
+// { key = value }
+export type TableKeyString = ASTNode & {
   type: 'TableKeyString',
   key: Identifier,
   value: Expression,
 };
 
-export type TableValue = {
+// { value }
+export type TableValue = ASTNode & {
   type: 'TableValue',
   value: Expression,
 };
@@ -85,6 +88,8 @@ export type UnaryExpression = ASTNode & {
 
 export type Indexer = '.' | ':';
 
+// base.identifier
+// or base:identifier
 export type MemberExpression = ASTNode & {
   type: 'MemberExpression',
   indexer: Indexer,
@@ -99,6 +104,7 @@ export function getMemberExpressionName(memberExpression: MemberExpression): str
   return baseName + memberExpression.indexer + memberExpression.identifier.name;
 }
 
+// base[index]
 export type IndexExpression = ASTNode & {
   type: 'IndexExpression',
   base: Identifier | MemberExpression,
@@ -111,12 +117,14 @@ export type CallExpression = ASTNode & {
   arguments: Expression[],
 };
 
+// func { argument }
 export type TableCallExpression = ASTNode & {
   type: 'TableCallExpression',
   base: Expression,
   arguments: TableConstructorExpression,
 };
 
+// func "argument"
 export type StringCallExpression = ASTNode & {
   type: 'StringCallExpression',
   base: Expression,

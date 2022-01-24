@@ -84,7 +84,7 @@ export type CallStatement = ASTNode & {
 
 export type ForNumericStatement = ASTNode & {
   type: 'ForNumericStatement',
-  variable: Variable,
+  variable: Identifier,
   start: Expression,
   end: Expression,
   step: Expression | null,
@@ -93,7 +93,7 @@ export type ForNumericStatement = ASTNode & {
 
 export type ForGenericStatement = ASTNode & {
   type: 'ForGenericStatement',
-  variables: Variable[],
+  variables: Identifier[],
   iterators: Expression[],
   body: Statement[],
 };

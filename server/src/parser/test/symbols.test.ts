@@ -102,7 +102,7 @@ describe('SymbolFinder', () => {
     ]);
   });
 
-  it('defines symbol for global and local variables in function, with parentName set appropriately', () => {
+  it('defines symbol for global and local variables in function', () => {
     const { symbols } = parse(`
 		function somefn()
 			some_global = 0
@@ -124,6 +124,57 @@ describe('SymbolFinder', () => {
         name: 'some_global',
         type: CodeSymbolType.GlobalVariable,
       },
+    ]);
+  });
+
+  it('defines symbols for variables inside control-flow constructs', () => {
+    const { symbols } = parse(`
+    function somefn()
+      -- for numeric
+      for i=1,10 do
+        local f
+      end
+      -- for generic
+      for k, v in pairs(tbl) do
+        local g = k
+        print(g)
+      end
+      -- while
+      while f do
+        local ghert = 10
+      end
+      -- repeat
+      repeat
+        local testing = 5
+      until 5 == 7
+      -- do
+      do
+      local testing_do = 5
+      end
+      -- if/elseif/else
+      if false then
+        local if1 = 1
+      elseif false then
+        local if2 = 1
+      else
+        local if3 = 1
+      end
+    end`);
+    deepEquals(symbols, [
+      { name: 'somefn', type: CodeSymbolType.Function, children: [
+        // for numeric
+        { name: 'i' }, { name: 'f' },
+        // for generic
+        { name: 'k' }, { name: 'v' }, { name: 'g' },
+        // while
+        { name: 'ghert' },
+        // repeat
+        { name: 'testing' },
+        // do
+        { name: 'testing_do' },
+        // if/elseif/else
+        { name: 'if1' }, { name: 'if2' }, { name: 'if3' },
+      ] },
     ]);
   });
 
@@ -152,7 +203,7 @@ describe('SymbolFinder', () => {
 			return x
 		end`);
 
-    deepEquals(symbols, [{ name: 'somefn', type: CodeSymbolType.Function, parentName: undefined }]);
+    deepEquals(symbols, [{ name: 'somefn', type: CodeSymbolType.Function }]);
   });
 
   it('provides a symbol for a table member', () => {
@@ -165,6 +216,29 @@ describe('SymbolFinder', () => {
     deepEquals(symbols, [
       { name: 'thing', type: CodeSymbolType.GlobalVariable, children: [
         { name: 'asdf', type: CodeSymbolType.LocalVariable },
+        { name: 'trav', type: CodeSymbolType.Function },
+      ] },
+    ]);
+  });
+
+  it('provides symbols for nested table members', () => {
+    const { symbols } = parse(`
+		thing = {
+      zxc = '1',
+			asdf = {
+        qwe = 2,
+        ert = function() end,
+      },
+			trav = function() end,
+		}`);
+
+    deepEquals(symbols, [
+      { name: 'thing', type: CodeSymbolType.GlobalVariable, children: [
+        { name: 'zxc', type: CodeSymbolType.LocalVariable },
+        { name: 'asdf', type: CodeSymbolType.LocalVariable, children: [
+          { name: 'qwe', type: CodeSymbolType.LocalVariable },
+          { name: 'ert', type: CodeSymbolType.Function },
+        ] },
         { name: 'trav', type: CodeSymbolType.Function },
       ] },
     ]);

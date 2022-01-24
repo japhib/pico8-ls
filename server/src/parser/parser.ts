@@ -10,7 +10,7 @@ import Marker from './marker';
 import { AssignmentStatement, BreakStatement, CallStatement, Chunk, DoStatement, ForGenericStatement, ForNumericStatement,
   FunctionDeclaration, GeneralIfClause, GotoStatement, IfStatement, LabelStatement, LocalStatement, RepeatStatement,
   ReturnStatement, Statement, WhileStatement } from './statements';
-import { SymbolFinder } from './symbols';
+import { findSymbols } from './symbols';
 import { Token, TokenType } from './tokens';
 import { indexOfObject } from './util';
 
@@ -171,7 +171,7 @@ export default class Parser {
     }
 
     const chunk = this.finishNode(AST.chunk(body, this.errors, []));
-    chunk.symbols = new SymbolFinder(chunk).findSymbols();
+    chunk.symbols = findSymbols(chunk);
     return chunk;
   }
 
@@ -467,12 +467,8 @@ export default class Parser {
     let variable = this.parseIdentifier();
     let body;
 
-    // The start-identifier is local.
-
-    {
-      this.createScope();
-      this.scopeIdentifier(variable);
-    }
+    this.createScope();
+    this.scopeIdentifier(variable);
 
     // If the first expression is followed by a `=` punctuator, this is a
     // Numeric For Statement.
