@@ -18,7 +18,8 @@ import {
 } from 'vscode-languageserver/node';
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import Parser from './parser/parser';
-import { Bounds, CodeSymbol, CodeSymbolType } from './parser/types';
+import { Bounds } from './parser/types';
+import { CodeSymbolType, CodeSymbol } from './parser/symbols';
 
 console.log('Server starting.');
 

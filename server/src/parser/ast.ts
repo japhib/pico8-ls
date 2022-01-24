@@ -7,7 +7,7 @@ import { AssignmentStatement, BreakStatement, CallStatement, Chunk, DoStatement,
   ForGenericStatement, ForNumericStatement, FunctionDeclaration, FunctionParameter, GeneralIfClause,
   GotoStatement, IfClause, IfStatement, LabelStatement, LocalStatement, RepeatStatement, ReturnStatement,
   Statement, WhileStatement } from './statements';
-import { CodeSymbol } from './types';
+import { CodeSymbol } from './symbols';
 
 // ### Abstract Syntax Tree
 //

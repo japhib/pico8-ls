@@ -1,6 +1,7 @@
 import { ParseError } from './errors';
 import { Comment_, Expression, Identifier, VarargLiteral, Variable, MemberExpression, getMemberExpressionName } from './expressions';
-import { ASTNode, CodeSymbol } from './types';
+import { CodeSymbol } from './symbols';
+import { ASTNode } from './types';
 
 export type LabelStatement = ASTNode & {
   type: 'LabelStatement',

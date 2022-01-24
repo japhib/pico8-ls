@@ -3,15 +3,15 @@ import { FlowContext } from './control-flow';
 import * as errors from './errors';
 import { errMessages, raiseErrForToken } from './errors';
 import { CallExpression, Expression, Identifier, Variable, Literal, MemberExpression, StringCallExpression, StringLiteral,
-  TableCallExpression, TableConstructorExpression, VarargLiteral, getMemberExpressionName,
+  TableCallExpression, TableConstructorExpression, VarargLiteral,
 } from './expressions';
 import Lexer from './lexer';
 import Marker from './marker';
 import { AssignmentStatement, BreakStatement, CallStatement, Chunk, DoStatement, ForGenericStatement, ForNumericStatement,
-  FunctionDeclaration, GeneralIfClause, getFunctionDeclarationName, GotoStatement, IfStatement, LabelStatement, LocalStatement, RepeatStatement,
+  FunctionDeclaration, GeneralIfClause, GotoStatement, IfStatement, LabelStatement, LocalStatement, RepeatStatement,
   ReturnStatement, Statement, WhileStatement } from './statements';
+import { SymbolFinder } from './symbols';
 import { Token, TokenType } from './tokens';
-import { Bounds, CodeSymbol, CodeSymbolType } from './types';
 import { indexOfObject } from './util';
 
 export type Scope = string[];
@@ -34,11 +34,6 @@ export default class Parser {
 
   // Keep track of all errors that occurred while parsing.
   errors: errors.ParseError[] = [];
-
-  // List of symbols, populated after parsing.
-  symbols: CodeSymbol[] = [];
-  globalSymbols: Set<string> = new Set();
-  localSymbols: Set<string>[] = [];
 
   constructor(input: string) {
     this.lexer = new Lexer(input);
@@ -176,10 +171,7 @@ export default class Parser {
     }
 
     const chunk = this.finishNode(AST.chunk(body, this.errors, []));
-
-    this.resolveSymbols(chunk);
-    chunk.symbols = this.symbols;
-
+    chunk.symbols = new SymbolFinder(chunk).findSymbols();
     return chunk;
   }
 
@@ -1093,179 +1085,6 @@ export default class Parser {
     }
 
     return null;
-  }
-
-  getTopSymbolsScope(): Set<string> {
-    if (this.localSymbols.length > 0) {
-      return this.localSymbols[this.localSymbols.length - 1];
-    }
-
-    return this.globalSymbols;
-  }
-
-  pushSymbolsScope() {
-    this.localSymbols.push(new Set<string>());
-  }
-
-  popSymbolsScope() {
-    this.localSymbols.pop();
-  }
-
-  isSymbolInLocalScope(symbolName: string) {
-    if (this.localSymbols.length === 0) {
-      return false;
-    }
-
-    return this.localSymbols[this.localSymbols.length - 1].has(symbolName);
-  }
-
-  addSymbol(name: string, detail: string | undefined, type: CodeSymbolType, loc: Bounds, selectionLoc: Bounds, addToLocalScope: boolean, parent?: CodeSymbol): CodeSymbol {
-    if (!name) {
-      // This is validated by the client and causes the whole request to fail
-      throw new Error('name cannot be falsey! ' + JSON.stringify({ detail, type, loc }));
-    }
-
-    const symbol: CodeSymbol = { name, detail, type, loc, selectionLoc, children: [] };
-    if (parent) parent.children.push(symbol);
-    else this.symbols.push(symbol);
-
-    if (addToLocalScope) this.getTopSymbolsScope().add(name);
-
-    return symbol;
-  }
-
-  // Goes through and parses the symbol data from the AST.
-  // This provides us with the data we need for several different requests:
-  //   - List symbols in document
-  //   - Go to definition
-  //   - Find usages
-  //   - Rename
-  resolveSymbols(chunk: Chunk) {
-    this.findSymbolsInBlock(chunk.body);
-  }
-
-  findSymbolsInBlock(block: Statement[], parent?: CodeSymbol) {
-    for (const statement of block) {
-      switch (statement.type) {
-      case 'FunctionDeclaration':
-        this.findSymbolsInFunctionDefinition(statement, parent);
-        break;
-
-      case 'AssignmentStatement':
-      case 'LocalStatement':
-        this.findSymbolsInAssignment(statement, parent);
-        break;
-      }
-    }
-  }
-
-  findSymbolsInFunctionDefinition(statement: FunctionDeclaration, parent: CodeSymbol | undefined) {
-    const name = getFunctionDeclarationName(statement);
-
-    let funcSym = parent;
-
-    // Only add the symbol if the function has a name
-    if (statement.identifier) {
-      // Add function signature as detail
-      let detail = statement.parameters.map(param => {
-        if (param.type === 'Identifier') return param.name;
-        else return '...';
-      }).join(',');
-      detail = '(' + detail + ')';
-
-      funcSym = this.addSymbol(
-        name,
-        detail,
-        CodeSymbolType.Function,
-        statement.loc!,
-        statement.identifier.loc!,
-        parent !== undefined,
-        parent);
-    }
-
-    this.pushSymbolsScope();
-
-    // Add a symbol for each parameter
-    for (const param of statement.parameters) {
-      // Don't care about vararg literals
-      if (param.type !== 'Identifier')
-        continue;
-      this.addSymbol(
-        param.name,
-        undefined,
-        CodeSymbolType.LocalVariable,
-        param.loc!,
-        param.loc!,
-        true,
-        funcSym);
-    }
-
-    this.findSymbolsInBlock(statement.body, funcSym);
-
-    this.popSymbolsScope();
-  }
-
-  findSymbolsInAssignment(statement: AssignmentStatement | LocalStatement, parent: CodeSymbol | undefined) {
-    const isLocal = statement.type === 'LocalStatement';
-
-    for (let i = 0; i < statement.variables.length; i++) {
-      const variable = statement.variables[i];
-      if (variable.type !== 'MemberExpression' && variable.type !== 'Identifier') {
-        // Don't create symbols for stuff like:
-        //   a[b] = c
-        continue;
-      }
-
-      const name = variable.type === 'MemberExpression' ? getMemberExpressionName(variable) : variable.name;
-
-      const varLocal = isLocal || this.isSymbolInLocalScope(name);
-
-      // Get variable type
-      let varType = varLocal ? CodeSymbolType.LocalVariable : CodeSymbolType.GlobalVariable;
-      // check initializer to see if it's actually a function
-      const initializer = statement.init[i];
-      if (initializer && initializer.type === 'FunctionDeclaration') {
-        varType = CodeSymbolType.Function;
-      }
-
-      // clear parent if it's global
-      const varParent = varLocal ? parent : undefined;
-
-      const sym = this.addSymbol(
-        name,
-        undefined,
-        varType,
-        statement.loc!,
-        variable.loc!,
-        varLocal,
-        varParent);
-
-      // Now that we've added the symbol for the variable itself, check if it's being initialized to
-      // a table and if so, add symbols for its members.
-      if (initializer && initializer.type === 'TableConstructorExpression') {
-        this.findSymbolsInTableConstructor(initializer, sym);
-      }
-    }
-  }
-
-  findSymbolsInTableConstructor(expression: TableConstructorExpression, parent: CodeSymbol) {
-    for (const field of expression.fields) {
-      // Only add symbols for explicit string keys (without [])
-      if (field.type !== 'TableKeyString') continue;
-
-      const varType = field.value.type === 'FunctionDeclaration' ?
-        CodeSymbolType.Function : CodeSymbolType.LocalVariable;
-
-      this.addSymbol(
-        field.key.name,
-        undefined,
-        varType,
-        // The full location is from the beginning of the key to the end of the value
-        { start: field.key.loc!.start, end: field.value.loc!.end },
-        field.key.loc!,
-        true,
-        parent);
-    }
   }
 }
 
