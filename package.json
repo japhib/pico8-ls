@@ -14,7 +14,8 @@
 		"vscode": "^1.63.0"
 	},
 	"activationEvents": [
-		"onLanguage:pico-8"
+		"onLanguage:pico-8",
+		"onLanguage:pico-8-lua"
 	],
 	"main": "./client/out/extension",
 	"contributes": {
@@ -61,6 +62,9 @@
 			},
 			{
 				"id": "pico-8-lua",
+				"extensions": [
+					".lua"
+				],
 				"configuration": "./syntaxes/language-configuration.json"
 			}
 		],

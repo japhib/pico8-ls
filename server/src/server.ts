@@ -1,4 +1,3 @@
-import * as path from 'path';
 import {
   CompletionItem,
   createConnection,
@@ -6,11 +5,12 @@ import {
   Diagnostic,
   DiagnosticSeverity,
   DidChangeConfigurationNotification,
+  DocumentSymbol,
   DocumentSymbolParams,
   InitializeParams,
   InitializeResult,
   ProposedFeatures,
-  SymbolInformation,
+  Range,
   SymbolKind,
   TextDocumentPositionParams,
   TextDocuments,
@@ -18,7 +18,7 @@ import {
 } from 'vscode-languageserver/node';
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import Parser from './parser/parser';
-import { CodeSymbolType } from './parser/types';
+import { CodeSymbol, CodeSymbolType } from './parser/types';
 
 console.log('Server starting.');
 
@@ -47,10 +47,10 @@ connection.onInitialize((params: InitializeParams) => {
   const result: InitializeResult = {
     capabilities: {
       textDocumentSync: TextDocumentSyncKind.Incremental,
-      completionProvider: {
-        triggerCharacters: ['.', ':'],
-        resolveProvider: true,
-      },
+      // completionProvider: {
+      //   triggerCharacters: ['.', ':'],
+      //   resolveProvider: true,
+      // },
       documentSymbolProvider: true,
       // definitionProvider: true,
     },
@@ -100,7 +100,7 @@ const documentSettings: Map<string, Thenable<DocumentSettings>> = new Map();
 documents.onDidClose(e => documentSettings.delete(e.document.uri));
 
 // Symbols for open documents
-const documentSymbols: Map<string, SymbolInformation[]> = new Map();
+const documentSymbols: Map<string, DocumentSymbol[]> = new Map();
 
 connection.onDidChangeConfiguration(change => {
   if (hasConfigurationCapability) {
@@ -137,6 +137,22 @@ const symbolTypeLookup = {
   [CodeSymbolType.GlobalVariable]: SymbolKind.Class,
 }
 
+function toDocumentSymbol(textDocument: TextDocument, symbol: CodeSymbol): DocumentSymbol {
+  const range: Range = {
+    start: textDocument.positionAt(symbol.loc.start.index),
+    end: textDocument.positionAt(symbol.loc.end.index),
+  }
+
+  return {
+    name: symbol.name,
+    detail: symbol.detail,
+    kind: symbolTypeLookup[symbol.type],
+    range: range,
+    selectionRange: range,
+    children: symbol.children.map(child => toDocumentSymbol(textDocument, child)),
+  };
+}
+
 async function validateTextDocument(textDocument: TextDocument) {
   const settings = await getDocumentSettings(textDocument.uri);
 
@@ -144,24 +160,7 @@ async function validateTextDocument(textDocument: TextDocument) {
   const parser = new Parser(textDocument.getText());
   const { errors, symbols } = parser.parse();
 
-  const symbolInfo: SymbolInformation[] = [];
-  symbolInfo.push(SymbolInformation.create(
-    path.basename(textDocument.uri, '.p8'),
-    SymbolKind.Module,
-    {
-      start: textDocument.positionAt(0),
-      end: textDocument.positionAt(Number.MAX_VALUE),
-    }));
-  symbolInfo.push(...symbols.map(sym => {
-    return SymbolInformation.create(
-      sym.name,
-      symbolTypeLookup[sym.type],
-      {
-        start: textDocument.positionAt(sym.loc.start.index),
-        end: textDocument.positionAt(sym.loc.end.index),
-      },
-      sym.parentName);
-  }));
+  const symbolInfo: DocumentSymbol[] = symbols.map(sym => toDocumentSymbol(textDocument, sym));
   documentSymbols.set(textDocument.uri, symbolInfo);
 
   const diagnostics: Diagnostic[] = errors.map(err => {

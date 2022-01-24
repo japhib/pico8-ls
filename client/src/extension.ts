@@ -1,9 +1,7 @@
 import * as path from 'path';
 import { ExtensionContext, languages, workspace } from 'vscode';
-import { LanguageClient, LanguageClientOptions, ServerOptions, TransportKind } from 'vscode-languageclient/node';
+import { CloseAction, ErrorAction, LanguageClient, LanguageClientOptions, Message, ServerOptions, TransportKind } from 'vscode-languageclient/node';
 import SemanticTokenProvider, { legend } from './semantic-token-provider';
-
-let client: LanguageClient;
 
 export function activate(context: ExtensionContext): void {
   languages.registerDocumentSemanticTokensProvider(
@@ -12,7 +10,7 @@ export function activate(context: ExtensionContext): void {
     legend,
   );
 
-  client = new LanguageClient(
+  const client = new LanguageClient(
     'pico8-ls',
     'PICO-8 LS',
     getServerOptions(context),
@@ -20,7 +18,10 @@ export function activate(context: ExtensionContext): void {
   );
 
   // starts both client and server
-  client.start();
+  const disposable = client.start();
+
+  // So the client gets deactivated on extension deactivation
+  context.subscriptions.push(disposable);
 }
 
 // Get options for running Node language server
@@ -53,12 +54,15 @@ function getClientOptions(): LanguageClientOptions {
       // (we'll use that file for config later on)
       fileEvents: workspace.createFileSystemWatcher('**/.pico8ls'),
     },
-  };
-}
 
-export function deactivate(): void | Promise<void> {
-  // If the client has been started, stop it when the extension deactivates
-  if (client) {
-    return client.stop();
-  }
+    errorHandler: {
+      error(error: Error, message: Message | undefined, count: number | undefined): ErrorAction {
+        console.log('there has been an error!!', error, message, count);
+        return ErrorAction.Continue;
+      },
+      closed(): CloseAction {
+        return CloseAction.Restart;
+      },
+    },
+  };
 }

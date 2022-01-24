@@ -21,7 +21,8 @@ export enum CodeSymbolType {
 
 export type CodeSymbol = {
   name: string,
+  detail: string | undefined,
   loc: Bounds,
   type: CodeSymbolType,
-  parentName?: string,
+  children: CodeSymbol[],
 };

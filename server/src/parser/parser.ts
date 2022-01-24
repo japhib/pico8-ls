@@ -1119,11 +1119,14 @@ export default class Parser {
     return this.localSymbols[this.localSymbols.length - 1].has(symbolName);
   }
 
-  addSymbol(name: string, type: CodeSymbolType, loc: Bounds, addToLocalScope: boolean, parentName?: string) {
-    this.symbols.push({ name, type, loc, parentName });
+  addSymbol(name: string, detail: string | undefined, type: CodeSymbolType, loc: Bounds, addToLocalScope: boolean, parent?: CodeSymbol): CodeSymbol {
+    const symbol: CodeSymbol = { name, detail, type, loc, children: [] };
+    if (parent) parent.children.push(symbol);
+    else this.symbols.push(symbol);
 
-    if (addToLocalScope)
-      this.getTopSymbolsScope().add(name);
+    if (addToLocalScope) this.getTopSymbolsScope().add(name);
+
+    return symbol;
   }
 
   // Goes through and parses the symbol data from the AST.
@@ -1136,32 +1139,42 @@ export default class Parser {
     this.findSymbolsInBlock(chunk.body);
   }
 
-  findSymbolsInBlock(block: Statement[], parentName?: string) {
+  findSymbolsInBlock(block: Statement[], parent?: CodeSymbol) {
     for (const statement of block) {
       switch (statement.type) {
       case 'FunctionDeclaration':
-        this.findSymbolsInFunctionDefinition(statement, parentName);
+        this.findSymbolsInFunctionDefinition(statement, parent);
         break;
 
       case 'AssignmentStatement':
       case 'LocalStatement':
-        this.findSymbolsInAssignment(statement, parentName);
+        this.findSymbolsInAssignment(statement, parent);
         break;
       }
     }
   }
 
-  findSymbolsInFunctionDefinition(statement: FunctionDeclaration, parentName: string | undefined) {
+  findSymbolsInFunctionDefinition(statement: FunctionDeclaration, parent: CodeSymbol | undefined) {
     const name = getFunctionDeclarationName(statement);
 
+    let funcSym = parent;
+
+    // Only add the symbol if the function has a name
     if (statement.identifier) {
-      // Only add the symbol if the function has a name
-      this.addSymbol(
+      // Add function signature as detail
+      let detail = statement.parameters.map(param => {
+        if (param.type === 'Identifier') return param.name;
+        else return '...';
+      }).join(',');
+      detail = '(' + detail + ')';
+
+      funcSym = this.addSymbol(
         name,
+        detail,
         CodeSymbolType.Function,
         statement.loc!,
-        parentName !== undefined,
-        parentName);
+        parent !== undefined,
+        parent);
     }
 
     this.pushSymbolsScope();
@@ -1171,15 +1184,15 @@ export default class Parser {
       // Don't care about vararg literals
       if (param.type !== 'Identifier')
         continue;
-      this.addSymbol(param.name, CodeSymbolType.LocalVariable, param.loc!, true, name);
+      this.addSymbol(param.name, undefined, CodeSymbolType.LocalVariable, param.loc!, true, funcSym);
     }
 
-    this.findSymbolsInBlock(statement.body, name);
+    this.findSymbolsInBlock(statement.body, funcSym);
 
     this.popSymbolsScope();
   }
 
-  findSymbolsInAssignment(statement: AssignmentStatement | LocalStatement, parentName: string | undefined) {
+  findSymbolsInAssignment(statement: AssignmentStatement | LocalStatement, parent: CodeSymbol | undefined) {
     const isLocal = statement.type === 'LocalStatement';
 
     for (let i = 0; i < statement.variables.length; i++) {
@@ -1196,25 +1209,26 @@ export default class Parser {
         varType = CodeSymbolType.Function;
       }
 
-      // clear parent name if it's global
-      const varParentName = varLocal ? parentName : undefined;
+      // clear parent if it's global
+      const varParent = varLocal ? parent : undefined;
 
-      this.addSymbol(
+      const sym = this.addSymbol(
         name,
+        undefined,
         varType,
         statement.loc!,
         varLocal,
-        varParentName);
+        varParent);
 
       // Now that we've added the symbol for the variable itself, check if it's being initialized to
       // a table and if so, add symbols for its members.
       if (initializer && initializer.type === 'TableConstructorExpression') {
-        this.findSymbolsInTableConstructor(initializer, name);
+        this.findSymbolsInTableConstructor(initializer, sym);
       }
     }
   }
 
-  findSymbolsInTableConstructor(expression: TableConstructorExpression, parentName: string) {
+  findSymbolsInTableConstructor(expression: TableConstructorExpression, parent: CodeSymbol) {
     for (const field of expression.fields) {
       // Only add symbols for explicit string keys (without [])
       if (field.type !== 'TableKeyString') continue;
@@ -1224,10 +1238,11 @@ export default class Parser {
 
       this.addSymbol(
         field.key.name,
+        undefined,
         varType,
         field.key.loc!,
         true,
-        parentName);
+        parent);
     }
   }
 }
