@@ -1,42 +1,6 @@
 import { strictEqual as eq } from 'assert';
-import Parser from '../parser';
-import { Chunk } from '../statements';
 import { CodeSymbolType } from '../types';
-import { getTestFileContents } from './test-utils';
-
-function parse(input: string): Chunk {
-  return new Parser(input).parseChunk();
-}
-
-function deepEqualsAST(code: string, expected: any) {
-  const { body } = parse(code);
-  deepEquals(body, expected);
-}
-
-function deepEquals(actual: any, expected: any) {
-  eq(typeof actual, typeof expected, 'types don\'t match!');
-
-  if (typeof expected === 'object') {
-    if (Array.isArray(expected)) return deepEqualsArray(actual, expected);
-    else return deepEqualsObject(actual, expected);
-  } else {
-    eq(actual, expected, 'values don\'t match!');
-  }
-}
-
-function deepEqualsArray(actual: any[], expected: any[]) {
-  eq(actual.length, expected.length, 'array lengths don\'t match!');
-
-  for (let i = 0; i < expected.length; i++) {
-    deepEquals(actual[i], expected[i]);
-  }
-}
-
-function deepEqualsObject(actual: any, expected: any) {
-  for (const key of Object.keys(expected)) {
-    deepEquals(actual[key], expected[key]);
-  }
-}
+import { deepEquals, deepEqualsAST, getTestFileContents, locationOfToken, parse } from './test-utils';
 
 describe('Parser', () => {
   it('parses basic assignment statement', () => {
@@ -258,17 +222,33 @@ __gfx__
 
   describe('symbols', () => {
     it('defines a symbol for a function', () => {
-      const { symbols } = parse(`
+      const code = `
       function somefn(x, y, z)
         return x + y + z
       end
-      `);
+      `;
+
+      const loc = {
+        start: locationOfToken(code, 'function').start,
+        end: locationOfToken(code, 'end').end,
+      };
+      const selectionLoc = locationOfToken(code, 'somefn');
+
+      const { symbols } = parse(code);
 
       deepEquals(symbols, [
-        { name: 'somefn', type: CodeSymbolType.Function, parentName: undefined },
-        { name: 'x', type: CodeSymbolType.LocalVariable, parentName: 'somefn' },
-        { name: 'y', type: CodeSymbolType.LocalVariable, parentName: 'somefn' },
-        { name: 'z', type: CodeSymbolType.LocalVariable, parentName: 'somefn' },
+        {
+          name: 'somefn',
+          detail: '(x,y,z)',
+          type: CodeSymbolType.Function,
+          loc,
+          selectionLoc,
+          children: [
+            { name: 'x', type: CodeSymbolType.LocalVariable },
+            { name: 'y', type: CodeSymbolType.LocalVariable },
+            { name: 'z', type: CodeSymbolType.LocalVariable },
+          ],
+        },
       ]);
     });
 
@@ -283,10 +263,18 @@ __gfx__
       `);
 
       deepEquals(symbols, [
-        { name: 'somefn', type: CodeSymbolType.Function, parentName: undefined },
-        { name: 'x', type: CodeSymbolType.LocalVariable, parentName: 'somefn' },
-        { name: 'nested', type: CodeSymbolType.Function, parentName: 'somefn' },
-        { name: 'y', type: CodeSymbolType.LocalVariable, parentName: 'nested' },
+        {
+          name: 'somefn',
+          detail: '(x)',
+          type: CodeSymbolType.Function,
+          children: [
+            { name: 'x', type: CodeSymbolType.LocalVariable },
+            {
+              name: 'nested', type: CodeSymbolType.Function,
+              children: [{ name: 'y', type: CodeSymbolType.LocalVariable }],
+            },
+          ],
+        },
       ]);
     });
 
@@ -305,18 +293,14 @@ __gfx__
       i = 2
       `);
       deepEquals(symbols, [
-        { name: 'i', type: CodeSymbolType.GlobalVariable, parentName: undefined },
-        { name: 'i', type: CodeSymbolType.GlobalVariable, parentName: undefined },
+        { name: 'i', type: CodeSymbolType.GlobalVariable, children: [] },
+        { name: 'i', type: CodeSymbolType.GlobalVariable, children: [] },
       ]);
     });
 
     it('defines a symbol for a top-level local variable', () => {
       const { symbols } = parse('local i = 1');
-      deepEquals(symbols, [{
-        name: 'i',
-        type: CodeSymbolType.LocalVariable,
-        parentName: undefined,
-      }]);
+      deepEquals(symbols, [{ name: 'i', type: CodeSymbolType.LocalVariable, children: [] }]);
     });
 
     it('repeats symbol for local variable re-assigned later', () => {
@@ -327,9 +311,13 @@ __gfx__
       end
       `);
       deepEquals(symbols, [
-        { name: 'inside_a_block' },
-        { name: 'i', type: CodeSymbolType.LocalVariable, parentName: 'inside_a_block' },
-        { name: 'i', type: CodeSymbolType.LocalVariable, parentName: 'inside_a_block' },
+        {
+          name: 'inside_a_block',
+          children: [
+            { name: 'i', type: CodeSymbolType.LocalVariable },
+            { name: 'i', type: CodeSymbolType.LocalVariable },
+          ],
+        },
       ]);
     });
 
@@ -341,17 +329,19 @@ __gfx__
       end
       `);
       deepEquals(symbols, [
-        { name: 'somefn', type: CodeSymbolType.Function },
+        {
+          name: 'somefn',
+          type: CodeSymbolType.Function,
+          children: [
+            {
+              name: 'i',
+              type: CodeSymbolType.LocalVariable,
+            },
+          ],
+        },
         {
           name: 'some_global',
           type: CodeSymbolType.GlobalVariable,
-          // Note the global doesn't have parentName
-          parentName: undefined,
-        },
-        {
-          name: 'i',
-          type: CodeSymbolType.LocalVariable,
-          parentName: 'somefn',
         },
       ]);
     });
@@ -366,11 +356,12 @@ __gfx__
       end
       `);
       deepEquals(symbols, [
-        { name: 'somefn', type: CodeSymbolType.Function },
-        { name: 'some_global', type: CodeSymbolType.GlobalVariable, parentName: undefined },
-        { name: 'i', type: CodeSymbolType.LocalVariable, parentName: 'somefn' },
-        { name: 'i', type: CodeSymbolType.LocalVariable, parentName: 'somefn' },
-        { name: 'some_global', type: CodeSymbolType.GlobalVariable, parentName: undefined },
+        { name: 'somefn', type: CodeSymbolType.Function, children: [
+          { name: 'i', type: CodeSymbolType.LocalVariable },
+          { name: 'i', type: CodeSymbolType.LocalVariable },
+        ] },
+        { name: 'some_global', type: CodeSymbolType.GlobalVariable },
+        { name: 'some_global', type: CodeSymbolType.GlobalVariable },
       ]);
     });
 
@@ -391,10 +382,20 @@ __gfx__
       }`);
 
       deepEquals(symbols, [
-        { name: 'thing', type: CodeSymbolType.GlobalVariable, parentName: undefined },
-        { name: 'asdf', type: CodeSymbolType.LocalVariable, parentName: 'thing' },
-        { name: 'trav', type: CodeSymbolType.Function, parentName: 'thing' },
+        { name: 'thing', type: CodeSymbolType.GlobalVariable, children: [
+          { name: 'asdf', type: CodeSymbolType.LocalVariable },
+          { name: 'trav', type: CodeSymbolType.Function },
+        ] },
       ]);
+    });
+
+    it('doesn\'t provide empty symbol for non-symbol-creating assignment statement', () => {
+      const { symbols } = parse(`
+      function particles:spawn(props)
+        self.ps[rnd()]=particle(props)
+      end
+      `);
+      deepEquals(symbols, [{ name: 'particles:spawn', type: CodeSymbolType.Function }]);
     });
   });
 });

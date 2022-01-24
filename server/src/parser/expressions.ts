@@ -7,7 +7,7 @@ export type Identifier = ASTNode & {
   isLocal?: boolean,
 };
 
-export type Variable = Identifier | MemberExpression;
+export type Variable = Identifier | MemberExpression | IndexExpression;
 
 export type StringLiteral = ASTNode & {
   type: 'StringLiteral',

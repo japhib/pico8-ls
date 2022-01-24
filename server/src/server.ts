@@ -18,7 +18,7 @@ import {
 } from 'vscode-languageserver/node';
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import Parser from './parser/parser';
-import { CodeSymbol, CodeSymbolType } from './parser/types';
+import { Bounds, CodeSymbol, CodeSymbolType } from './parser/types';
 
 console.log('Server starting.');
 
@@ -52,7 +52,7 @@ connection.onInitialize((params: InitializeParams) => {
       //   resolveProvider: true,
       // },
       documentSymbolProvider: true,
-      // definitionProvider: true,
+      definitionProvider: true,
     },
   };
 
@@ -137,18 +137,20 @@ const symbolTypeLookup = {
   [CodeSymbolType.GlobalVariable]: SymbolKind.Class,
 }
 
-function toDocumentSymbol(textDocument: TextDocument, symbol: CodeSymbol): DocumentSymbol {
-  const range: Range = {
-    start: textDocument.positionAt(symbol.loc.start.index),
-    end: textDocument.positionAt(symbol.loc.end.index),
+function boundsToRange(textDocument: TextDocument, bounds: Bounds): Range {
+  return {
+    start: textDocument.positionAt(bounds.start.index),
+    end: textDocument.positionAt(bounds.end.index),
   }
+}
 
+function toDocumentSymbol(textDocument: TextDocument, symbol: CodeSymbol): DocumentSymbol {
   return {
     name: symbol.name,
     detail: symbol.detail,
     kind: symbolTypeLookup[symbol.type],
-    range: range,
-    selectionRange: range,
+    range: boundsToRange(textDocument, symbol.loc),
+    selectionRange: boundsToRange(textDocument, symbol.selectionLoc),
     children: symbol.children.map(child => toDocumentSymbol(textDocument, child)),
   };
 }
@@ -182,10 +184,10 @@ connection.onDocumentSymbol((params: DocumentSymbolParams) => {
   return documentSymbols.get(params.textDocument.uri);
 });
 
-// connection.onDefinition((params: DefinitionParams) => {
-//   console.log(params);
-//   return [];
-// })
+connection.onDefinition((params: DefinitionParams) => {
+  console.log(params);
+  return [];
+})
 
 connection.onDidChangeWatchedFiles(_change => {
   // Monitored files have change in VS Code

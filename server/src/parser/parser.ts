@@ -35,7 +35,7 @@ export default class Parser {
   // Keep track of all errors that occurred while parsing.
   errors: errors.ParseError[] = [];
 
-  // Keep track of all the symbols we encounter while parsing.
+  // List of symbols, populated after parsing.
   symbols: CodeSymbol[] = [];
   globalSymbols: Set<string> = new Set();
   localSymbols: Set<string>[] = [];
@@ -1119,8 +1119,13 @@ export default class Parser {
     return this.localSymbols[this.localSymbols.length - 1].has(symbolName);
   }
 
-  addSymbol(name: string, detail: string | undefined, type: CodeSymbolType, loc: Bounds, addToLocalScope: boolean, parent?: CodeSymbol): CodeSymbol {
-    const symbol: CodeSymbol = { name, detail, type, loc, children: [] };
+  addSymbol(name: string, detail: string | undefined, type: CodeSymbolType, loc: Bounds, selectionLoc: Bounds, addToLocalScope: boolean, parent?: CodeSymbol): CodeSymbol {
+    if (!name) {
+      // This is validated by the client and causes the whole request to fail
+      throw new Error('name cannot be falsey! ' + JSON.stringify({ detail, type, loc }));
+    }
+
+    const symbol: CodeSymbol = { name, detail, type, loc, selectionLoc, children: [] };
     if (parent) parent.children.push(symbol);
     else this.symbols.push(symbol);
 
@@ -1173,6 +1178,7 @@ export default class Parser {
         detail,
         CodeSymbolType.Function,
         statement.loc!,
+        statement.identifier.loc!,
         parent !== undefined,
         parent);
     }
@@ -1184,7 +1190,14 @@ export default class Parser {
       // Don't care about vararg literals
       if (param.type !== 'Identifier')
         continue;
-      this.addSymbol(param.name, undefined, CodeSymbolType.LocalVariable, param.loc!, true, funcSym);
+      this.addSymbol(
+        param.name,
+        undefined,
+        CodeSymbolType.LocalVariable,
+        param.loc!,
+        param.loc!,
+        true,
+        funcSym);
     }
 
     this.findSymbolsInBlock(statement.body, funcSym);
@@ -1197,6 +1210,12 @@ export default class Parser {
 
     for (let i = 0; i < statement.variables.length; i++) {
       const variable = statement.variables[i];
+      if (variable.type !== 'MemberExpression' && variable.type !== 'Identifier') {
+        // Don't create symbols for stuff like:
+        //   a[b] = c
+        continue;
+      }
+
       const name = variable.type === 'MemberExpression' ? getMemberExpressionName(variable) : variable.name;
 
       const varLocal = isLocal || this.isSymbolInLocalScope(name);
@@ -1217,6 +1236,7 @@ export default class Parser {
         undefined,
         varType,
         statement.loc!,
+        variable.loc!,
         varLocal,
         varParent);
 
@@ -1240,6 +1260,8 @@ export default class Parser {
         field.key.name,
         undefined,
         varType,
+        // The full location is from the beginning of the key to the end of the value
+        { start: field.key.loc!.start, end: field.value.loc!.end },
         field.key.loc!,
         true,
         parent);

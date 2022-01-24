@@ -2,19 +2,7 @@ import * as assert from 'assert';
 import { ParseError } from '../errors';
 import Lexer from '../lexer';
 import { Token, TokenType, TokenValue } from '../tokens';
-
-function getLexedTokens(input: string): Token[] {
-  const lexer = new Lexer(input);
-
-  const tokens: Token[] = [];
-
-  do {
-    lexer.next();
-    tokens.push(lexer.token!);
-  } while (lexer.token!.type !== TokenType.EOF);
-
-  return tokens;
-}
+import { getLexedTokens } from './test-utils';
 
 function assertNextToken(tokens: Token[], type: TokenType, value?: TokenValue) {
   if (tokens.length === 0) {
