@@ -8,7 +8,7 @@ import { LabelStatement, BreakStatement, GotoStatement, ReturnStatement, IfState
   DoStatement, RepeatStatement, LocalStatement, AssignmentStatement, CallStatement, FunctionDeclaration,
   ForNumericStatement, ForGenericStatement, ElseClause, ElseifClause, IfClause, Chunk, GeneralIfClause, Statement,
 } from './statements';
-// import * as util from 'util';
+import * as util from 'util';
 
 export type VisitableASTNode = Statement | Expression | GeneralIfClause | GeneralTableField;
 
@@ -55,6 +55,23 @@ export abstract class ASTVisitor<T> {
 
   private onExitScope() {
     this.scopeStack.pop();
+  }
+
+  // helper functions
+
+  isInAssignment(): boolean {
+    // Checks if the top 2 things on the stack are one of:
+    //   - actual assignment: Identifier & (AssignmentStatement | LocalStatement)
+    //   - pseudo assignment: TableKeyString & TableConstructorExpression
+
+    const previous = this.topNode();
+    const preprevious = this.topNode(1);
+
+    return previous && preprevious
+      && (
+        (previous.type === 'Identifier' && (preprevious.type === 'AssignmentStatement' || preprevious.type === 'LocalStatement'))
+        || (previous.type === 'TableKeyString' && preprevious.type === 'TableConstructorExpression')
+      );
   }
 
   // Scope-creating statements
@@ -110,8 +127,8 @@ export abstract class ASTVisitor<T> {
   }
 
   private visitNode(node: VisitableASTNode) {
-    // console.log('\nvisitNode ' + node.type + '\nnode stack: [' + this.nodeStack.map(node => node.type).join(' | ') + ']'
-    //   + '\nscope stack: [' + this.scopeStack.map(s => util.format('%o', s)) + ']\n');
+    // console.log('\nvisitNode ' + node.type + '\nnode stack: [' + this.nodeStack.map(node => node.type).join(' | ') + ']');
+    // + '\nscope stack: [' + this.scopeStack.map(s => util.format('%o', s)) + ']\n');
     // console.log('current node: %o', node);
     switch (node.type) {
     case 'AssignmentStatement':

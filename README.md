@@ -1,7 +1,9 @@
 # PICO-8 Language Server
 
 A language server implementation for PICO-8. Includes a VSCode client extension
-that automatically sets up and runs the language server.
+that automatically sets up and runs the language server. Since it's a language
+server, it could also be easily set up for use in other editors like Vim, Atom,
+etc.
 
 The goal is to have all the features you'd expect in a full-fledged language
 server, such as [the one for Lua](https://marketplace.visualstudio.com/items?itemName=sumneko.lua),
@@ -16,12 +18,12 @@ be easily changed to normal wide-whitspace-style.
 
 - Syntax highlighting
 - Syntax errors
-- Go to symbol
+- Find symbol in document
+- Go to definition
+- Find usages
 
 ## Planned features
 
-- Go to definition
-- Find usages
 - Hover support for showing docs, both for built-in and user functions
 - Auto-completion
 - `#include` files
@@ -31,6 +33,11 @@ be easily changed to normal wide-whitspace-style.
   local, etc.
 
 # Changelog
+
+## 0.0.2 (future)
+
+- Go to definition
+- Find usages
 
 ## 0.0.1 (1/23/2022)
 

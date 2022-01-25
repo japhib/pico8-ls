@@ -35,8 +35,10 @@ export default class Lexer {
   lineStart: number = 0;
 
   // Keep track of where the current token started
-  tokenStart: number = 0;
-  tokenStartLine: number = 0;
+  tokenStart: number = 0; // index
+  tokenStartLine: number = 0; // line
+  // index of the current token start of line (for multi-line tokens like string
+  // literal)
   tokenStartLineIdx: number = 0;
 
   comments: Comment_[] = [];
@@ -188,7 +190,7 @@ export default class Lexer {
     // Memorize the range index where the token begins.
     this.tokenStart = this.index;
     this.tokenStartLine = this.line;
-    this.tokenStartLineIdx = this.index;
+    this.tokenStartLineIdx = this.lineStart;
     if (isIdentifierStart(charCode)) return this.scanIdentifierOrKeyword();
 
     switch (charCode) {

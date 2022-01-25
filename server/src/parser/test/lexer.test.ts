@@ -2,7 +2,7 @@ import * as assert from 'assert';
 import { ParseError } from '../errors';
 import Lexer from '../lexer';
 import { Token, TokenType, TokenValue } from '../tokens';
-import { getLexedTokens } from './test-utils';
+import { deepEquals, getLexedTokens } from './test-utils';
 
 function assertNextToken(tokens: Token[], type: TokenType, value?: TokenValue) {
   if (tokens.length === 0) {
@@ -290,6 +290,73 @@ __gfx__
 
     it('errors on hex number literal with malformed binary exponent', () => {
       assert.throws(() => { getLexedTokens('0x3pQ'); }, ParseError);
+    });
+  });
+
+  describe('locations', () => {
+    it('gives correct location for tokens in a line', () => {
+      const tokens = getLexedTokens('function somefn() end');
+      deepEquals(tokens, [
+        { value: 'function', bounds: {
+          start: { line: 1, column: 0, index: 0 },
+          end: { line: 1, column: 8, index: 8 },
+        } },
+        { value: 'somefn', bounds: {
+          start: { line: 1, column: 9, index: 9 },
+          end: { line: 1, column: 15, index: 15 },
+        } },
+        { value: '(', bounds: {
+          start: { line: 1, column: 15, index: 15 },
+          end: { line: 1, column: 16, index: 16 },
+        } },
+        { value: ')', bounds: {
+          start: { line: 1, column: 16, index: 16 },
+          end: { line: 1, column: 17, index: 17 },
+        } },
+        { value: 'end', bounds: {
+          start: { line: 1, column: 18, index: 18 },
+          end: { line: 1, column: 21, index: 21 },
+        } },
+        { value: '<eof>' },
+      ]);
+    });
+
+    it('gives correct location for tokens on multiple lines', () => {
+      const tokens = getLexedTokens('local\nbreak\nend');
+      deepEquals(tokens, [
+        { value: 'local', bounds: {
+          start: { line: 1, column: 0, index: 0 },
+          end: { line: 1, column: 5, index: 5 },
+        } },
+        { value: 'break', bounds: {
+          start: { line: 2, column: 0, index: 6 },
+          end: { line: 2, column: 5, index: 11 },
+        } },
+        { value: 'end', bounds: {
+          start: { line: 3, column: 0, index: 12 },
+          end: { line: 3, column: 3, index: 15 },
+        } },
+        { value: '<eof>' },
+      ]);
+    });
+
+    it('gives correct start/end for multiline token', () => {
+      const tokens = getLexedTokens('i = [[\nalskjdflkajsdf\n234]]');
+      deepEquals(tokens, [
+        { value: 'i', bounds: {
+          start: { line: 1, column: 0, index: 0 },
+          end: { line: 1, column: 1, index: 1 },
+        } },
+        { value: '=', bounds: {
+          start: { line: 1, column: 2, index: 2 },
+          end: { line: 1, column: 3, index: 3 },
+        } },
+        { value: 'alskjdflkajsdf\n234', bounds: {
+          start: { line: 1, column: 4, index: 4 },
+          end: { line: 3, column: 5, index: 27 },
+        } },
+        { value: '<eof>' },
+      ]);
     });
   });
 });

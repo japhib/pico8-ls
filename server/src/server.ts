@@ -7,10 +7,13 @@ import {
   DidChangeConfigurationNotification,
   DocumentSymbol,
   DocumentSymbolParams,
+  DocumentUri,
   InitializeParams,
   InitializeResult,
+  Location,
   ProposedFeatures,
   Range,
+  ReferenceParams,
   SymbolKind,
   TextDocumentPositionParams,
   TextDocuments,
@@ -20,6 +23,7 @@ import { TextDocument } from 'vscode-languageserver-textdocument';
 import Parser from './parser/parser';
 import { Bounds } from './parser/types';
 import { CodeSymbolType, CodeSymbol } from './parser/symbols';
+import { DefinitionsUsages, DefinitionsUsagesLookup } from './parser/definitions-usages';
 
 console.log('Server starting.');
 
@@ -54,6 +58,7 @@ connection.onInitialize((params: InitializeParams) => {
       // },
       documentSymbolProvider: true,
       definitionProvider: true,
+      referencesProvider: true,
     },
   };
 
@@ -96,12 +101,14 @@ let globalSettings: DocumentSettings = defaultSettings;
 documents.onDidChangeContent(change => validateTextDocument(change.document));
 
 // Cache the settings of all open documents
-const documentSettings: Map<string, Thenable<DocumentSettings>> = new Map();
+const documentSettings: Map<string, Thenable<DocumentSettings>> = new Map<string, Thenable<DocumentSettings>>();
 // When a document is closed, purge its entry from the cache
 documents.onDidClose(e => documentSettings.delete(e.document.uri));
 
 // Symbols for open documents
-const documentSymbols: Map<string, DocumentSymbol[]> = new Map();
+const documentSymbols: Map<string, DocumentSymbol[]> = new Map<string, DocumentSymbol[]>();
+// Definition/Usages lookup table for open documents
+const documentDefUsage: Map<string, DefinitionsUsagesLookup> = new Map<string, DefinitionsUsagesLookup>();
 
 connection.onDidChangeConfiguration(change => {
   if (hasConfigurationCapability) {
@@ -159,13 +166,18 @@ function toDocumentSymbol(textDocument: TextDocument, symbol: CodeSymbol): Docum
 async function validateTextDocument(textDocument: TextDocument) {
   const settings = await getDocumentSettings(textDocument.uri);
 
-  // parse document and discover problems
+  // parse document
   const parser = new Parser(textDocument.getText());
-  const { errors, symbols } = parser.parse();
+  const { errors, symbols, definitionsUsages } = parser.parse();
 
+  // set document symbols in cache
   const symbolInfo: DocumentSymbol[] = symbols.map(sym => toDocumentSymbol(textDocument, sym));
   documentSymbols.set(textDocument.uri, symbolInfo);
 
+  // set document definitions/usages in cache
+  documentDefUsage.set(textDocument.uri, definitionsUsages);
+
+  // send errors back to client immediately
   const diagnostics: Diagnostic[] = errors.map(err => {
     return {
       message: err.message,
@@ -185,9 +197,41 @@ connection.onDocumentSymbol((params: DocumentSymbolParams) => {
   return documentSymbols.get(params.textDocument.uri);
 });
 
+function getDefinitionsUsagesForPosition(params: TextDocumentPositionParams): DefinitionsUsages | undefined {
+  const lookup = documentDefUsage.get(params.textDocument.uri);
+  if (!lookup) {
+    console.log('Definition/usages lookup table unavailable for ' + params.textDocument.uri);
+    return undefined;
+  }
+
+  return lookup.lookup(
+    // They use 0-index line numbers, we use 1-index
+    params.position.line + 1,
+    params.position.character);
+}
+
+function boundsToLocation(uri: DocumentUri, bounds: Bounds): Location {
+  return {
+    uri,
+    range: {
+      start: { line: bounds.start.line - 1, character: bounds.start.column },
+      end: { line: bounds.end.line - 1, character: bounds.end.column },
+    }
+  }
+}
+
 connection.onDefinition((params: DefinitionParams) => {
-  console.log(params);
-  return [];
+  const result = getDefinitionsUsagesForPosition(params);
+  if (!result) return [];
+
+  return result.definitions.map(bounds => boundsToLocation(params.textDocument.uri, bounds));
+});
+
+connection.onReferences((params: ReferenceParams) => {
+  const result = getDefinitionsUsagesForPosition(params);
+  if (!result) return [];
+
+  return result.usages.map(bounds => boundsToLocation(params.textDocument.uri, bounds));
 })
 
 connection.onDidChangeWatchedFiles(_change => {

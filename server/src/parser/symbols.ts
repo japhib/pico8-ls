@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-unsafe-call */
+
 import { getMemberExpressionName, TableConstructorExpression, TableKeyString } from './expressions';
 import { AssignmentStatement, Chunk, ForGenericStatement, ForNumericStatement, FunctionDeclaration, getFunctionDeclarationName, LocalStatement } from './statements';
 import { Bounds } from './types';
@@ -32,7 +34,7 @@ export function findSymbols(chunk: Chunk): CodeSymbol[] {
 }
 
 class SymbolScope {
-  symbols: Set<string> = new Set();
+  symbols: Set<string> = new Set<string>();
   parent: CodeSymbol | undefined;
 
   constructor(parent: CodeSymbol | undefined) {
@@ -44,7 +46,7 @@ class SymbolFinder extends ASTVisitor<SymbolScope> {
   // AST to parse
   chunk: Chunk;
 
-  // List of symbols, populated after parsing.
+  // List of symbols
   symbols: CodeSymbol[] = [];
 
   lastAddedSymbol: CodeSymbol | undefined;
@@ -68,11 +70,10 @@ class SymbolFinder extends ASTVisitor<SymbolScope> {
   // some helper functions
 
   private isSymbolInLocalScope(symbolName: string) {
-    if (this.scopeStack.length === 1) {
-      return false;
+    for (let i = this.scopeStack.length - 1; i > 0; i--) {
+      if (this.scopeStack[i].symbols.has(symbolName)) return true;
     }
-
-    return this.topScope().symbols.has(symbolName);
+    return false;
   }
 
   private addSymbol(name: string,
@@ -106,21 +107,6 @@ class SymbolFinder extends ASTVisitor<SymbolScope> {
 
   private getCurrentParent(): CodeSymbol | undefined {
     return this.topScope().parent;
-  }
-
-  private isInAssignment() {
-    // Checks if the top 2 things on the stack are one of:
-    //   - actual assignment: Identifier & (AssignmentStatement | LocalStatement)
-    //   - pseudo assignment: TableKeyString & TableConstructorExpression
-
-    const previous = this.topNode();
-    const preprevious = this.topNode(1);
-
-    return previous && preprevious
-      && (
-        (previous.type === 'Identifier' && (preprevious.type === 'AssignmentStatement' || preprevious.type === 'LocalStatement'))
-        || (previous.type === 'TableKeyString' && preprevious.type === 'TableConstructorExpression')
-      );
   }
 
   override visitFunctionDeclaration(statement: FunctionDeclaration): SymbolScope {

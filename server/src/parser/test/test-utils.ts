@@ -67,3 +67,12 @@ export function locationOfToken(code: string, tokenValue: TokenValue): Bounds {
   }
   throw new Error(`can't find instance of ${tokenValue} in code!`);
 }
+
+export function tokenAt(code: string, index: number): Token | undefined {
+  const tokens = getLexedTokens(code);
+  for (const token of tokens) {
+    if (index >= token.bounds.start.index && index <= token.bounds.end.index)
+      return token;
+  }
+  return undefined;
+}

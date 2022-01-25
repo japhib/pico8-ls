@@ -1,5 +1,6 @@
 import AST from './ast';
 import { FlowContext } from './control-flow';
+import { findDefinitionsUsages } from './definitions-usages';
 import * as errors from './errors';
 import { errMessages, raiseErrForToken } from './errors';
 import { CallExpression, Expression, Identifier, Variable, Literal, MemberExpression, StringCallExpression, StringLiteral,
@@ -170,8 +171,9 @@ export default class Parser {
       this.errors.push(this.getUnexpectedTokenErr(this.token));
     }
 
-    const chunk = this.finishNode(AST.chunk(body, this.errors, []));
+    const chunk = this.finishNode(AST.chunk(body, this.errors));
     chunk.symbols = findSymbols(chunk);
+    chunk.definitionsUsages = findDefinitionsUsages(chunk);
     return chunk;
   }
 

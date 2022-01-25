@@ -1,3 +1,4 @@
+import { DefinitionsUsagesLookup } from './definitions-usages';
 import { ParseError } from './errors';
 import { BinaryExpression, CallExpression, Comment_, Expression, GeneralTableField, Identifier, Indexer,
   IndexExpression, Variable, Literal, LogicalExpression, MemberExpression, StringCallExpression, StringLiteral,
@@ -7,7 +8,6 @@ import { AssignmentStatement, BreakStatement, CallStatement, Chunk, DoStatement,
   ForGenericStatement, ForNumericStatement, FunctionDeclaration, FunctionParameter, GeneralIfClause,
   GotoStatement, IfClause, IfStatement, LabelStatement, LocalStatement, RepeatStatement, ReturnStatement,
   Statement, WhileStatement } from './statements';
-import { CodeSymbol } from './symbols';
 
 // ### Abstract Syntax Tree
 //
@@ -157,12 +157,13 @@ export default class AST {
     };
   }
 
-  static chunk(body: Statement[], errors: ParseError[], symbols: CodeSymbol[]): Chunk {
+  static chunk(body: Statement[], errors: ParseError[]): Chunk {
     return {
       type: 'Chunk',
       body,
       errors,
-      symbols,
+      symbols: [],
+      definitionsUsages: new DefinitionsUsagesLookup(),
     };
   }
 

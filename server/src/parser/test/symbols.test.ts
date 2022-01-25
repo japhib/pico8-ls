@@ -4,10 +4,10 @@ import { locationOfToken, parse, deepEquals } from './test-utils';
 describe('SymbolFinder', () => {
   it('defines a symbol for a function', () => {
     const code = `
-		function somefn(x, y, z)
-			return x + y + z
-		end
-		`;
+    function somefn(x, y, z)
+      return x + y + z
+    end
+    `;
 
     const loc = {
       start: locationOfToken(code, 'function').start,
@@ -35,13 +35,13 @@ describe('SymbolFinder', () => {
 
   it('defines a symbol for nested functions', () => {
     const { symbols } = parse(`
-		function somefn(x)
+    function somefn(x)
 
-			function nested(y) print(y) end
+      function nested(y) print(y) end
 
-			return x
-		end
-		`);
+      return x
+    end
+    `);
 
     deepEquals(symbols, [
       {
@@ -70,9 +70,9 @@ describe('SymbolFinder', () => {
 
   it('repeats symbol for global variable re-assigned later', () => {
     const { symbols } = parse(`
-		i = 1
-		i = 2
-		`);
+    i = 1
+    i = 2
+    `);
     deepEquals(symbols, [
       { name: 'i', type: CodeSymbolType.GlobalVariable, children: [] },
       { name: 'i', type: CodeSymbolType.GlobalVariable, children: [] },
@@ -86,11 +86,11 @@ describe('SymbolFinder', () => {
 
   it('repeats symbol for local variable re-assigned later', () => {
     const { symbols } = parse(`
-		function inside_a_block()
-			local i
-			i = 1
-		end
-		`);
+    function inside_a_block()
+      local i
+      i = 1
+    end
+    `);
     deepEquals(symbols, [
       {
         name: 'inside_a_block',
@@ -102,13 +102,33 @@ describe('SymbolFinder', () => {
     ]);
   });
 
+  it('if a local variable is re-used in an inner scope, still determines that it is local', () => {
+    const { symbols } = parse(`
+    function somefn()
+      local i = 1
+      return function()
+        i = 2
+      end
+    end
+    `);
+    deepEquals(symbols, [
+      { name: 'somefn',
+        children: [
+          { name: 'i', type: CodeSymbolType.LocalVariable },
+          { name: '<anonymous function>', type: CodeSymbolType.Function, children: [
+            { name: 'i', type: CodeSymbolType.LocalVariable },
+          ] },
+        ] },
+    ]);
+  });
+
   it('defines symbol for global and local variables in function', () => {
     const { symbols } = parse(`
-		function somefn()
-			some_global = 0
-			local i = 1
-		end
-		`);
+    function somefn()
+      some_global = 0
+      local i = 1
+    end
+    `);
     deepEquals(symbols, [
       {
         name: 'somefn',
@@ -180,13 +200,13 @@ describe('SymbolFinder', () => {
 
   it('repeats symbols for local/global variable re-use', () => {
     const { symbols } = parse(`
-		function somefn()
-			some_global = 0
-			local i = 1
-			i = 47
-			some_global = 29
-		end
-		`);
+    function somefn()
+      some_global = 0
+      local i = 1
+      i = 47
+      some_global = 29
+    end
+    `);
     deepEquals(symbols, [
       { name: 'somefn', type: CodeSymbolType.Function, children: [
         { name: 'i', type: CodeSymbolType.LocalVariable },
@@ -199,19 +219,19 @@ describe('SymbolFinder', () => {
 
   it('provides a function type symbol for a variable that is assigned a function', () => {
     const { symbols } = parse(`
-		somefn = function(x)
-			return x
-		end`);
+    somefn = function(x)
+      return x
+    end`);
 
     deepEquals(symbols, [{ name: 'somefn', type: CodeSymbolType.Function }]);
   });
 
   it('provides a symbol for a table member', () => {
     const { symbols } = parse(`
-		thing = {
-			asdf = {},
-			trav = function() end,
-		}`);
+    thing = {
+      asdf = {},
+      trav = function() end,
+    }`);
 
     deepEquals(symbols, [
       { name: 'thing', type: CodeSymbolType.GlobalVariable, children: [
@@ -223,14 +243,14 @@ describe('SymbolFinder', () => {
 
   it('provides symbols for nested table members', () => {
     const { symbols } = parse(`
-		thing = {
+    thing = {
       zxc = '1',
-			asdf = {
+      asdf = {
         qwe = 2,
         ert = function() end,
       },
-			trav = function() end,
-		}`);
+      trav = function() end,
+    }`);
 
     deepEquals(symbols, [
       { name: 'thing', type: CodeSymbolType.GlobalVariable, children: [
@@ -246,10 +266,10 @@ describe('SymbolFinder', () => {
 
   it('doesn\'t provide empty symbol for non-symbol-creating assignment statement', () => {
     const { symbols } = parse(`
-		function particles:spawn(props)
-			self.ps[rnd()]=particle(props)
-		end
-		`);
+    function particles:spawn(props)
+      self.ps[rnd()]=particle(props)
+    end
+    `);
     deepEquals(symbols, [{ name: 'particles:spawn', type: CodeSymbolType.Function }]);
   });
 });

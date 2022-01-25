@@ -1,3 +1,4 @@
+import { DefinitionsUsagesLookup } from './definitions-usages';
 import { ParseError } from './errors';
 import { Comment_, Expression, Identifier, VarargLiteral, Variable, MemberExpression, getMemberExpressionName } from './expressions';
 import { CodeSymbol } from './symbols';
@@ -116,6 +117,17 @@ export function getFunctionDeclarationName(funcDeclaration: FunctionDeclaration)
     funcDeclaration.identifier.name : getMemberExpressionName(funcDeclaration.identifier);
 }
 
+export function getBareFunctionDeclarationName(funcDeclaration: FunctionDeclaration): string {
+  if (!funcDeclaration.identifier)
+    return '<anonymous function>';
+
+  if (funcDeclaration.identifier.type === 'Identifier') {
+    return funcDeclaration.identifier.name;
+  } else { // funcDeclaration.identifier.type === 'MemberExpression'
+    return funcDeclaration.identifier.identifier.name;
+  }
+}
+
 export type Statement = LabelStatement | BreakStatement | GotoStatement | ReturnStatement | IfStatement
   | WhileStatement | DoStatement | RepeatStatement | LocalStatement | AssignmentStatement | CallStatement
   | FunctionDeclaration | ForNumericStatement | ForGenericStatement;
@@ -125,6 +137,7 @@ export type Chunk = {
   body: Statement[],
   errors: ParseError[],
   symbols: CodeSymbol[],
+  definitionsUsages: DefinitionsUsagesLookup,
   comments?: Comment_[],
   globals?: Identifier[],
 };
