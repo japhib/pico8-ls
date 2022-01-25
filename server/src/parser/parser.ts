@@ -621,7 +621,7 @@ export default class Parser {
         this.unexpectedToken(this.token);
       }
 
-      both: for (;;) {
+      both: while (true) {
         switch (this.token.type === TokenType.StringLiteral ? '"' : this.token.value) {
         case '.':
         case '[':
@@ -758,10 +758,8 @@ export default class Parser {
     const marker = this.createLocationMarker();
     base = this.parseIdentifier();
 
-    {
-      this.attachScope(base, this.scopeHasName(base.name));
-      this.createScope();
-    }
+    this.attachScope(base, this.scopeHasName(base.name));
+    this.createScope();
 
     while (this.lexer.consume('.')) {
       this.pushLocation(marker);
@@ -952,7 +950,7 @@ export default class Parser {
   //
   //     args ::= '(' [explist] ')' | tableconstructor | String
 
-  parsePrefixExpressionPart(base: Identifier | MemberExpression, marker: Marker, flowContext: FlowContext) {
+  parsePrefixExpressionPart(base: Expression, marker: Marker, flowContext: FlowContext) {
     let expression, identifier;
 
     if (this.token.type === TokenType.Punctuator) {
@@ -1009,8 +1007,7 @@ export default class Parser {
 
     // The suffix
     for (;;) {
-      // TODO the "as Identifier" in this line might be wrong
-      const newBase = this.parsePrefixExpressionPart(base as Identifier, marker, flowContext);
+      const newBase = this.parsePrefixExpressionPart(base, marker, flowContext);
       if (newBase === null)
         break;
       base = newBase;
@@ -1021,7 +1018,7 @@ export default class Parser {
 
   //     args ::= '(' [explist] ')' | tableconstructor | String
 
-  parseCallExpression(base: Identifier | MemberExpression, flowContext: FlowContext):
+  parseCallExpression(base: Expression, flowContext: FlowContext):
       CallExpression | TableCallExpression | StringCallExpression {
     if (TokenType.Punctuator === this.token.type) {
       switch (this.token.value) {

@@ -1,3 +1,4 @@
+import { AnonymousFunctionName } from '../statements';
 import { CodeSymbolType } from '../symbols';
 import { locationOfToken, parse, deepEquals } from './test-utils';
 
@@ -115,7 +116,7 @@ describe('SymbolFinder', () => {
       { name: 'somefn',
         children: [
           { name: 'i', type: CodeSymbolType.LocalVariable },
-          { name: '<anonymous function>', type: CodeSymbolType.Function, children: [
+          { name: AnonymousFunctionName, type: CodeSymbolType.Function, children: [
             { name: 'i', type: CodeSymbolType.LocalVariable },
           ] },
         ] },
@@ -271,5 +272,64 @@ describe('SymbolFinder', () => {
     end
     `);
     deepEquals(symbols, [{ name: 'particles:spawn', type: CodeSymbolType.Function }]);
+  });
+
+  it('handles member expressions appropriately', () => {
+    const { symbols } = parse(`
+    tbl = {}
+    tbl.some_key = 5
+
+    function somefn()
+      local loc_tab = {}
+      loc_tab.another_key = 6
+      loc_tab.nested = {}
+      loc_tab.nested.third_value = 7
+    end
+    `);
+    deepEquals(symbols, [
+      { name: 'tbl', type: CodeSymbolType.GlobalVariable, children: [] },
+      { name: 'tbl.some_key', type: CodeSymbolType.GlobalVariable, children: [] },
+      { name: 'somefn', type: CodeSymbolType.Function, children: [
+        { name: 'loc_tab', type: CodeSymbolType.LocalVariable },
+        { name: 'loc_tab.another_key', type: CodeSymbolType.LocalVariable },
+        { name: 'loc_tab.nested', type: CodeSymbolType.LocalVariable },
+        { name: 'loc_tab.nested.third_value', type: CodeSymbolType.LocalVariable },
+      ] },
+    ]);
+  });
+
+  it('handles member expressions referencing parameters appropriately', () => {
+    const { symbols } = parse(`
+    function somefn(_this)
+      _this.val = 5
+    end
+    `);
+    deepEquals(symbols, [
+      { name: 'somefn', type: CodeSymbolType.Function, children: [
+        { name: '_this', type: CodeSymbolType.LocalVariable },
+        { name: '_this.val', type: CodeSymbolType.LocalVariable },
+      ] },
+    ]);
+  });
+
+  it('handles "self" inside function definitions appropriately', () => {
+    const { symbols } = parse(`
+    function tbl:somefn()
+      self.val = 5
+      local another_tbl = {}
+      function another_tbl:update()
+        self.val2 = 6
+      end
+    end
+    `);
+    deepEquals(symbols, [
+      { name: 'tbl:somefn', children: [
+        { name: 'another_tbl', type: CodeSymbolType.LocalVariable },
+        { name: 'another_tbl:update', type: CodeSymbolType.Function, children: [
+          { name: 'another_tbl.val2', type: CodeSymbolType.LocalVariable },
+        ] },
+      ] },
+      { name: 'tbl.val', type: CodeSymbolType.GlobalVariable },
+    ]);
   });
 });

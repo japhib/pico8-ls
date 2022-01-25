@@ -20,7 +20,7 @@ be easily changed to normal wide-whitspace-style.
 - Syntax errors
 - Find symbol in document
 - Go to definition
-- Find usages
+- Find references
 
 ## Planned features
 
@@ -37,7 +37,7 @@ be easily changed to normal wide-whitspace-style.
 ## 0.0.2 (future)
 
 - Go to definition
-- Find usages
+- Find references
 
 ## 0.0.1 (1/23/2022)
 

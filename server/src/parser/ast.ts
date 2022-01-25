@@ -47,6 +47,7 @@ export default class AST {
       clauses: clauses,
     };
   }
+
   static ifClause(condition: Expression, body: Statement[]): IfClause {
     return {
       type: 'IfClause',
@@ -54,6 +55,7 @@ export default class AST {
       body: body,
     };
   }
+
   static elseifClause(condition: Expression, body: Statement[]): ElseifClause {
     return {
       type: 'ElseifClause',
@@ -61,6 +63,7 @@ export default class AST {
       body: body,
     };
   }
+
   static elseClause(body: Statement[]): ElseClause {
     return {
       type: 'ElseClause',
@@ -213,6 +216,7 @@ export default class AST {
       value: value,
     };
   }
+
   static tableKeyString(key: Identifier, value: Expression): TableKeyString {
     return {
       type: 'TableKeyString',
@@ -220,6 +224,7 @@ export default class AST {
       value,
     };
   }
+
   static tableValue(value: Expression): TableValue {
     return {
       type: 'TableValue',
@@ -233,6 +238,7 @@ export default class AST {
       fields: fields,
     };
   }
+
   static binaryExpression(operator: string, left: Expression, right: Expression): BinaryExpression | LogicalExpression {
     if (operator === 'and' || operator === 'or') {
       return {
@@ -250,6 +256,7 @@ export default class AST {
       right: right,
     };
   }
+
   static unaryExpression(operator: string, argument: Expression): UnaryExpression {
     return {
       type: 'UnaryExpression',
@@ -257,20 +264,21 @@ export default class AST {
       argument: argument,
     };
   }
-  static memberExpression(base: Identifier | MemberExpression, indexer: Indexer, identifier: Identifier): MemberExpression {
+
+  static memberExpression(base: Expression, indexer: Indexer, identifier: Identifier): MemberExpression {
     return {
       type: 'MemberExpression',
-      indexer: indexer,
-      identifier: identifier,
-      base: base,
+      indexer,
+      identifier,
+      base,
     };
   }
 
-  static indexExpression(base: Identifier | MemberExpression, index: Expression): IndexExpression {
+  static indexExpression(base: Expression, index: Expression): IndexExpression {
     return {
       type: 'IndexExpression',
-      base: base,
-      index: index,
+      base,
+      index,
     };
   }
 

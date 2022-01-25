@@ -92,14 +92,28 @@ export type Indexer = '.' | ':';
 // or base:identifier
 export type MemberExpression = ASTNode & {
   type: 'MemberExpression',
+  base: Expression,
   indexer: Indexer,
   identifier: Identifier,
-  base: Identifier | MemberExpression,
 };
 
-export function getMemberExpressionName(memberExpression: MemberExpression): string {
-  const baseName = memberExpression.base.type === 'Identifier' ? memberExpression.base.name
-    : getMemberExpressionName(memberExpression.base);
+export function getMemberExpressionName(memberExpression: MemberExpression): string | undefined {
+  let baseName: string;
+  switch (memberExpression.base.type) {
+  case 'Identifier':
+    baseName = memberExpression.base.name;
+    break;
+
+  case 'MemberExpression':
+    const maybeBaseName = getMemberExpressionName(memberExpression.base);
+    if (maybeBaseName === undefined) return undefined;
+    else baseName = maybeBaseName;
+    break;
+
+  default:
+    // It's a more complicated expression like `getValue().blah`
+    return undefined;
+  }
 
   return baseName + memberExpression.indexer + memberExpression.identifier.name;
 }
@@ -107,7 +121,7 @@ export function getMemberExpressionName(memberExpression: MemberExpression): str
 // base[index]
 export type IndexExpression = ASTNode & {
   type: 'IndexExpression',
-  base: Identifier | MemberExpression,
+  base: Expression,
   index: Expression,
 };
 

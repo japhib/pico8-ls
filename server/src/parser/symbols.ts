@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unsafe-call */
 
-import { getMemberExpressionName, TableConstructorExpression, TableKeyString } from './expressions';
+import { getMemberExpressionName, Identifier, MemberExpression, TableConstructorExpression, TableKeyString } from './expressions';
 import { AssignmentStatement, Chunk, ForGenericStatement, ForNumericStatement, FunctionDeclaration, getFunctionDeclarationName, LocalStatement } from './statements';
 import { Bounds } from './types';
 import { ASTVisitor } from './visitor';
@@ -36,9 +36,11 @@ export function findSymbols(chunk: Chunk): CodeSymbol[] {
 class SymbolScope {
   symbols: Set<string> = new Set<string>();
   parent: CodeSymbol | undefined;
+  self: string | undefined;
 
-  constructor(parent: CodeSymbol | undefined) {
+  constructor(parent: CodeSymbol | undefined, self: string | undefined) {
     this.parent = parent;
+    this.self = self;
   }
 }
 
@@ -63,8 +65,11 @@ class SymbolFinder extends ASTVisitor<SymbolScope> {
   }
 
   createDefaultScope(): SymbolScope {
-    // carry forward the current parent, if there is one
-    return new SymbolScope(this.topScope() ? this.topScope().parent : undefined);
+    // carry forward the current parent & self, if there is one
+    if (this.topScope())
+      return new SymbolScope(this.topScope().parent, this.topScope().self);
+    else
+      return new SymbolScope(undefined, undefined);
   }
 
   // some helper functions
@@ -139,22 +144,29 @@ class SymbolFinder extends ASTVisitor<SymbolScope> {
         this.getCurrentParent() !== undefined);
     }
 
-    // add a symbol for each parameter as well
-    for (const param of statement.parameters) {
-      // except varargs
-      if (param.type !== 'Identifier') continue;
-
-      this.addSymbol(
-        param.name,
-        undefined,
-        CodeSymbolType.LocalVariable,
-        statement.loc!,
-        statement.identifier ? statement.identifier.loc! : statement.loc!,
-        true,
-        sym);
+    // determine what "self" value should be used
+    let self = undefined;
+    if (statement.identifier?.type === 'MemberExpression' && statement.identifier.indexer === ':') {
+      const base = statement.identifier.base;
+      if (base.type === 'Identifier') self = base.name;
+      else if (base.type === 'MemberExpression') self = getMemberExpressionName(base);
+      else throw new Error('Unreachable'); // sanity check
     }
 
-    return new SymbolScope(sym);
+    return new SymbolScope(sym, self);
+  }
+
+  override visitIdentifier(node: Identifier): void {
+    // We only care about identifiers when they are the parameters of a function declaration.
+    if (this.topNode() && this.topNode().type === 'FunctionDeclaration') {
+      this.addSymbol(
+        node.name,
+        undefined,
+        CodeSymbolType.LocalVariable,
+        node.loc!,
+        node.loc!,
+        true);
+    }
   }
 
   override visitAssignmentStatement(statement: AssignmentStatement) {
@@ -166,36 +178,80 @@ class SymbolFinder extends ASTVisitor<SymbolScope> {
   }
 
   private findSymbolsInAssignment(statement: AssignmentStatement | LocalStatement) {
-    const isLocal = statement.type === 'LocalStatement';
-
     for (let i = 0; i < statement.variables.length; i++) {
       const variable = statement.variables[i];
-      if (variable.type !== 'MemberExpression' && variable.type !== 'Identifier') {
-        // Don't create symbols for stuff like:
-        //   a[b] = c
-        continue;
-      }
 
-      const name = variable.type === 'MemberExpression' ? getMemberExpressionName(variable) : variable.name;
-
-      const varLocal = isLocal || this.isSymbolInLocalScope(name);
-
-      // Get variable type
-      let varType = varLocal ? CodeSymbolType.LocalVariable : CodeSymbolType.GlobalVariable;
       // check initializer to see if it's actually a function
-      const initializer = statement.init[i];
-      if (initializer && initializer.type === 'FunctionDeclaration') {
-        varType = CodeSymbolType.Function;
-      }
+      const isFunction = statement.init[i] && statement.init[i].type === 'FunctionDeclaration';
 
-      this.addSymbol(
-        name,
-        undefined,
-        varType,
-        statement.loc!,
-        variable.loc!,
-        varLocal);
+      if (variable.type === 'Identifier')
+        this.addSymbolForSimpleAssignment(variable, statement, isFunction);
+      else if (variable.type === 'MemberExpression')
+        this.addSymbolForMemberExpressionAssignment(variable, statement as AssignmentStatement, isFunction);
+
+      // Else, no-op. Don't create symbols for stuff like:
+      //   a[b] = c
     }
+  }
+
+  private addSymbolForSimpleAssignment(variable: Identifier, statement: AssignmentStatement | LocalStatement, isFunction: boolean) {
+    const name = variable.name;
+
+    const varLocal = statement.type === 'LocalStatement' || this.isSymbolInLocalScope(name);
+
+    // Get variable type
+    let varType = varLocal ? CodeSymbolType.LocalVariable : CodeSymbolType.GlobalVariable;
+    // override variable type if it's a function
+    if (isFunction) varType = CodeSymbolType.Function;
+
+    this.addSymbol(
+      name,
+      undefined,
+      varType,
+      statement.loc!,
+      variable.loc!,
+      varLocal);
+  }
+
+  private addSymbolForMemberExpressionAssignment(memberExpression: MemberExpression, statement: AssignmentStatement, isFunction: boolean) {
+    // Figure out what the base is so we can see if it's in local scope
+    let baseName: string;
+    let base = memberExpression.base;
+    // This is a while loop since it could be deeply nested.
+    //    a.b.c = true
+    // In that case we want baseName to be 'a', and the symbol name to be 'a.b.c'
+    foundBaseName: while (true) {
+      switch (base.type) {
+      case 'Identifier': baseName = base.name; break foundBaseName;
+      case 'MemberExpression': base = base.base; break;
+      default:
+        // It's something other than an identifier or member expression, so we can't add a symbol for it
+        return;
+      }
+    }
+
+    let symbolName = getMemberExpressionName(memberExpression)!;
+    // resolve "self" references if possible
+    const scopedSelf = this.topScope().self;
+    if (baseName === 'self' && scopedSelf) {
+      baseName = scopedSelf;
+      symbolName = symbolName.replace(/\bself\b/, scopedSelf);
+    }
+
+    const isLocal = this.isSymbolInLocalScope(baseName);
+
+    // Get variable type
+    let varType = isLocal ? CodeSymbolType.LocalVariable : CodeSymbolType.GlobalVariable;
+    // override variable type if it's a function
+    if (isFunction) varType = CodeSymbolType.Function;
+
+    this.addSymbol(
+      symbolName,
+      undefined,
+      varType,
+      statement.loc!,
+      memberExpression.loc!,
+      isLocal);
   }
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -205,7 +261,7 @@ class SymbolFinder extends ASTVisitor<SymbolScope> {
     // then add a new scope with the name of the variable the table
     // is getting assigned to (e.g. tbl).
     if (this.isInAssignment()) {
-      return new SymbolScope(this.lastAddedSymbol);
+      return new SymbolScope(this.lastAddedSymbol, undefined);
     }
 
     // If not, then no new scope, just add the default parent
@@ -223,6 +279,7 @@ class SymbolFinder extends ASTVisitor<SymbolScope> {
   }
 
   override visitForGenericStatement(node: ForGenericStatement): SymbolScope {
+    // Add symbols for variables created in the for statement
     for (const variable of node.variables) {
       this.addSymbol(
         variable.name,
@@ -237,6 +294,7 @@ class SymbolFinder extends ASTVisitor<SymbolScope> {
   }
 
   override visitForNumericStatement(node: ForNumericStatement): SymbolScope {
+    // Add symbols for the variable created in the for statement
     this.addSymbol(
       node.variable.name,
       undefined,

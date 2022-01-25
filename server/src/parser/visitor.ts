@@ -203,7 +203,12 @@ export abstract class ASTVisitor<T> {
     case 'FunctionDeclaration': {
       const result = this.visitFunctionDeclaration(node);
       this.nodeStack.push(node);
-      if (node.identifier) this.visitNode(node.identifier);
+
+      // Only visit the function declaration identifier if it's a member expression.
+      // Everything else can be taken care of in visitFunctionDeclaration.
+      if (node.identifier && node.identifier.type === 'MemberExpression')
+        this.visitNode(node.identifier);
+
       this.onEnterScope(result);
       this.visitAll(node.parameters);
       this.visitAll(node.body);

@@ -158,6 +158,24 @@ describe('Parser', () => {
     ]);
   });
 
+  it('parses a complicated member expression', () => {
+    const { body } = parse('getInstance().field = "blah"');
+    deepEquals(body, [
+      { type: 'AssignmentStatement', variables: [
+        {
+          type: 'MemberExpression',
+          base: {
+            type: 'CallExpression',
+            base: { type: 'Identifier', name: 'getInstance' },
+            arguments: [],
+          },
+          indexer: '.',
+          identifier: { type: 'Identifier', name: 'field' },
+        },
+      ], init: [{ type: 'StringLiteral', value: 'blah' }] },
+    ]);
+  });
+
   it('skips header and footer sections', () => {
     const code = `pico-8 cartridge // http://www.pico-8.com
 version 29
