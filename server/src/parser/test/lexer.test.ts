@@ -5,9 +5,8 @@ import { Token, TokenType, TokenValue } from '../tokens';
 import { deepEquals, getLexedTokens } from './test-utils';
 
 function assertNextToken(tokens: Token[], type: TokenType, value?: TokenValue) {
-  if (tokens.length === 0) {
+  if (tokens.length === 0)
     assert.fail('no more tokens!');
-  }
 
   const token = tokens[0];
   tokens.shift();
@@ -21,9 +20,9 @@ function assertNextToken(tokens: Token[], type: TokenType, value?: TokenValue) {
 function assertNoMoreTokens(tokens: Token[]) {
   assertNextToken(tokens, TokenType.EOF);
 
-  if (tokens.length !== 0) {
+  if (tokens.length !== 0)
     assert.fail('extra tokens! ' + tokens.map(t => `${t.type}[${t.value}]`).join(', '));
-  }
+
 }
 
 // Asserts we get the right tokens from: `print("hi")`
@@ -88,9 +87,9 @@ describe('Lexer', () => {
     describe('Punctuators', () => {
       function assertLexesOperators(...ops: string[]) {
         const tokens = getLexedTokens(ops.join(' '));
-        for (const op of ops) {
+        for (const op of ops)
           assertNextToken(tokens, TokenType.Punctuator, op);
-        }
+
         assertNoMoreTokens(tokens);
       }
 

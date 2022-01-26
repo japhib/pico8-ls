@@ -57,7 +57,7 @@
             }
         },
         {
-            "name": "Debug server tests",
+            "name": "npm test server",
             "type": "node",
             "request": "launch",
             "skipFiles": ["<node_internals>/**"],

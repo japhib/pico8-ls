@@ -26,7 +26,7 @@ export abstract class ASTVisitor<T> {
   nodeStack: VisitableASTNode[] = [];
 
   constructor() {
-    this.scopeStack.push(this.createDefaultScope());
+    this.scopeStack.push(this.startingScope());
   }
 
   topScope(idx?: number) {
@@ -43,9 +43,11 @@ export abstract class ASTVisitor<T> {
     return this.nodeStack[this.nodeStack.length - offset];
   }
 
-  // The starting value that gets pushed into the scope.
-  //
-  // Also the value that gets pushed onto the stack when entering a new scope
+  // The starting value that gets pushed into the scope. Uses createDefaultScope
+  // by default.
+  startingScope(): T { return this.createDefaultScope(); }
+
+  // The value that gets pushed onto the stack when entering a new scope
   // if you *don't* have a visitor defined for that function.
   abstract createDefaultScope(): T;
 
@@ -118,9 +120,9 @@ export abstract class ASTVisitor<T> {
 
   // Public entry point for kicking off visiting every node in the AST.
   visit(chunk: Chunk) {
-    for (const statement of chunk.body) {
+    for (const statement of chunk.body)
       this.visitNode(statement);
-    }
+
   }
 
   private visitAll(nodes: VisitableASTNode[]) {

@@ -58,7 +58,7 @@ export default class Parser {
   // Wrap up the node object.
   finishNode<T>(node: T): T {
     // Pop a `Marker` off the location-array and attach its location data.
-    const location = this.locations.pop();
+    const location = this.popLocation();
     if (location && this.previousToken) {
       location.complete(this.previousToken);
       location.bless(node);
@@ -105,7 +105,15 @@ export default class Parser {
 
   // Push an arbitrary `Marker` object onto the FILO-array.
   pushLocation(marker: Marker) {
-    this.locations.push(marker);
+    // If we're using pushLocation rather than markLocation, there's a good
+    // chance a marker is being re-used. In that case it's useful to clone the
+    // marker to make sure we're not mutating a location that's already in the
+    // AST.
+    this.locations.push(marker.clone());
+  }
+
+  popLocation() {
+    return this.locations.pop();
   }
 
   // Scope
@@ -167,13 +175,17 @@ export default class Parser {
     flowContext.popScope();
     this.destroyScope();
 
-    if (this.token.type !== TokenType.EOF) {
+    if (this.token.type !== TokenType.EOF)
       this.errors.push(this.getUnexpectedTokenErr(this.token));
-    }
 
     const chunk = this.finishNode(AST.chunk(body, this.errors));
+
     chunk.symbols = findSymbols(chunk);
-    chunk.definitionsUsages = findDefinitionsUsages(chunk);
+
+    const { defUs, warnings } = findDefinitionsUsages(chunk);
+    chunk.definitionsUsages = defUs;
+    chunk.warnings = warnings;
+
     return chunk;
   }
 
@@ -231,13 +243,12 @@ export default class Parser {
   parseStatement(flowContext: FlowContext): Statement | null {
     this.markLocation();
 
-    if (this.token.type === TokenType.Punctuator) {
+    if (this.token.type === TokenType.Punctuator)
       if (this.lexer.consume('::')) return this.parseLabelStatement(flowContext);
-    }
 
     // When a `;` is encounted, simply eat it without storing it.
     if (this.lexer.consume(';')) {
-      this.locations.pop();
+      this.popLocation();
       return null;
     }
 
@@ -264,7 +275,7 @@ export default class Parser {
     }
 
     // Assignments memorizes the location and pushes it manually for wrapper nodes.
-    this.locations.pop();
+    this.popLocation();
 
     return this.parseAssignmentOrCallStatement(flowContext);
   }
@@ -375,7 +386,7 @@ export default class Parser {
     // IfClauses begin at the same location as the parent IfStatement.
     // It ends at the start of `end`, `else`, or `elseif`.
     let marker = this.locations[this.locations.length - 1];
-    this.locations.push(marker);
+    this.pushLocation(marker);
 
     const canBeOneLiner = this.lexer.token?.value === '(';
 
@@ -408,9 +419,9 @@ export default class Parser {
         }
 
         // Consume the significant newline
-        if (this.token.type == TokenType.Newline) {
+        if (this.token.type == TokenType.Newline)
           this.lexer.next();
-        }
+
         this.lexer.newlineSignificant = false;
 
         return this.finishNode(AST.ifStatement(clauses));
@@ -444,7 +455,7 @@ export default class Parser {
       // Include the `else` in the location of ElseClause.
       {
         marker = new Marker(this.previousToken);
-        this.locations.push(marker);
+        this.pushLocation(marker);
       }
       this.createScope();
       flowContext.pushScope();
@@ -562,9 +573,9 @@ export default class Parser {
       // Therefore assignments can't use their declarator. And the identifiers
       // shouldn't be added to the scope until the statement is complete.
       {
-        for (let i = 0, l = variables.length; i < l; ++i) {
+        for (let i = 0, l = variables.length; i < l; ++i)
           this.scopeIdentifier(variables[i]);
-        }
+
       }
 
       return this.finishNode(AST.localStatement(variables, operator, init));
@@ -642,13 +653,11 @@ export default class Parser {
 
       targets.push(base);
 
-      if (',' !== this.token.value) {
+      if (',' !== this.token.value)
         break;
-      }
 
-      if (!lvalue) {
+      if (!lvalue)
         this.unexpectedToken(this.token);
-      }
 
       this.lexer.next();
     } while (true);
@@ -666,9 +675,9 @@ export default class Parser {
     this.lexer.next();
 
     const values = [];
-    do {
+    do
       values.push(this.parseExpectedExpression(flowContext));
-    } while (this.lexer.consume(','));
+    while (this.lexer.consume(','));
 
     this.pushLocation(startMarker);
     return this.finishNode(AST.assignmentStatement(targets as Variable[], operator, values));
@@ -723,9 +732,9 @@ export default class Parser {
           this.errors.push(errors.createErrForToken(this.token, errMessages.expectedToken, '<name> or \'...\'', this.token.value));
 
           // Discard tokens until we get a ')' or ','
-          while (this.token.value !== ')' && this.token.value !== ',') {
+          while (this.token.value !== ')' && this.token.value !== ',')
             this.lexer.next();
-          }
+
         }
       } while (this.lexer.consume(','));
 
@@ -807,7 +816,7 @@ export default class Parser {
         }
       } else {
         if (null == (value = this.parseExpression(flowContext))) {
-          this.locations.pop();
+          this.popLocation();
           break;
         }
         fields.push(this.finishNode(AST.tableValue(value)));
@@ -850,7 +859,6 @@ export default class Parser {
     else return expression;
   }
 
-
   // Return the precedence priority of the operator.
   //
   // As unary `-` can't be distinguished from binary `-`, unary precedence
@@ -883,7 +891,7 @@ export default class Parser {
       case 33: case 61: case 126: return 3; // == ~= !=
       case 111: return 1; // or
       }
-    } else if (97 === charCode && 'and' === operator) return 2;
+    } else if (97 === charCode && 'and' === operator) {return 2;}
     return 0;
   }
 
@@ -917,9 +925,9 @@ export default class Parser {
       expression = this.parsePrimaryExpression(flowContext);
 
       // PrefixExpression
-      if (null == expression) {
+      if (null == expression)
         expression = this.parsePrefixExpression(flowContext);
-      }
+
     }
     // This is not a valid left hand expression.
     if (null == expression) return null;
@@ -938,7 +946,7 @@ export default class Parser {
       const right = this.parseSubExpression(precedence, flowContext);
       if (null == right) errors.raiseUnexpectedToken('<expression>', this.token);
       // Push in the marker created before the loop to wrap its entirety.
-      this.locations.push(marker);
+      this.pushLocation(marker);
       expression = this.finishNode(AST.binaryExpression(operator, expression, right));
     }
     return expression;
@@ -1060,9 +1068,8 @@ export default class Parser {
 
     const marker = this.createLocationMarker();
 
-    if (type === TokenType.VarargLiteral && !flowContext.allowVararg) {
+    if (type === TokenType.VarargLiteral && !flowContext.allowVararg)
       raiseErrForToken(this.token, errMessages.cannotUseVararg, this.token.value);
-    }
 
     if (literals.includes(type)) {
       this.pushLocation(marker);

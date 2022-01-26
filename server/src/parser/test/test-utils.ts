@@ -48,15 +48,15 @@ export function deepEquals(actual: any, expected: any) {
 function deepEqualsArray(actual: any[], expected: any[]) {
   eq(actual.length, expected.length, 'array lengths don\'t match!');
 
-  for (let i = 0; i < expected.length; i++) {
+  for (let i = 0; i < expected.length; i++)
     deepEquals(actual[i], expected[i]);
-  }
+
 }
 
 function deepEqualsObject(actual: any, expected: any) {
-  for (const key of Object.keys(expected)) {
+  for (const key of Object.keys(expected))
     deepEquals(actual[key], expected[key]);
-  }
+
 }
 
 export function locationOfToken(code: string, tokenValue: TokenValue): Bounds {
@@ -75,4 +75,13 @@ export function tokenAt(code: string, index: number): Token | undefined {
       return token;
   }
   return undefined;
+}
+
+// Not a *real* Bounds object because it's missing index. Useful for making
+// something to test against though.
+export function bounds(startLine: number, startCol: number, endLine: number, endCol: number) {
+  return {
+    start: { line: startLine, column: startCol },
+    end: { line: endLine, column: endCol },
+  };
 }

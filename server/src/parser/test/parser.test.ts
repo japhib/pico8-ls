@@ -1,5 +1,5 @@
 import { strictEqual as eq } from 'assert';
-import { deepEquals, deepEqualsAST, getTestFileContents, parse } from './test-utils';
+import { bounds, deepEquals, deepEqualsAST, getTestFileContents, parse } from './test-utils';
 
 describe('Parser', () => {
   it('parses basic assignment statement', () => {
@@ -21,19 +21,30 @@ describe('Parser', () => {
   });
 
   it('parses basic function declaration', () => {
-    deepEqualsAST('function f(x)\nreturn x + 1\nend', [{
+    const { body } = parse('function f(x)\nreturn x + 1\nend');
+    deepEquals(body, [{
       type: 'FunctionDeclaration',
       isLocal: false,
-      identifier: { name: 'f' },
-      parameters: [{ type: 'Identifier', name: 'x' }],
+      identifier: {
+        type: 'Identifier',
+        name: 'f',
+        loc: bounds(1, 9, 1, 10),
+      },
+      parameters: [{
+        type: 'Identifier',
+        name: 'x',
+        loc: bounds(1, 11, 1, 12),
+      }],
       body: [{
         type: 'ReturnStatement',
         arguments: [{
           type: 'BinaryExpression',
           operator: '+',
-          left: { type: 'Identifier', name: 'x' },
-          right: { type: 'NumericLiteral', value: 1 },
+          left: { type: 'Identifier', name: 'x', loc: bounds(2, 7, 2, 8) },
+          right: { type: 'NumericLiteral', value: 1, loc: bounds(2, 11, 2, 12) },
+          loc: bounds(2, 7, 2, 12),
         }],
+        loc: bounds(2, 0, 2, 12),
       }],
     }]);
   });

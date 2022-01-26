@@ -68,8 +68,8 @@ export class FlowContext {
     for (let i = 0; i < this.pendingGotos.length; ++i) {
       const theGoto = this.pendingGotos[i];
       if (theGoto.maxDepth >= this.scopes.length)
-        if (--theGoto.maxDepth <= 0)
-          errors.raiseErrForToken(theGoto.token, errMessages.labelNotVisible, theGoto.target);
+      {if (--theGoto.maxDepth <= 0)
+        errors.raiseErrForToken(theGoto.token, errMessages.labelNotVisible, theGoto.target);}
     }
 
     this.scopes.pop();
@@ -105,9 +105,9 @@ export class FlowContext {
         const theGoto = this.pendingGotos[i];
 
         if (theGoto.maxDepth >= this.scopes.length && theGoto.target === name) {
-          if (theGoto.localCounts[this.scopes.length - 1] < scope.locals.length) {
+          if (theGoto.localCounts[this.scopes.length - 1] < scope.locals.length)
             scope.deferredGotos.push(theGoto);
-          }
+
           continue;
         }
 

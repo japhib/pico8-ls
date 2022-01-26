@@ -1,11 +1,15 @@
 import { Token } from './tokens';
-import { Bounds, ASTNode } from './types';
+import { Bounds, ASTNode, cloneBounds } from './types';
 
 export default class Marker {
   loc: Bounds;
 
-  constructor(token: Token) {
-    this.loc = token.bounds;
+  constructor(tokenOrBounds: Token | Bounds) {
+    if ((tokenOrBounds as Token).type)
+      this.loc = (tokenOrBounds as Token).bounds;
+    else
+      this.loc = (tokenOrBounds as Bounds);
+
   }
 
   // Complete the location data stored in the `Marker` by adding the location
@@ -16,5 +20,9 @@ export default class Marker {
 
   bless(node: ASTNode) {
     node.loc = this.loc;
+  }
+
+  clone(): Marker {
+    return new Marker(cloneBounds(this.loc));
   }
 }

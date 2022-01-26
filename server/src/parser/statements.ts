@@ -1,5 +1,5 @@
 import { DefinitionsUsagesLookup } from './definitions-usages';
-import { ParseError } from './errors';
+import { ParseError, Warning } from './errors';
 import { Comment_, Expression, Identifier, VarargLiteral, Variable, MemberExpression, getMemberExpressionName } from './expressions';
 import { CodeSymbol } from './symbols';
 import { ASTNode } from './types';
@@ -115,9 +115,8 @@ export function getFunctionDeclarationName(funcDeclaration: FunctionDeclaration)
   if (!funcDeclaration.identifier)
     return AnonymousFunctionName;
 
-  if (funcDeclaration.identifier.type === 'Identifier') {
+  if (funcDeclaration.identifier.type === 'Identifier')
     return funcDeclaration.identifier.name;
-  }
 
   return getMemberExpressionName(funcDeclaration.identifier) || AnonymousFunctionName;
 }
@@ -141,6 +140,7 @@ export type Chunk = {
   type: 'Chunk',
   body: Statement[],
   errors: ParseError[],
+  warnings: Warning[],
   symbols: CodeSymbol[],
   definitionsUsages: DefinitionsUsagesLookup,
   comments?: Comment_[],

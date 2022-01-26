@@ -26,6 +26,7 @@ export const errMessages = Object.freeze({
   gotoJumpInLocalScope: '<goto %1> jumps into the scope of local \'%2\'',
   cannotUseVararg: 'cannot use \'...\' outside a Vararg function near \'%1\'',
   invalidCodeUnit: 'code unit U+%1 is not allowed in the current encoding mode',
+  undefinedGlobal: 'undefined variable: %1',
 });
 
 export class ParseError extends Error {
@@ -39,6 +40,19 @@ export class ParseError extends Error {
     this.bounds = bounds;
   }
 }
+
+export class Warning {
+  type = 'Warning';
+  message: string;
+  bounds: Bounds;
+
+  constructor(message: string, bounds: Bounds) {
+    this.message = message;
+    this.bounds = bounds;
+  }
+}
+
+export type CodeProblem = ParseError | Warning;
 
 export function isParseError(e: any): e is ParseError {
   return !!e && typeof e === 'object' && e.type === 'ParseError';
@@ -58,9 +72,13 @@ export function isParseError(e: any): e is ParseError {
 //     raise(token, "expected %1 near %2", '[', token.value);
 
 export function createErr(bounds: Bounds, fmtMessage: string, ...rest: any[]): ParseError {
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
   const message = sprintf(fmtMessage, ...rest);
   return new ParseError(message, bounds);
+}
+
+export function createWarning(bounds: Bounds, fmtMessage: string, ...rest: any[]): Warning {
+  const message = sprintf(fmtMessage, ...rest);
+  return new Warning(message, bounds);
 }
 
 export function raiseErr(bounds: Bounds, fmtMessage: string, ...rest: any[]): never {

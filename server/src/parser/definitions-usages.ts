@@ -1,14 +1,20 @@
 /* eslint-disable @typescript-eslint/no-unsafe-call */
 
-import { getMemberExpressionName, Identifier } from './expressions';
-import { Chunk, FunctionDeclaration, getBareFunctionDeclarationName } from './statements';
+import { createWarning, errMessages, Warning } from './errors';
+import { getMemberExpressionName, Identifier, MemberExpression } from './expressions';
+import { AssignmentStatement, Chunk, ForGenericStatement, ForNumericStatement, FunctionDeclaration, getBareFunctionDeclarationName, LocalStatement } from './statements';
 import { Bounds, boundsEqual } from './types';
 import { ASTVisitor } from './visitor';
+import Builtins from './builtins';
 
 export type DefinitionsUsages = {
   definitions: Bounds[],
   usages: Bounds[],
 };
+
+function emptyDefinitionsUsages(): DefinitionsUsages {
+  return { definitions: [], usages: [] };
+}
 
 export type DefinitionsUsagesOnLine = {
   loc: Bounds,
@@ -41,16 +47,16 @@ export class DefinitionsUsagesLookup {
     for (const def of defUsOnLine) {
       if (line === def.loc.start.line
         && column >= def.loc.start.column
-        && column <= def.loc.end.column) {
+        && column <= def.loc.end.column)
         return def.defUs;
-      }
+
     }
 
     return undefined;
   }
 }
 
-export function findDefinitionsUsages(chunk: Chunk): DefinitionsUsagesLookup {
+export function findDefinitionsUsages(chunk: Chunk): { defUs: DefinitionsUsagesLookup, warnings: Warning[] } {
   return new DefinitionsUsagesFinder(chunk).findDefinitionsUsages();
 }
 
@@ -63,14 +69,49 @@ class DefinitionsUsagesFinder extends ASTVisitor<SymbolsInScope> {
   // List of symbols
   lookup: DefinitionsUsagesLookup = new DefinitionsUsagesLookup();
 
+  // List of globals that have been referenced but not defined yet
+  earlyRefs: { [key: string]: Bounds[] } = {};
+
+  // Errors that occurred while determining definitions & usages
+  // (just undefined variables so far)
+  warnings: Warning[] = [];
+
   constructor(chunk: Chunk) {
     super();
     this.chunk = chunk;
   }
 
-  findDefinitionsUsages(): DefinitionsUsagesLookup {
+  override startingScope(): SymbolsInScope {
+    const predefinedGlobals = new Map<string, DefinitionsUsages>();
+    for (const fnName in Builtins)
+      predefinedGlobals.set(fnName, emptyDefinitionsUsages());
+    return predefinedGlobals;
+  }
+
+  override createDefaultScope(): SymbolsInScope {
+    return new Map<string, DefinitionsUsages>();
+  }
+
+  findDefinitionsUsages(): { defUs: DefinitionsUsagesLookup, warnings: Warning[] } {
     this.visit(this.chunk);
-    return this.lookup;
+
+    // resolve early global refs
+    for (const earlyRef in this.earlyRefs) {
+      if (!this.isSymbolDefined(earlyRef)) {
+        this.earlyRefs[earlyRef].forEach(loc => {
+          this.warnings.push(createWarning(loc, errMessages.undefinedGlobal, earlyRef));
+        });
+      } else {
+        this.earlyRefs[earlyRef].forEach(loc => {
+          this.addUsage(earlyRef, loc);
+        });
+      }
+    }
+
+    return {
+      defUs: this.lookup,
+      warnings: this.warnings,
+    };
   }
 
   // some helpers
@@ -78,17 +119,17 @@ class DefinitionsUsagesFinder extends ASTVisitor<SymbolsInScope> {
   private isSymbolLocal(symbolName: string): boolean {
     // Note we stop *before* i gets to 0, so the global scope (i=0) is not
     // considered
-    for (let i = this.scopeStack.length - 1; i > 0; i--) {
+    for (let i = this.scopeStack.length - 1; i > 0; i--)
       if (this.scopeStack[i].has(symbolName)) return true;
-    }
+
     return false;
   }
 
   private isSymbolDefined(symbolName: string): boolean {
     // Note global scope (i=0) *is* considered.
-    for (let i = this.scopeStack.length - 1; i >= 0; i--) {
+    for (let i = this.scopeStack.length - 1; i >= 0; i--)
       if (this.scopeStack[i].has(symbolName)) return true;
-    }
+
     return false;
   }
 
@@ -142,7 +183,7 @@ class DefinitionsUsagesFinder extends ASTVisitor<SymbolsInScope> {
     // if it's a global variable getting reassigned, add it to the definitions list as well
     if (!this.isSymbolLocal(symbolName) && this.isInAssignment()) {
       // Don't add the usage if it's the exact same as the most recent one added
-      if (!boundsEqual(loc, defUs.usages[defUs.usages.length - 1]))
+      if (!boundsEqual(loc, defUs.definitions[defUs.definitions.length - 1]))
         defUs.definitions.push(loc);
     }
 
@@ -150,11 +191,16 @@ class DefinitionsUsagesFinder extends ASTVisitor<SymbolsInScope> {
     this.lookup.add(loc, defUs);
   }
 
-  // Visitor implementation
-
-  override createDefaultScope(): SymbolsInScope {
-    return new Map<string, DefinitionsUsages>();
+  private addEarlyRef(symbolName: string, loc: Bounds) {
+    let list = this.earlyRefs[symbolName];
+    if (!list) {
+      list = [];
+      this.earlyRefs[symbolName] = list;
+    }
+    list.push(loc);
   }
+
+  // Visitor implementation
 
   override visitFunctionDeclaration(node: FunctionDeclaration): SymbolsInScope {
     // If the function has an identifier, that's the name.
@@ -203,6 +249,102 @@ class DefinitionsUsagesFinder extends ASTVisitor<SymbolsInScope> {
   }
 
   override visitIdentifier(node: Identifier): void {
+    // Special case: function parameter
+    if (this.topNode() && this.topNode().type === 'FunctionDeclaration') {
+      this.addDefinition(node.name, node.loc!, false);
+      return;
+    }
+
     if (this.isSymbolDefined(node.name)) this.addUsage(node.name, node.loc!);
+    else this.addEarlyRef(node.name, node.loc!);
+  }
+
+  override visitAssignmentStatement(statement: AssignmentStatement): void {
+    this.defsForAssignment(statement);
+  }
+
+  override visitLocalStatement(statement: LocalStatement): void {
+    this.defsForAssignment(statement);
+  }
+
+  private defsForAssignment(statement: AssignmentStatement | LocalStatement): void {
+    for (let i = 0; i < statement.variables.length; i++) {
+      const variable = statement.variables[i];
+
+      if (variable.type === 'Identifier')
+        this.defsForSimpleAssignment(variable, statement);
+      else if (variable.type === 'MemberExpression')
+        this.defsForMemberExpressionAssignment(variable, statement as AssignmentStatement);
+
+      // Else, no-op. Don't create defs/usages for stuff like:
+      //   a[b] = c
+      // (at least not on the assignment level. `a` in the example above
+      // would still get picked up by visitIdentifier)
+    }
+  }
+
+  private defsForSimpleAssignment(variable: Identifier, statement: AssignmentStatement | LocalStatement) {
+    const name = variable.name;
+    if (statement.type === 'LocalStatement' || !this.isSymbolDefined(name))
+      this.addDefinition(name, variable.loc!, statement.type === 'LocalStatement');
+    else
+      this.addUsage(name, variable.loc!);
+
+  }
+
+  private defsForMemberExpressionAssignment(memberExpression: MemberExpression, statement: AssignmentStatement) {
+    // // Figure out what the base is so we can see if it's in local scope
+    // let baseName: string;
+    // let base = memberExpression.base;
+    // // This is a while loop since it could be deeply nested.
+    // //    a.b.c = true
+    // // In that case we want baseName to be 'a', and the symbol name to be 'a.b.c'
+    // foundBaseName: while (true) {
+    //   switch (base.type) {
+    //   case 'Identifier': baseName = base.name; break foundBaseName;
+    //   case 'MemberExpression': base = base.base; break;
+    //   default:
+    //     // It's something other than an identifier or member expression, so we can't add a symbol for it
+    //     return;
+    //   }
+    // }
+
+    // let symbolName = getMemberExpressionName(memberExpression)!;
+    // // resolve "self" references if possible
+    // const scopedSelf = this.topScope().self;
+    // if (baseName === 'self' && scopedSelf) {
+    //   baseName = scopedSelf;
+    //   symbolName = symbolName.replace(/\bself\b/, scopedSelf);
+    // }
+
+    // const isLocal = this.isSymbolInLocalScope(baseName);
+
+    // // Get variable type
+    // let varType = isLocal ? CodeSymbolType.LocalVariable : CodeSymbolType.GlobalVariable;
+    // // override variable type if it's a function
+    // if (isFunction) varType = CodeSymbolType.Function;
+
+    // this.addSymbol(
+    //   symbolName,
+    //   undefined,
+    //   varType,
+    //   statement.loc!,
+    //   memberExpression.loc!,
+    //   isLocal);
+  }
+
+  override visitForGenericStatement(node: ForGenericStatement): SymbolsInScope {
+    // Add symbols for variables created in the for statement
+    for (const variable of node.variables)
+      this.addDefinition(variable.name, variable.loc!, false);
+
+    return this.createDefaultScope();
+  }
+
+  override visitForNumericStatement(node: ForNumericStatement): SymbolsInScope {
+    // Add symbols for the variable created in the for statement
+    this.addDefinition(node.variable.name, node.variable.loc!, false);
+
+    return this.createDefaultScope();
   }
 }

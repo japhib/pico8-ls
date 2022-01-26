@@ -72,9 +72,9 @@ export default class Lexer {
       this.fullP8File = true;
 
       // skip lines until we get to __lua__
-      while (this.currentLine() !== '__lua__') {
+      while (this.currentLine() !== '__lua__')
         this.skipLine();
-      }
+
       // Skip the __lua__ line
       this.skipLine();
     }
@@ -165,9 +165,8 @@ export default class Lexer {
   }
 
   lex(): Token {
-    if (this.reachedEnd) {
+    if (this.reachedEnd)
       return this.makeToken(TokenType.EOF, '<eof>');
-    }
 
     this.skipWhiteSpace();
 
@@ -322,11 +321,11 @@ export default class Lexer {
   skipWhiteSpace() {
     while (this.index < this.length) {
       const charCode = this.input.charCodeAt(this.index);
-      if (isWhiteSpace(charCode)) {
+      if (isWhiteSpace(charCode))
         this.index++;
-      } else if (!this.consumeEOL()) {
+      else if (!this.consumeEOL())
         break;
-      }
+
     }
   }
 
@@ -395,9 +394,8 @@ export default class Lexer {
         string += this.input.slice(stringStart, this.index - 1);
 
         // Get ready for next time lex() is called
-        if (isLineTerminator(this.charCode)) {
+        if (isLineTerminator(this.charCode))
           this.consumeEOL();
-        }
 
         this.raiseErr(errMessages.unfinishedString, this.input.slice(this.tokenStart, this.index - 1));
       }
@@ -588,9 +586,8 @@ export default class Lexer {
 
       const frag = this.input.slice(sequenceStart, this.index);
       const ddd = parseInt(frag, 10);
-      if (ddd > 255) {
+      if (ddd > 255)
         this.raiseErr(errMessages.decimalEscapeTooLarge, '\\' + ddd);
-      }
 
       // TODO use frag again?
       return this.encodingMode.encodeByte(ddd);//, '\\' + frag);
@@ -696,9 +693,9 @@ export default class Lexer {
       // if it matches.
       if (']' === character) {
         terminator = true;
-        for (let i = 0; i < level; ++i) {
+        for (let i = 0; i < level; ++i)
           if ('=' !== this.input.charAt(this.index + i)) terminator = false;
-        }
+
         if (']' !== this.input.charAt(this.index + level)) terminator = false;
       }
 

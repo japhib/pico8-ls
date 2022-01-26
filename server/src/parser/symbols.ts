@@ -75,9 +75,9 @@ class SymbolFinder extends ASTVisitor<SymbolScope> {
   // some helper functions
 
   private isSymbolInLocalScope(symbolName: string) {
-    for (let i = this.scopeStack.length - 1; i > 0; i--) {
+    for (let i = this.scopeStack.length - 1; i > 0; i--)
       if (this.scopeStack[i].symbols.has(symbolName)) return true;
-    }
+
     return false;
   }
 
@@ -274,9 +274,8 @@ class SymbolFinder extends ASTVisitor<SymbolScope> {
     //    tbl = {}
     // then add a new scope with the name of the variable the table
     // is getting assigned to (e.g. tbl).
-    if (this.isInAssignment()) {
+    if (this.isInAssignment())
       return new SymbolScope(this.lastAddedSymbol, undefined);
-    }
 
     // If not, then no new scope, just add the default parent
     return this.createDefaultScope();

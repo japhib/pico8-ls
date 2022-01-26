@@ -69,6 +69,11 @@ module.exports = {
       'error',
       'always',
     ],
+    'curly': [
+      'error',
+      'multi-or-nest',
+      'consistent',
+    ],
     'no-control-regex': 'off',
     'no-unused-vars': 'warn',
     'no-empty': 'warn',
@@ -76,5 +81,7 @@ module.exports = {
     'no-constant-condition': 'off',
     'no-case-declarations': 'off',
     'object-curly-spacing': 'off',
+    'no-multiple-empty-lines': ['error', { max: 1 }],
+    'eol-last': ['error', 'always'],
   },
 };

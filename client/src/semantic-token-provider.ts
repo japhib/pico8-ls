@@ -33,9 +33,8 @@ const provider: DocumentSemanticTokensProvider = {
       }
 
       // Skip providing more tokens if we're not in Lua
-      if (!inLua) {
+      if (!inLua)
         continue;
-      }
 
       // currently only support double-slash line comments
       const match = line.text.indexOf('//');

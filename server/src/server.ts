@@ -17,13 +17,14 @@ import {
   SymbolKind,
   TextDocumentPositionParams,
   TextDocuments,
-  TextDocumentSyncKind
+  TextDocumentSyncKind,
 } from 'vscode-languageserver/node';
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import Parser from './parser/parser';
 import { Bounds } from './parser/types';
 import { CodeSymbolType, CodeSymbol } from './parser/symbols';
 import { DefinitionsUsages, DefinitionsUsagesLookup } from './parser/definitions-usages';
+import { ParseError, Warning } from './parser/errors';
 
 console.log('Server starting.');
 
@@ -143,13 +144,13 @@ const symbolTypeLookup = {
   [CodeSymbolType.LocalVariable]: SymbolKind.Variable,
   // Obviously a global variable is not a class, but we use it since it has a nicer symbol
   [CodeSymbolType.GlobalVariable]: SymbolKind.Class,
-}
+};
 
 function boundsToRange(textDocument: TextDocument, bounds: Bounds): Range {
   return {
     start: textDocument.positionAt(bounds.start.index),
     end: textDocument.positionAt(bounds.end.index),
-  }
+  };
 }
 
 function toDocumentSymbol(textDocument: TextDocument, symbol: CodeSymbol): DocumentSymbol {
@@ -163,12 +164,24 @@ function toDocumentSymbol(textDocument: TextDocument, symbol: CodeSymbol): Docum
   };
 }
 
+function toDiagnostic(textDocument: TextDocument, err: ParseError | Warning): Diagnostic {
+  return {
+    message: err.message,
+    range: {
+      start: textDocument.positionAt(err.bounds.start.index),
+      end: textDocument.positionAt(err.bounds.end.index),
+    },
+    severity: err.type === 'ParseError' ? DiagnosticSeverity.Error : DiagnosticSeverity.Warning,
+    source: 'PICO-8 LS',
+  };
+}
+
 async function validateTextDocument(textDocument: TextDocument) {
   const settings = await getDocumentSettings(textDocument.uri);
 
   // parse document
   const parser = new Parser(textDocument.getText());
-  const { errors, symbols, definitionsUsages } = parser.parse();
+  const { errors, warnings, symbols, definitionsUsages } = parser.parse();
 
   // set document symbols in cache
   const symbolInfo: DocumentSymbol[] = symbols.map(sym => toDocumentSymbol(textDocument, sym));
@@ -178,18 +191,10 @@ async function validateTextDocument(textDocument: TextDocument) {
   documentDefUsage.set(textDocument.uri, definitionsUsages);
 
   // send errors back to client immediately
-  const diagnostics: Diagnostic[] = errors.map(err => {
-    return {
-      message: err.message,
-      range: {
-        start: textDocument.positionAt(err.bounds.start.index),
-        end: textDocument.positionAt(err.bounds.end.index),
-      },
-      severity: DiagnosticSeverity.Error,
-      source: 'PICO-8 LS',
-    };
-  });
-
+  const diagnostics: Diagnostic[] = [];
+  const toDiagnosticBound = toDiagnostic.bind(null, textDocument);
+  diagnostics.push(...errors.map(toDiagnosticBound));
+  diagnostics.push(...warnings.map(toDiagnosticBound));
   connection.sendDiagnostics({ uri: textDocument.uri, diagnostics });
 }
 
@@ -216,8 +221,8 @@ function boundsToLocation(uri: DocumentUri, bounds: Bounds): Location {
     range: {
       start: { line: bounds.start.line - 1, character: bounds.start.column },
       end: { line: bounds.end.line - 1, character: bounds.end.column },
-    }
-  }
+    },
+  };
 }
 
 connection.onDefinition((params: DefinitionParams) => {
@@ -232,7 +237,7 @@ connection.onReferences((params: ReferenceParams) => {
   if (!result) return [];
 
   return result.usages.map(bounds => boundsToLocation(params.textDocument.uri, bounds));
-})
+});
 
 connection.onDidChangeWatchedFiles(_change => {
   // Monitored files have change in VS Code

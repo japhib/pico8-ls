@@ -165,6 +165,9 @@ export default class AST {
       type: 'Chunk',
       body,
       errors,
+
+      // This stuff is added later
+      warnings: [],
       symbols: [],
       definitionsUsages: new DefinitionsUsagesLookup(),
     };
