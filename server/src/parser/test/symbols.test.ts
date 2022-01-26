@@ -312,24 +312,81 @@ describe('SymbolFinder', () => {
     ]);
   });
 
-  it('handles "self" inside function definitions appropriately', () => {
-    const { symbols } = parse(`
-    function tbl:somefn()
-      self.val = 5
-      local another_tbl = {}
-      function another_tbl:update()
-        self.val2 = 6
+  describe('handles "self" inside function definitions', () => {
+    it('normal case', () => {
+      const { symbols } = parse(`
+      function tbl:somefn()
+        self.val = 5
+        local another_tbl = {}
+        function another_tbl:update()
+          self.val2 = 6
+        end
       end
-    end
-    `);
-    deepEquals(symbols, [
-      { name: 'tbl:somefn', children: [
-        { name: 'another_tbl', type: CodeSymbolType.LocalVariable },
-        { name: 'another_tbl:update', type: CodeSymbolType.Function, children: [
-          { name: 'another_tbl.val2', type: CodeSymbolType.LocalVariable },
+      `);
+      deepEquals(symbols, [
+        { name: 'tbl:somefn', children: [
+          { name: 'another_tbl', type: CodeSymbolType.LocalVariable },
+          { name: 'another_tbl:update', type: CodeSymbolType.Function, children: [
+            { name: 'another_tbl.val2', type: CodeSymbolType.LocalVariable },
+          ] },
         ] },
-      ] },
-      { name: 'tbl.val', type: CodeSymbolType.GlobalVariable },
-    ]);
+        { name: 'tbl.val', type: CodeSymbolType.GlobalVariable },
+      ]);
+    });
+
+    it('in an assignment statement', () => {
+      const { symbols } = parse(`
+      function somefn()
+        local something = {}
+        something.blah = function()
+          -- 'self' should resolve to 'something'
+          self.val = 5
+        end
+        return something
+      end
+      `);
+      deepEquals(symbols, [
+        { name: 'somefn', children: [
+          { name: 'something', type: CodeSymbolType.LocalVariable },
+          { name: 'something.blah', type: CodeSymbolType.Function, children: [
+            { name: 'something.val', type: CodeSymbolType.LocalVariable },
+          ] },
+        ] },
+      ]);
+    });
+
+    it('in a table constructor', () => {
+      const { symbols } = parse(`
+      function somefn()
+        local something = {
+          blah = function()
+            self.val = 5
+          end
+        }
+        return something
+      end
+      `);
+      deepEquals(symbols, [
+        { name: 'somefn', children: [
+          { name: 'something', type: CodeSymbolType.LocalVariable, children: [
+            { name: 'blah', type: CodeSymbolType.Function, children: [
+              { name: 'something.val', type: CodeSymbolType.LocalVariable, children: [] },
+            ] },
+          ] },
+        ] },
+      ]);
+    });
+
+    it('case where there is no existing self referece', () => {
+      const { symbols } = parse(`
+      function somefn()
+        self.val = 5
+      end
+      `);
+      deepEquals(symbols, [
+        { name: 'somefn' },
+        { name: 'self.val' },
+      ]);
+    });
   });
 });

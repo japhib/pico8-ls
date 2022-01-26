@@ -1,66 +1,81 @@
 // A launch configuration that compiles the extension and then opens it inside a new window
 {
-	"version": "0.2.0",
-	"configurations": [
-		{
-			"type": "extensionHost",
-			"request": "launch",
-			"name": "Launch Client",
-			"runtimeExecutable": "${execPath}",
-			"args": [
-				"--extensionDevelopmentPath=${workspaceRoot}"
-			],
-			"outFiles": ["${workspaceRoot}/client/out/**/*.js"],
-			"preLaunchTask": {
-				"type": "npm",
-				"script": "compile"
-			}
-		},
-		{
-			"type": "node",
-			"request": "attach",
-			"name": "Attach to Server",
-			"port": 6009,
-			"restart": true,
-			"preLaunchTask": {
-				"type": "npm",
-				"script": "compile"
-			},
-			"outFiles": ["${workspaceRoot}/server/out/**/*.js"]
-		},
-		{
-			"name": "Language Server E2E Test",
-			"type": "extensionHost",
-			"request": "launch",
-			"runtimeExecutable": "${execPath}",
-			"args": [
-				"--extensionDevelopmentPath=${workspaceRoot}",
-				"--extensionTestsPath=${workspaceRoot}/client/out/test/index",
-				"${workspaceRoot}/client/testFixture"
-			],
-			"outFiles": ["${workspaceRoot}/client/out/test/**/*.js"]
-		},
-		{
-			"type": "node",
-			"request": "launch",
-			"name": "Run server/test.ts",
-			"skipFiles": [
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "extensionHost",
+            "request": "launch",
+            "name": "Launch Client",
+            "runtimeExecutable": "${execPath}",
+            "args": [
+                "--extensionDevelopmentPath=${workspaceRoot}"
+            ],
+            "outFiles": ["${workspaceRoot}/client/out/**/*.js"],
+            "preLaunchTask": {
+                "type": "npm",
+                "script": "compile"
+            }
+        },
+        {
+            "type": "node",
+            "request": "attach",
+            "name": "Attach to Server",
+            "port": 6009,
+            "restart": true,
+            "preLaunchTask": {
+                "type": "npm",
+                "script": "compile"
+            },
+            "outFiles": ["${workspaceRoot}/server/out/**/*.js"]
+        },
+        {
+            "name": "Language Server E2E Test",
+            "type": "extensionHost",
+            "request": "launch",
+            "runtimeExecutable": "${execPath}",
+            "args": [
+                "--extensionDevelopmentPath=${workspaceRoot}",
+                "--extensionTestsPath=${workspaceRoot}/client/out/test/index",
+                "${workspaceRoot}/client/testFixture"
+            ],
+            "outFiles": ["${workspaceRoot}/client/out/test/**/*.js"]
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Run server/test.ts",
+            "skipFiles": [
                 "<node_internals>/**"
             ],
             "program": "${workspaceFolder}/server/src/test.ts",
             "outFiles": [
                 "${workspaceFolder}/**/*.js"
             ],
-			"preLaunchTask": {
-				"type": "npm",
-				"script": "compile"
-			}
-		}
-	],
-	"compounds": [
-		{
-			"name": "Client + Server",
-			"configurations": ["Launch Client", "Attach to Server"]
-		}
-	]
+            "preLaunchTask": {
+                "type": "npm",
+                "script": "compile"
+            }
+        },
+        {
+            "name": "Debug server tests",
+            "type": "node",
+            "request": "launch",
+            "skipFiles": ["<node_internals>/**"],
+            "program": "node_modules/mocha/bin/mocha",
+            "args": ["${workspaceFolder}/server/**/*.test.js"],
+            "outFiles": [
+                "${workspaceFolder}/**/*.js"
+            ],
+            "preLaunchTask": {
+                "type": "npm",
+                "script": "compile"
+            }
+        },
+    ],
+    "compounds": [
+        {
+            "name": "Client + Server",
+            "configurations": ["Launch Client", "Attach to Server"]
+        }
+    ]
 }

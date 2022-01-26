@@ -115,35 +115,13 @@ class SymbolFinder extends ASTVisitor<SymbolScope> {
   }
 
   override visitFunctionDeclaration(statement: FunctionDeclaration): SymbolScope {
-    // Add function signature as detail
-    let functionSignature = statement.parameters.map(param => {
-      if (param.type === 'Identifier') return param.name;
-      else return '...';
-    }).join(',');
-    functionSignature = '(' + functionSignature + ')';
+    if (!statement.identifier && this.isInAssignment())
+      return this.visitFunctionDeclarationWithoutIdentifier(statement);
+    else
+      return this.visitFunctionDeclarationWithIdentifier(statement);
+  }
 
-    // if it's an anonymous function that is assigned to something else, we'll
-    // edit the previous symbol (the variable it's assigned to) instead of
-    // adding a new one.
-    let sym;
-    if (!statement.identifier) {
-      if (this.isInAssignment()) {
-        sym = this.lastAddedSymbol;
-        sym!.detail = functionSignature;
-        sym!.type = CodeSymbolType.Function;
-      }
-    }
-
-    if (!sym) {
-      sym = this.addSymbol(
-        getFunctionDeclarationName(statement),
-        functionSignature,
-        CodeSymbolType.Function,
-        statement.loc!,
-        statement.identifier ? statement.identifier.loc! : statement.loc!,
-        this.getCurrentParent() !== undefined);
-    }
-
+  private visitFunctionDeclarationWithIdentifier(statement: FunctionDeclaration): SymbolScope {
     // determine what "self" value should be used
     let self = undefined;
     if (statement.identifier?.type === 'MemberExpression' && statement.identifier.indexer === ':') {
@@ -153,7 +131,43 @@ class SymbolFinder extends ASTVisitor<SymbolScope> {
       else throw new Error('Unreachable'); // sanity check
     }
 
+    const sym = this.addSymbol(
+      getFunctionDeclarationName(statement),
+      this.getFunctionSignature(statement),
+      CodeSymbolType.Function,
+      statement.loc!,
+      statement.identifier ? statement.identifier.loc! : statement.loc!,
+      this.getCurrentParent() !== undefined);
+
     return new SymbolScope(sym, self);
+  }
+
+  private visitFunctionDeclarationWithoutIdentifier(statement: FunctionDeclaration): SymbolScope {
+    // it's an anonymous function that is assigned to something else, so we'll
+    // edit the previous symbol (the variable this function is assigned to)
+    // instead of adding a new one.
+
+    const sym = this.lastAddedSymbol!;
+    sym.detail = this.getFunctionSignature(statement);
+    sym.type = CodeSymbolType.Function;
+
+    let self = undefined;
+    const symNameParts = sym.name.split(/[.:]/);
+    if (symNameParts.length > 1)
+      self = symNameParts.slice(0, symNameParts.length - 1).join('.');
+    else
+      self = this.topScope().parent?.name;
+
+    return new SymbolScope(sym, self);
+  }
+
+  private getFunctionSignature(statement: FunctionDeclaration): string {
+    let functionSignature = statement.parameters.map(param => {
+      if (param.type === 'Identifier') return param.name;
+      else return '...';
+    }).join(',');
+    functionSignature = '(' + functionSignature + ')';
+    return functionSignature;
   }
 
   override visitIdentifier(node: Identifier): void {

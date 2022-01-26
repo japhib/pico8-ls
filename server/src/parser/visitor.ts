@@ -61,7 +61,7 @@ export abstract class ASTVisitor<T> {
 
   isInAssignment(): boolean {
     // Checks if the top 2 things on the stack are one of:
-    //   - actual assignment: Identifier & (AssignmentStatement | LocalStatement)
+    //   - actual assignment: (Identifier | MemberExpression) & (AssignmentStatement | LocalStatement)
     //   - pseudo assignment: TableKeyString & TableConstructorExpression
 
     const previous = this.topNode();
@@ -69,7 +69,8 @@ export abstract class ASTVisitor<T> {
 
     return previous && preprevious
       && (
-        (previous.type === 'Identifier' && (preprevious.type === 'AssignmentStatement' || preprevious.type === 'LocalStatement'))
+        ((previous.type === 'Identifier' || previous.type === 'MemberExpression')
+          && (preprevious.type === 'AssignmentStatement' || preprevious.type === 'LocalStatement'))
         || (previous.type === 'TableKeyString' && preprevious.type === 'TableConstructorExpression')
       );
   }

@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unsafe-call */
 
-import { Identifier } from './expressions';
+import { getMemberExpressionName, Identifier } from './expressions';
 import { Chunk, FunctionDeclaration, getBareFunctionDeclarationName } from './statements';
 import { Bounds, boundsEqual } from './types';
 import { ASTVisitor } from './visitor';
@@ -166,15 +166,20 @@ class DefinitionsUsagesFinder extends ASTVisitor<SymbolsInScope> {
     // assigned to.
     if (!name && this.isInAssignment()) {
       const previous = this.topNode();
-      if (previous.type === 'Identifier') {
+      switch (previous.type) {
+      case 'Identifier':
         name = previous.name;
         loc = previous.loc!;
-      }
-      else if (previous.type === 'TableKeyString') {
+        break;
+      case 'MemberExpression':
+        name = getMemberExpressionName(previous) || previous.identifier.name;
+        loc = previous.loc!;
+        break;
+      case 'TableKeyString':
         name = previous.key.name;
         loc = previous.loc!;
-      }
-      else {
+        break;
+      default:
         // this shouldn't happen
         throw new Error(`Unexpected previous node type after checking isInAssignment: ${previous.type}`);
       }
