@@ -16,6 +16,13 @@ function goToDefinition(lookup: DefinitionsUsagesLookup, code: string, line: num
   return token?.value;
 }
 
+function getDefinitions(lookup: DefinitionsUsagesLookup, line: number, column: number): Bounds[] {
+  const defUs = lookup.lookup(line, column);
+  if (!defUs) return [];
+
+  return defUs.definitions;
+}
+
 function getUsages(lookup: DefinitionsUsagesLookup, line: number, column: number): Bounds[] {
   const defUs = lookup.lookup(line, column);
   if (!defUs) return [];
@@ -87,5 +94,105 @@ end`);
     const { definitions, usages } = definitionsUsages.lookup(1, 15)!;
     deepEquals(definitions, [bounds(1, 15, 1, 16)]);
     deepEquals(usages, [bounds(1, 15, 1, 16), bounds(2, 13, 2, 14)]);
+  });
+
+  describe('member expressions', () => {
+    it('find defs/usages for member variables', () => {
+      const { definitionsUsages, warnings } = parse('a = {}\na.b = "1"\nprint(a.b)');
+
+      // Should be no warnings
+      deepEquals(warnings, []);
+
+      // Find defs/usages of a
+      {
+        const { definitions, usages } = definitionsUsages.lookup(1, 0)!;
+        deepEquals(definitions, [bounds(1, 0, 1, 1)]);
+        deepEquals(usages, [
+          // a = {}
+          bounds(1, 0, 1, 1),
+          // a.b = "1"
+          bounds(2, 0, 2, 1),
+          // print(a.b)
+          bounds(3, 6, 3, 7),
+        ]);
+        // Go to definition from the other locations of a.
+        // Make sure to do "go to definition" from the 'a' part of the member expressions 'a.b',
+        // so it takes you to the definition of 'a'.
+        deepEquals(getDefinitions(definitionsUsages, 1, 0), [bounds(1, 0, 1, 1)]);
+        deepEquals(getDefinitions(definitionsUsages, 1, 1), [bounds(1, 0, 1, 1)]);
+        deepEquals(getDefinitions(definitionsUsages, 2, 0), [bounds(1, 0, 1, 1)]);
+        deepEquals(getDefinitions(definitionsUsages, 2, 1), [bounds(1, 0, 1, 1)]);
+        deepEquals(getDefinitions(definitionsUsages, 3, 6), [bounds(1, 0, 1, 1)]);
+        deepEquals(getDefinitions(definitionsUsages, 3, 7), [bounds(1, 0, 1, 1)]);
+      }
+
+      // Find defs/usages of a.b
+      {
+        const { definitions, usages } = definitionsUsages.lookup(2, 2)!;
+        deepEquals(definitions, [bounds(2, 0, 2, 3)]);
+        deepEquals(usages, [
+          // a.b = "1" (just b)
+          bounds(2, 0, 2, 3),
+          // print(a.b)
+          bounds(3, 6, 3, 9),
+        ]);
+        // Go to definition from all points around "b" in a.b
+        deepEquals(getDefinitions(definitionsUsages, 2, 2), [bounds(2, 0, 2, 3)]);
+        deepEquals(getDefinitions(definitionsUsages, 2, 3), [bounds(2, 0, 2, 3)]);
+        deepEquals(getDefinitions(definitionsUsages, 3, 8), [bounds(2, 0, 2, 3)]);
+        deepEquals(getDefinitions(definitionsUsages, 3, 9), [bounds(2, 0, 2, 3)]);
+      }
+    });
+
+    it('gives warning for undefined variable on the member expr base', () => {
+      const { warnings } = parse('a.b()');
+      deepEquals(warnings, [
+        { type: 'Warning', message: 'undefined variable: a' },
+      ]);
+    });
+
+    it('unknown member variables do not create warnings, and still can find usages without definitions', () => {
+      const { warnings, definitionsUsages } = parse(`function deconstruct(v)
+  return v.x, v.y
+end
+
+function setv(v, x, y)
+  v.x = x
+  v.y = y
+end`);
+
+      deepEquals(warnings, []);
+
+      // on the x part of v.x
+      const { definitions, usages } = definitionsUsages.lookup(2, 11)!;
+
+      deepEquals(definitions, [bounds(6, 2, 6, 5)]);
+      deepEquals(usages, [
+        // v.x = x
+        bounds(6, 2, 6, 5),
+        // return v.x, ...
+        bounds(2, 9, 2, 12),
+      ]);
+    });
+
+    it('unknown self variables do not create warnings, and still can find usages without definitions', () => {
+      const { warnings, definitionsUsages } = parse(`vector={}
+function vector:deconstruct()
+  return self.x, self.y
+end
+
+function vector:set(x, y)
+  self.x = x
+  self.y = y
+end`);
+
+      console.log(warnings);
+
+      deepEquals(warnings, []);
+
+      // on the x part of self.x
+      const { definitions, usages } = definitionsUsages.lookup(3, 15)!;
+      console.log(definitions, usages);
+    });
   });
 });

@@ -51,13 +51,19 @@ export abstract class ASTVisitor<T> {
   // if you *don't* have a visitor defined for that function.
   abstract createDefaultScope(): T;
 
-  private onEnterScope(value: T) {
+  private pushScope(value: T) {
     this.scopeStack.push(value);
+    this.onEnterScope(value);
   }
 
-  private onExitScope() {
-    this.scopeStack.pop();
+  private popScope() {
+    const scope = this.scopeStack.pop();
+    this.onExitScope(scope!);
   }
+
+  // Optional callbacks for executing logic when entering/exiting a scope
+  onEnterScope(value: T) {}
+  onExitScope(value: T) {}
 
   // helper functions
 
@@ -164,9 +170,9 @@ export abstract class ASTVisitor<T> {
     case 'DoStatement': {
       const result = this.visitDoStatement(node);
       this.nodeStack.push(node);
-      this.onEnterScope(result);
+      this.pushScope(result);
       this.visitAll(node.body);
-      this.onExitScope();
+      this.popScope();
       this.nodeStack.pop();
       break;
     }
@@ -175,7 +181,7 @@ export abstract class ASTVisitor<T> {
       const result = this.visitForGenericStatement(node);
 
       this.nodeStack.push(node);
-      this.onEnterScope(result);
+      this.pushScope(result);
 
       // Visit the variables and their initializers in order (var1, init1, var2, init2)
       for (let i = 0; i < node.variables.length; i++) {
@@ -184,7 +190,7 @@ export abstract class ASTVisitor<T> {
       }
 
       this.visitAll(node.body);
-      this.onExitScope();
+      this.popScope();
       this.nodeStack.pop();
       break;
     }
@@ -192,13 +198,13 @@ export abstract class ASTVisitor<T> {
     case 'ForNumericStatement': {
       const result = this.visitForNumericStatement(node);
       this.nodeStack.push(node);
-      this.onEnterScope(result);
+      this.pushScope(result);
       this.visitNode(node.variable);
       this.visitNode(node.start);
       this.visitNode(node.end);
       if (node.step) this.visitNode(node.step);
       this.visitAll(node.body);
-      this.onExitScope();
+      this.popScope();
       this.nodeStack.pop();
       break;
     }
@@ -212,10 +218,10 @@ export abstract class ASTVisitor<T> {
       if (node.identifier && node.identifier.type === 'MemberExpression')
         this.visitNode(node.identifier);
 
-      this.onEnterScope(result);
+      this.pushScope(result);
       this.visitAll(node.parameters);
       this.visitAll(node.body);
-      this.onExitScope();
+      this.popScope();
       this.nodeStack.pop();
       break;
     }
@@ -238,9 +244,9 @@ export abstract class ASTVisitor<T> {
       const result = this.visitIfClause(node);
       this.nodeStack.push(node);
       this.visitNode(node.condition);
-      this.onEnterScope(result);
+      this.pushScope(result);
       this.visitAll(node.body);
-      this.onExitScope();
+      this.popScope();
       this.nodeStack.pop();
       break;
     }
@@ -249,9 +255,9 @@ export abstract class ASTVisitor<T> {
       const result = this.visitElseifClause(node);
       this.nodeStack.push(node);
       this.visitNode(node.condition);
-      this.onEnterScope(result);
+      this.pushScope(result);
       this.visitAll(node.body);
-      this.onExitScope();
+      this.popScope();
       this.nodeStack.pop();
       break;
     }
@@ -259,9 +265,9 @@ export abstract class ASTVisitor<T> {
     case 'ElseClause': {
       const result = this.visitElseClause(node);
       this.nodeStack.push(node);
-      this.onEnterScope(result);
+      this.pushScope(result);
       this.visitAll(node.body);
-      this.onExitScope();
+      this.popScope();
       this.nodeStack.pop();
       break;
     }
@@ -292,9 +298,9 @@ export abstract class ASTVisitor<T> {
     case 'RepeatStatement': {
       const result = this.visitRepeatStatement(node);
       this.nodeStack.push(node);
-      this.onEnterScope(result);
+      this.pushScope(result);
       this.visitAll(node.body);
-      this.onExitScope();
+      this.popScope();
 
       // Condition gets visited afterwards since it's `repeat ... until <condition>`
       this.visitNode(node.condition);
@@ -313,9 +319,9 @@ export abstract class ASTVisitor<T> {
       const result = this.visitWhileStatement(node);
       this.nodeStack.push(node);
       this.visitNode(node.condition);
-      this.onEnterScope(result);
+      this.pushScope(result);
       this.visitAll(node.body);
-      this.onExitScope();
+      this.popScope();
       this.nodeStack.pop();
       break;
     }
@@ -399,9 +405,9 @@ export abstract class ASTVisitor<T> {
     case 'TableConstructorExpression': {
       const result = this.visitTableConstructorExpression(node);
       this.nodeStack.push(node);
-      this.onEnterScope(result);
+      this.pushScope(result);
       this.visitAll(node.fields);
-      this.onExitScope();
+      this.popScope();
       this.nodeStack.pop();
       break;
     }

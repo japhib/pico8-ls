@@ -26,7 +26,8 @@ export const errMessages = Object.freeze({
   gotoJumpInLocalScope: '<goto %1> jumps into the scope of local \'%2\'',
   cannotUseVararg: 'cannot use \'...\' outside a Vararg function near \'%1\'',
   invalidCodeUnit: 'code unit U+%1 is not allowed in the current encoding mode',
-  undefinedGlobal: 'undefined variable: %1',
+  undefinedVariable: 'undefined variable: %1',
+  unusedLocal: '%1 is defined but not used',
 });
 
 export class ParseError extends Error {

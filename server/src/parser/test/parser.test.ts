@@ -3,7 +3,8 @@ import { bounds, deepEquals, deepEqualsAST, getTestFileContents, parse } from '.
 
 describe('Parser', () => {
   it('parses basic assignment statement', () => {
-    deepEqualsAST('i = 1', [
+    const { body } = parse('i = 1');
+    deepEquals(body, [
       {
         type: 'AssignmentStatement',
         operator: '=',
@@ -11,11 +12,14 @@ describe('Parser', () => {
           type: 'Identifier',
           name: 'i',
           isLocal: false,
+          loc: bounds(1, 0, 1, 1),
         }],
         init: [{
           type: 'NumericLiteral',
           value: 1,
+          loc: bounds(1, 4, 1, 5),
         }],
+        loc: bounds(1, 0, 1, 5),
       },
     ]);
   });

@@ -115,7 +115,44 @@ export function getMemberExpressionName(memberExpression: MemberExpression): str
     return undefined;
   }
 
-  return baseName + memberExpression.indexer + memberExpression.identifier.name;
+  return baseName + '.' + memberExpression.identifier.name;
+}
+
+// Get the parent of a member expression.
+// e.g. `a.b.c` => `a.b`
+export function getMemberExpressionParentName(memberExpression: MemberExpression): string | undefined {
+  const name = getMemberExpressionName(memberExpression);
+  if (name) {
+    const nameParts = name.split(/[.:]/);
+    return nameParts.length > 1 ? nameParts.slice(0, nameParts.length - 1).join('.') : undefined;
+  }
+
+  return name;
+}
+
+// Get the base identifier of a member expression.
+// e.g. `a.b.c` => `a`
+export function getMemberExpresionBaseIdentifier(memberExpression: MemberExpression): Identifier | undefined {
+  let base = memberExpression.base;
+  // This is a while loop since it could be deeply nested.
+  //    a.b.c = true
+  // In that case we want baseName to be 'a', and the symbol name to be 'a.b.c'
+  while (true) {
+    switch (base.type) {
+    case 'Identifier':
+      // Found it!
+      return base;
+
+    case 'MemberExpression':
+      // Keep recursing
+      base = base.base;
+      break;
+
+    default:
+      // It's something other than an identifier or member expression
+      return undefined;
+    }
+  }
 }
 
 // base[index]

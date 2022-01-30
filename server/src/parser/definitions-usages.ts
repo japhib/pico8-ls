@@ -1,19 +1,20 @@
 /* eslint-disable @typescript-eslint/no-unsafe-call */
 
 import { createWarning, errMessages, Warning } from './errors';
-import { getMemberExpressionName, Identifier, MemberExpression } from './expressions';
+import { getMemberExpresionBaseIdentifier, getMemberExpressionName, getMemberExpressionParentName, Identifier, MemberExpression, TableConstructorExpression } from './expressions';
 import { AssignmentStatement, Chunk, ForGenericStatement, ForNumericStatement, FunctionDeclaration, getBareFunctionDeclarationName, LocalStatement } from './statements';
 import { Bounds, boundsEqual } from './types';
 import { ASTVisitor } from './visitor';
 import Builtins from './builtins';
 
 export type DefinitionsUsages = {
+  symbolName: string,
   definitions: Bounds[],
   usages: Bounds[],
 };
 
-function emptyDefinitionsUsages(): DefinitionsUsages {
-  return { definitions: [], usages: [] };
+function emptyDefinitionsUsages(symbolName: string): DefinitionsUsages {
+  return { symbolName, definitions: [], usages: [] };
 }
 
 export type DefinitionsUsagesOnLine = {
@@ -49,7 +50,6 @@ export class DefinitionsUsagesLookup {
         && column >= def.loc.start.column
         && column <= def.loc.end.column)
         return def.defUs;
-
     }
 
     return undefined;
@@ -60,9 +60,35 @@ export function findDefinitionsUsages(chunk: Chunk): { defUs: DefinitionsUsagesL
   return new DefinitionsUsagesFinder(chunk).findDefinitionsUsages();
 }
 
-type SymbolsInScope = Map<string, DefinitionsUsages>;
+class DefUsageScope {
+  name: string | undefined;
+  symbols: Map<string, DefinitionsUsages>;
+  self: string | undefined;
 
-class DefinitionsUsagesFinder extends ASTVisitor<SymbolsInScope> {
+  constructor(arg: { name?: string, self?: string, symbols?: Map<string, DefinitionsUsages> }) {
+    this.name = arg.name;
+    this.self = arg.self;
+    this.symbols = arg.symbols || new Map<string, DefinitionsUsages>();
+  }
+
+  get(key: string) {
+    return this.symbols.get(key);
+  }
+
+  set(key: string, value: DefinitionsUsages) {
+    return this.symbols.set(key, value);
+  }
+
+  has(key: string) {
+    return this.symbols.has(key);
+  }
+
+  keys() {
+    return this.symbols.keys();
+  }
+}
+
+class DefinitionsUsagesFinder extends ASTVisitor<DefUsageScope> {
   // AST to parse
   chunk: Chunk;
 
@@ -81,37 +107,64 @@ class DefinitionsUsagesFinder extends ASTVisitor<SymbolsInScope> {
     this.chunk = chunk;
   }
 
-  override startingScope(): SymbolsInScope {
+  override startingScope(): DefUsageScope {
     const predefinedGlobals = new Map<string, DefinitionsUsages>();
     for (const fnName in Builtins)
-      predefinedGlobals.set(fnName, emptyDefinitionsUsages());
-    return predefinedGlobals;
+      predefinedGlobals.set(fnName, emptyDefinitionsUsages(fnName));
+    return new DefUsageScope({ symbols: predefinedGlobals });
   }
 
-  override createDefaultScope(): SymbolsInScope {
-    return new Map<string, DefinitionsUsages>();
+  override createDefaultScope(): DefUsageScope {
+    // carry forward the current self and name, if they exist
+    const self = this.topScope()?.self;
+    const name = this.topScope()?.name;
+    return new DefUsageScope({ self, name });
   }
 
   findDefinitionsUsages(): { defUs: DefinitionsUsagesLookup, warnings: Warning[] } {
     this.visit(this.chunk);
-
-    // resolve early global refs
-    for (const earlyRef in this.earlyRefs) {
-      if (!this.isSymbolDefined(earlyRef)) {
-        this.earlyRefs[earlyRef].forEach(loc => {
-          this.warnings.push(createWarning(loc, errMessages.undefinedGlobal, earlyRef));
-        });
-      } else {
-        this.earlyRefs[earlyRef].forEach(loc => {
-          this.addUsage(earlyRef, loc);
-        });
-      }
-    }
-
+    this.resolveEarlyRefs();
     return {
       defUs: this.lookup,
       warnings: this.warnings,
     };
+  }
+
+  resolveEarlyRefs() {
+    for (const earlyRef in this.earlyRefs) {
+      let symbolName = earlyRef;
+      const usages = this.earlyRefs[earlyRef];
+
+      if (!this.isSymbolDefined(symbolName)) {
+        if (symbolName.indexOf('.') === -1) {
+          // Only create warnings for non-member variables
+          usages.forEach(loc => {
+            this.warnings.push(createWarning(loc, errMessages.undefinedVariable, symbolName));
+          });
+        } else {
+          // Change symbolName to only the last identifier. e.g. `tbl.key` => `key`
+          const parts = symbolName.split('.');
+          symbolName = parts[parts.length - 1];
+
+          // if it's still undefined, create a new symbol without a definition
+          if (!this.globalScope().has(symbolName))
+            this.globalScope().set(symbolName, { symbolName, definitions: [], usages: [] });
+        }
+      }
+
+      usages.forEach(loc => { this.addUsage(symbolName, loc); });
+    }
+  }
+
+  override onExitScope(scope: DefUsageScope): void {
+    for (const variableName in scope.keys()) {
+      const defsUsages = scope.get(variableName)!;
+      if (defsUsages.usages.length <= 1) {
+        // Create an 'unused local' warning on the definition
+        const definition = defsUsages.definitions[0];
+        this.warnings.push(createWarning(definition, errMessages.unusedLocal, variableName));
+      }
+    }
   }
 
   // some helpers
@@ -145,10 +198,22 @@ class DefinitionsUsagesFinder extends ASTVisitor<SymbolsInScope> {
     return undefined;
   }
 
-  private addDefinition(symbolName: string, loc: Bounds, isGlobal: boolean) {
+  private getScopeOf(symbolName: string): DefUsageScope | undefined {
+    // Note global scope (i=0) *is* considered.
+    for (let i = this.scopeStack.length - 1; i >= 0; i--)
+      if (this.scopeStack[i].has(symbolName)) return this.scopeStack[i];
+
+    return undefined;
+  }
+
+  private globalScope() {
+    return this.scopeStack[0];
+  }
+
+  private addDefinition(symbolName: string, loc: Bounds, scopeOverride?: DefUsageScope) {
     // Note that if we're outside any function block (scopeStack only has 1
     // element), a 'local' variable will still be global
-    const scopeToAddTo = isGlobal ? this.scopeStack[0] : this.topScope();
+    const scopeToAddTo = scopeOverride || this.topScope();
 
     let defUs = scopeToAddTo.get(symbolName);
     if (defUs) {
@@ -158,6 +223,7 @@ class DefinitionsUsagesFinder extends ASTVisitor<SymbolsInScope> {
     } else {
       // Definition/usages lists don't already exist. Create them and add to scope.
       defUs = {
+        symbolName,
         definitions: [loc],
         usages: [loc],
       };
@@ -171,10 +237,12 @@ class DefinitionsUsagesFinder extends ASTVisitor<SymbolsInScope> {
   private addUsage(symbolName: string, loc: Bounds) {
     const defUs = this.getSymbolDef(symbolName);
 
-    // At this point, we should've already ensured that the symbol was defined,
-    // but we'll do a sanity check anyway
-    if (!defUs)
-      throw new Error(`addUsage called with not-yet-defined symbol: ${symbolName} at ${loc.start.line}:${loc.start.column}`);
+    if (!defUs) {
+      // Symbol is not defined so it's an early global ref, which could turn
+      // into a warning if unused
+      this.addEarlyRef(symbolName, loc);
+      return;
+    }
 
     // Don't add the usage if it's the exact same as the most recent one added
     if (!boundsEqual(loc, defUs.usages[defUs.usages.length - 1]))
@@ -202,10 +270,30 @@ class DefinitionsUsagesFinder extends ASTVisitor<SymbolsInScope> {
 
   // Visitor implementation
 
-  override visitFunctionDeclaration(node: FunctionDeclaration): SymbolsInScope {
+  override visitFunctionDeclaration(node: FunctionDeclaration): DefUsageScope {
     // If the function has an identifier, that's the name.
     let name = node.identifier && getBareFunctionDeclarationName(node);
     let loc = node.identifier && node.identifier.loc!;
+
+    // Determine new value for "self" if possible
+    let self = undefined;
+    if (node.identifier?.type === 'MemberExpression') {
+      // It's something like `function blah:fun() ...`
+      // So self should be `blah`
+      self = getMemberExpressionParentName(node.identifier);
+    }
+    else if (!node.identifier && this.isInAssignment()) {
+      const previous = this.topNode();
+
+      // first check if we're in an assignment to a member expression
+      if (previous.type === 'MemberExpression') {
+        self = getMemberExpressionParentName(previous);
+      }
+      else if (previous.type === 'TableKeyString') {
+        // use the scope name (name of the table getting assigned to)
+        self = this.topScope().name;
+      }
+    }
 
     // If the function does NOT have an identifier, but we're in an assignment
     // or in a table constructor, use the variable name that we're being
@@ -242,21 +330,26 @@ class DefinitionsUsagesFinder extends ASTVisitor<SymbolsInScope> {
       //   }
       //
       // then a call to init() will know it can go to either one.
-      this.addDefinition(name, loc!, true);
+      this.addDefinition(name, loc!, this.globalScope());
     }
 
-    return this.createDefaultScope();
+    // Set name to undefined? TODO maybe fix
+    return new DefUsageScope({ self, name: undefined });
   }
 
   override visitIdentifier(node: Identifier): void {
+    const topNode = this.topNode();
     // Special case: function parameter
-    if (this.topNode() && this.topNode().type === 'FunctionDeclaration') {
-      this.addDefinition(node.name, node.loc!, false);
+    if (topNode?.type === 'FunctionDeclaration') {
+      this.addDefinition(node.name, node.loc!, undefined);
       return;
     }
+    // Special case: member expression. This is handled in visitMemberExpression
+    // so don't re-process it again here.
+    if (topNode?.type === 'MemberExpression')
+      return;
 
-    if (this.isSymbolDefined(node.name)) this.addUsage(node.name, node.loc!);
-    else this.addEarlyRef(node.name, node.loc!);
+    this.addUsage(node.name, node.loc!);
   }
 
   override visitAssignmentStatement(statement: AssignmentStatement): void {
@@ -274,7 +367,7 @@ class DefinitionsUsagesFinder extends ASTVisitor<SymbolsInScope> {
       if (variable.type === 'Identifier')
         this.defsForSimpleAssignment(variable, statement);
       else if (variable.type === 'MemberExpression')
-        this.defsForMemberExpressionAssignment(variable, statement as AssignmentStatement);
+        this.defsForMemberExpressionAssignment(variable);
 
       // Else, no-op. Don't create defs/usages for stuff like:
       //   a[b] = c
@@ -286,65 +379,105 @@ class DefinitionsUsagesFinder extends ASTVisitor<SymbolsInScope> {
   private defsForSimpleAssignment(variable: Identifier, statement: AssignmentStatement | LocalStatement) {
     const name = variable.name;
     if (statement.type === 'LocalStatement' || !this.isSymbolDefined(name))
-      this.addDefinition(name, variable.loc!, statement.type === 'LocalStatement');
+      this.addDefinition(name, variable.loc!, statement.type === 'LocalStatement' ? undefined : this.globalScope());
     else
       this.addUsage(name, variable.loc!);
-
   }
 
-  private defsForMemberExpressionAssignment(memberExpression: MemberExpression, statement: AssignmentStatement) {
-    // // Figure out what the base is so we can see if it's in local scope
-    // let baseName: string;
-    // let base = memberExpression.base;
-    // // This is a while loop since it could be deeply nested.
-    // //    a.b.c = true
-    // // In that case we want baseName to be 'a', and the symbol name to be 'a.b.c'
-    // foundBaseName: while (true) {
-    //   switch (base.type) {
-    //   case 'Identifier': baseName = base.name; break foundBaseName;
-    //   case 'MemberExpression': base = base.base; break;
-    //   default:
-    //     // It's something other than an identifier or member expression, so we can't add a symbol for it
-    //     return;
-    //   }
-    // }
+  private defsForMemberExpressionAssignment(memberExpression: MemberExpression) {
+    let name = getMemberExpressionName(memberExpression) || `self.${memberExpression.identifier.name}`;
 
-    // let symbolName = getMemberExpressionName(memberExpression)!;
-    // // resolve "self" references if possible
-    // const scopedSelf = this.topScope().self;
-    // if (baseName === 'self' && scopedSelf) {
-    //   baseName = scopedSelf;
-    //   symbolName = symbolName.replace(/\bself\b/, scopedSelf);
-    // }
+    // Figure out what the base is
+    const base = getMemberExpresionBaseIdentifier(memberExpression);
+    // Base isn't an identifier, so we can't add a definition for it
+    let baseName = base?.name;
 
-    // const isLocal = this.isSymbolInLocalScope(baseName);
+    // resolve "self" references if possible
+    const scopedSelf = this.topScope().self;
+    if (baseName === 'self' && scopedSelf) {
+      baseName = scopedSelf;
+      name = name?.replace(/\bself\b/, scopedSelf);
+    }
 
-    // // Get variable type
-    // let varType = isLocal ? CodeSymbolType.LocalVariable : CodeSymbolType.GlobalVariable;
-    // // override variable type if it's a function
-    // if (isFunction) varType = CodeSymbolType.Function;
+    // Add usage of the base name since it's getting referenced
+    if (base && baseName) this.addUsage(baseName, base.loc!);
 
-    // this.addSymbol(
-    //   symbolName,
-    //   undefined,
-    //   varType,
-    //   statement.loc!,
-    //   memberExpression.loc!,
-    //   isLocal);
+    // Note we add the definition to the global scope.
+    // Some examples:
+    //
+    //   function set_a(v)
+    //     v.a = 1
+    //   end
+    //
+    //   function use_local()
+    //     loc_table = {}
+    //     loc_table.a = 1
+    //     return loc_table
+    //   end
+    //
+    // In both examples, the `a` member of the table could end up getting used
+    // anywhere else in the file. So it's more useful to have it be global.
+    this.addDefinition(name, memberExpression.loc!, this.globalScope());
   }
 
-  override visitForGenericStatement(node: ForGenericStatement): SymbolsInScope {
+  override visitForGenericStatement(node: ForGenericStatement): DefUsageScope {
     // Add symbols for variables created in the for statement
     for (const variable of node.variables)
-      this.addDefinition(variable.name, variable.loc!, false);
+      this.addDefinition(variable.name, variable.loc!);
 
     return this.createDefaultScope();
   }
 
-  override visitForNumericStatement(node: ForNumericStatement): SymbolsInScope {
+  override visitForNumericStatement(node: ForNumericStatement): DefUsageScope {
     // Add symbols for the variable created in the for statement
-    this.addDefinition(node.variable.name, node.variable.loc!, false);
+    this.addDefinition(node.variable.name, node.variable.loc!);
 
     return this.createDefaultScope();
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  override visitTableConstructorExpression(node: TableConstructorExpression): DefUsageScope {
+    // If it's an assignment statement, as in:
+    //    tbl = {}
+    // then add a new scope with the name of the variable the table
+    // is getting assigned to (e.g. tbl).
+    if (this.isInAssignment()) {
+      // carry forward the current self and name, if they exist
+      const self = this.topScope()?.self;
+      let name = this.topScope()?.name;
+
+      // Set new scope name to what the table is getting assigned to.
+      const topNode = this.topNode();
+      switch (topNode.type) {
+      case 'Identifier': name = topNode.name; break;
+      case 'TableKeyString': name = topNode.key.name; break;
+      case 'MemberExpression':
+        const membExprName = getMemberExpressionName(topNode);
+        if (membExprName) name = membExprName;
+        break;
+      }
+      return new DefUsageScope({ name, self });
+    }
+
+    // If not, then no new scope, just add the default parent
+    return this.createDefaultScope();
+  }
+
+  override visitMemberExpression(membExpr: MemberExpression): void {
+    // If we're in an assignment statement, the member expression has already
+    // been taken care of. So we don't worry about it.
+    if (this.isInAssignment()) return;
+
+    // If we're in the identifier of a function declaration, it's also already
+    // been taken care of
+    if (this.topNode() && this.topNode().type === 'FunctionDeclaration') return;
+
+    // Add usage of base if it's an identifier
+    const base = getMemberExpresionBaseIdentifier(membExpr);
+    if (base) this.addUsage(base.name, base.loc!);
+
+    // Add usage of the full thing
+    const name = getMemberExpressionName(membExpr) || membExpr.identifier.name;
+    this.addUsage(name, membExpr.loc!);
   }
 }

@@ -271,7 +271,10 @@ describe('SymbolFinder', () => {
       self.ps[rnd()]=particle(props)
     end
     `);
-    deepEquals(symbols, [{ name: 'particles:spawn', type: CodeSymbolType.Function }]);
+    deepEquals(symbols,
+      [{ name: 'particles.spawn', type: CodeSymbolType.Function , children: [
+        { name: 'props', type: CodeSymbolType.LocalVariable },
+      ] }]);
   });
 
   it('handles member expressions appropriately', () => {
@@ -324,9 +327,9 @@ describe('SymbolFinder', () => {
       end
       `);
       deepEquals(symbols, [
-        { name: 'tbl:somefn', children: [
+        { name: 'tbl.somefn', children: [
           { name: 'another_tbl', type: CodeSymbolType.LocalVariable },
-          { name: 'another_tbl:update', type: CodeSymbolType.Function, children: [
+          { name: 'another_tbl.update', type: CodeSymbolType.Function, children: [
             { name: 'another_tbl.val2', type: CodeSymbolType.LocalVariable },
           ] },
         ] },
@@ -352,6 +355,28 @@ describe('SymbolFinder', () => {
             { name: 'something.val', type: CodeSymbolType.LocalVariable },
           ] },
         ] },
+      ]);
+    });
+
+    it('in an indexer assignment statement', () => {
+      const { symbols } = parse(`
+      function somefn()
+        local something = {}
+        something[1] = function()
+          -- We don't have the ability to parse indexer expressions
+          -- for 'self'. So this should still be 'self'
+          self.val = 5
+        end
+        return something
+      end
+      `);
+      console.log('symbols', symbols);
+      deepEquals(symbols, [
+        { name: 'somefn', children: [
+          { name: 'something', type: CodeSymbolType.LocalVariable },
+          { name: AnonymousFunctionName, type: CodeSymbolType.Function, children: [] },
+        ] },
+        { name: 'self.val', type: CodeSymbolType.GlobalVariable },
       ]);
     });
 

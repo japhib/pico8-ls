@@ -9,12 +9,12 @@ export default class Marker {
       this.loc = (tokenOrBounds as Token).bounds;
     else
       this.loc = (tokenOrBounds as Bounds);
-
   }
 
   // Complete the location data stored in the `Marker` by adding the location
   // of the *previous token* as an end location.
   complete(previousToken: Token) {
+    this.loc = cloneBounds(this.loc);
     this.loc.end = previousToken.bounds.end;
   }
 
