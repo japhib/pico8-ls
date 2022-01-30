@@ -6,6 +6,7 @@ import { AssignmentStatement, Chunk, ForGenericStatement, ForNumericStatement, F
 import { Bounds, boundsEqual } from './types';
 import { ASTVisitor } from './visitor';
 import Builtins from './builtins';
+import { logObj } from './util';
 
 export type DefinitionsUsages = {
   symbolName: string,
@@ -157,7 +158,7 @@ class DefinitionsUsagesFinder extends ASTVisitor<DefUsageScope> {
   }
 
   override onExitScope(scope: DefUsageScope): void {
-    for (const variableName in scope.keys()) {
+    for (const variableName of scope.keys()) {
       const defsUsages = scope.get(variableName)!;
       if (defsUsages.usages.length <= 1) {
         // Create an 'unused local' warning on the definition
@@ -283,7 +284,7 @@ class DefinitionsUsagesFinder extends ASTVisitor<DefUsageScope> {
       self = getMemberExpressionParentName(node.identifier);
     }
     else if (!node.identifier && this.isInAssignment()) {
-      const previous = this.topNode();
+      const previous = this.topNode().node;
 
       // first check if we're in an assignment to a member expression
       if (previous.type === 'MemberExpression') {
@@ -299,7 +300,7 @@ class DefinitionsUsagesFinder extends ASTVisitor<DefUsageScope> {
     // or in a table constructor, use the variable name that we're being
     // assigned to.
     if (!name && this.isInAssignment()) {
-      const previous = this.topNode();
+      const previous = this.topNode().node;
       switch (previous.type) {
       case 'Identifier':
         name = previous.name;
@@ -338,7 +339,7 @@ class DefinitionsUsagesFinder extends ASTVisitor<DefUsageScope> {
   }
 
   override visitIdentifier(node: Identifier): void {
-    const topNode = this.topNode();
+    const topNode = this.topNode()?.node;
     // Special case: function parameter
     if (topNode?.type === 'FunctionDeclaration') {
       this.addDefinition(node.name, node.loc!, undefined);
@@ -346,7 +347,7 @@ class DefinitionsUsagesFinder extends ASTVisitor<DefUsageScope> {
     }
     // Special case: member expression. This is handled in visitMemberExpression
     // so don't re-process it again here.
-    if (topNode?.type === 'MemberExpression')
+    if (topNode?.type === 'MemberExpression' && !this.isInAssignmentTarget())
       return;
 
     this.addUsage(node.name, node.loc!);
@@ -447,7 +448,7 @@ class DefinitionsUsagesFinder extends ASTVisitor<DefUsageScope> {
       let name = this.topScope()?.name;
 
       // Set new scope name to what the table is getting assigned to.
-      const topNode = this.topNode();
+      const topNode = this.topNode().node;
       switch (topNode.type) {
       case 'Identifier': name = topNode.name; break;
       case 'TableKeyString': name = topNode.key.name; break;
@@ -470,14 +471,24 @@ class DefinitionsUsagesFinder extends ASTVisitor<DefUsageScope> {
 
     // If we're in the identifier of a function declaration, it's also already
     // been taken care of
-    if (this.topNode() && this.topNode().type === 'FunctionDeclaration') return;
+    if (this.topNode() && this.topNode().node.type === 'FunctionDeclaration') return;
 
     // Add usage of base if it's an identifier
     const base = getMemberExpresionBaseIdentifier(membExpr);
-    if (base) this.addUsage(base.name, base.loc!);
+    let name = getMemberExpressionName(membExpr) || `self.${membExpr.identifier.name}`;
+    let baseName = base?.name;
+
+    // resolve "self" references if possible
+    const scopedSelf = this.topScope().self;
+    if (baseName === 'self' && scopedSelf) {
+      baseName = scopedSelf;
+      name = name.replace(/\bself\b/, scopedSelf);
+    }
+
+    // Add usage of the base name since it's getting referenced
+    if (base && baseName) this.addUsage(baseName, base.loc!);
 
     // Add usage of the full thing
-    const name = getMemberExpressionName(membExpr) || membExpr.identifier.name;
     this.addUsage(name, membExpr.loc!);
   }
 }

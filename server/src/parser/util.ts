@@ -1,3 +1,5 @@
+import * as util from 'util';
+
 // Helpers
 // -------
 
@@ -24,4 +26,12 @@ export function sprintf(format: string, ...args: any[]): string {
     return '' + args[index - 1] || '';
   });
   return format;
+}
+
+// equivalent to console.log(x), BUT with a really big depth. (default depth for
+// console.log is 2.)
+// Comes with optional label.
+export function logObj(x: any, label?: string): void {
+  const inspected = util.inspect(x, { depth: 90 });
+  console.log(label ? `${label}: ${inspected}` : inspected);
 }

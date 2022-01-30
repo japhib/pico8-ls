@@ -172,7 +172,7 @@ class SymbolFinder extends ASTVisitor<SymbolScope> {
 
   override visitIdentifier(node: Identifier): void {
     // We only care about identifiers when they are the parameters of a function declaration.
-    if (this.topNode() && this.topNode().type === 'FunctionDeclaration') {
+    if (this.topNode() && this.topNode().node.type === 'FunctionDeclaration') {
       this.addSymbol(
         node.name,
         undefined,

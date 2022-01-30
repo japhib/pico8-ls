@@ -2,6 +2,7 @@ import { strictEqual as eq } from 'assert';
 import { DefinitionsUsagesLookup } from '../definitions-usages';
 import { TokenValue } from '../tokens';
 import { Bounds } from '../types';
+import { logObj } from '../util';
 import { bounds, deepEquals, parse, tokenAt } from './test-utils';
 
 // Simulates a Go To Definition request where we hand in a line
@@ -78,12 +79,53 @@ function do_the_thing() print('hi') end`;
     ]);
   });
 
-  it('adds warning for an undefined variable', () => {
-    const { warnings } = parse('do_the_thing()');
-    deepEquals(warnings, [{ type: 'Warning', message: 'undefined variable: do_the_thing' }]);
+  describe('warnings', () => {
+    it('adds warning for an undefined variable in function call', () => {
+      const { warnings } = parse('do_the_thing()');
+      deepEquals(warnings, [{ type: 'Warning', message: 'undefined variable: do_the_thing' }]);
+    });
+
+    it('adds warning for an undefined variable in assignment', () => {
+      const { warnings } = parse('a = b');
+      deepEquals(warnings, [{ type: 'Warning', message: 'undefined variable: b' }]);
+    });
+
+    it('adds warning for an undefined variable in assignment to member expression', () => {
+      const { warnings } = parse('a = {} a.member = b');
+      deepEquals(warnings, [{ type: 'Warning', message: 'undefined variable: b' }]);
+    });
+
+    it('adds warning for an unused parameter', () => {
+      const { warnings } = parse('function somefn(a) print("hi") end');
+      deepEquals(warnings, [{ type: 'Warning', message: 'a is defined but not used' }]);
+    });
+
+    it('adds warning for an unused local', () => {
+      const { warnings } = parse('function somefn() local a = 1 end');
+      deepEquals(warnings, [{ type: 'Warning', message: 'a is defined but not used' }]);
+    });
+
+    it('adds warning for an undefined variable in assignment', () => {
+      const { warnings } = parse('local a\nb.c = a');
+      deepEquals(warnings[0], { type: 'Warning', message: 'undefined variable: b' });
+    });
   });
 
   it('find definition/usages for function parameter', () => {
+    const { definitionsUsages, warnings } = parse(`function setv(v, x, y)
+  v.x = x
+  v.y = y
+end`);
+    // Should be no warnings
+    deepEquals(warnings, []);
+
+    // Find defs/usages of x
+    const { definitions, usages } = definitionsUsages.lookup(1, 17)!;
+    deepEquals(definitions, [bounds(1, 17, 1, 18)]);
+    deepEquals(usages, [bounds(1, 17, 1, 18), bounds(2, 8, 2, 9)]);
+  });
+
+  it('find definition/usages for function parameters assigned to member expression', () => {
     const { definitionsUsages, warnings } = parse(`function round(x)
   return flr(x+0.5)
 end`);
@@ -165,7 +207,6 @@ end`);
 
       // on the x part of v.x
       const { definitions, usages } = definitionsUsages.lookup(2, 11)!;
-
       deepEquals(definitions, [bounds(6, 2, 6, 5)]);
       deepEquals(usages, [
         // v.x = x
@@ -186,13 +227,17 @@ function vector:set(x, y)
   self.y = y
 end`);
 
-      console.log(warnings);
-
       deepEquals(warnings, []);
 
       // on the x part of self.x
       const { definitions, usages } = definitionsUsages.lookup(3, 15)!;
-      console.log(definitions, usages);
+      deepEquals(definitions, [bounds(7, 2, 7, 8)]);
+      deepEquals(usages, [
+        // self.x = x
+        bounds(7, 2, 7, 8),
+        // return self.x, ...
+        bounds(3, 9, 3, 15),
+      ]);
     });
   });
 });

@@ -370,7 +370,6 @@ describe('SymbolFinder', () => {
         return something
       end
       `);
-      console.log('symbols', symbols);
       deepEquals(symbols, [
         { name: 'somefn', children: [
           { name: 'something', type: CodeSymbolType.LocalVariable },

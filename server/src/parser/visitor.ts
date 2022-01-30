@@ -8,9 +8,18 @@ import { LabelStatement, BreakStatement, GotoStatement, ReturnStatement, IfState
   DoStatement, RepeatStatement, LocalStatement, AssignmentStatement, CallStatement, FunctionDeclaration,
   ForNumericStatement, ForGenericStatement, ElseClause, ElseifClause, IfClause, Chunk, GeneralIfClause, Statement,
 } from './statements';
-import * as util from 'util';
+import { logObj } from './util';
 
 export type VisitableASTNode = Statement | Expression | GeneralIfClause | GeneralTableField;
+
+export enum NodeVisitingFlags {
+  IsAssignmentTarget,
+}
+
+export type NodeGettingVisited = {
+  node: VisitableASTNode,
+  flags?: NodeVisitingFlags[],
+};
 
 // Defines the visitor pattern for all nodes in the AST structure.
 //
@@ -23,7 +32,7 @@ export abstract class ASTVisitor<T> {
   scopeStack: T[] = [];
 
   // Parent tracking.
-  nodeStack: VisitableASTNode[] = [];
+  nodeStack: NodeGettingVisited[] = [];
 
   constructor() {
     this.scopeStack.push(this.startingScope());
@@ -67,20 +76,33 @@ export abstract class ASTVisitor<T> {
 
   // helper functions
 
+  // Checks if the top 2 things on the stack are one of:
+  //   - actual assignment: (Identifier | MemberExpression) & (AssignmentStatement | LocalStatement)
+  //   - pseudo assignment: TableKeyString & TableConstructorExpression
   isInAssignment(): boolean {
-    // Checks if the top 2 things on the stack are one of:
-    //   - actual assignment: (Identifier | MemberExpression) & (AssignmentStatement | LocalStatement)
-    //   - pseudo assignment: TableKeyString & TableConstructorExpression
-
     const previous = this.topNode();
     const preprevious = this.topNode(1);
 
     return previous && preprevious
       && (
-        ((previous.type === 'Identifier' || previous.type === 'MemberExpression')
-          && (preprevious.type === 'AssignmentStatement' || preprevious.type === 'LocalStatement'))
-        || (previous.type === 'TableKeyString' && preprevious.type === 'TableConstructorExpression')
+        ((previous.node.type === 'Identifier' || previous.node.type === 'MemberExpression')
+          && (preprevious.node.type === 'AssignmentStatement' || preprevious.node.type === 'LocalStatement'))
+        || (previous.node.type === 'TableKeyString' && preprevious.node.type === 'TableConstructorExpression')
       );
+  }
+
+  // Checks if the top thing on the stack has NodeVisitingFlags.IsAssignmentTarget set.
+  //
+  // Useful in situations like e.g.
+  //
+  //   a.b = c
+  //
+  // `b` and `c` will both get visited in visitIdentifier, and their parent will both be
+  // the member expression `a.b`. However, when c gets visited, isInAssignmentTarget()
+  // will return true.
+  isInAssignmentTarget(): boolean {
+    const previous = this.topNode();
+    return !! previous?.flags?.includes(NodeVisitingFlags.IsAssignmentTarget);
   }
 
   // Scope-creating statements
@@ -136,20 +158,20 @@ export abstract class ASTVisitor<T> {
   }
 
   private visitNode(node: VisitableASTNode) {
-    // console.log('\nvisitNode ' + node.type + '\nnode stack: [' + this.nodeStack.map(node => node.type).join(' | ') + ']');
+    // console.log('\nvisitNode ' + node.type + '\nnode stack: [' + this.nodeStack.map(node => node.node.type).join(' | ') + ']');
     // + '\nscope stack: [' + this.scopeStack.map(s => util.format('%o', s)) + ']\n');
-    // console.log('current node: %o', node);
+    // logObj(node, 'current node');
     switch (node.type) {
     case 'AssignmentStatement':
       this.visitAssignmentStatement(node);
 
-      this.nodeStack.push(node);
+      this.nodeStack.push({ node });
       // We visit the variables & their initializers in order so like
       // variable1, init1, variable2, init2, etc.
       for (let i = 0; i < node.variables.length; i++) {
         this.visitNode(node.variables[i]);
         // The initializer can use the variable it's being assigned to as a parent
-        this.nodeStack.push(node.variables[i]);
+        this.nodeStack.push({ node: node.variables[i], flags: [NodeVisitingFlags.IsAssignmentTarget] });
         if (node.init[i]) this.visitNode(node.init[i]);
         this.nodeStack.pop();
       }
@@ -162,14 +184,14 @@ export abstract class ASTVisitor<T> {
 
     case 'CallStatement':
       this.visitCallStatement(node);
-      this.nodeStack.push(node);
+      this.nodeStack.push({ node });
       if (node.expression) this.visitNode(node.expression);
       this.nodeStack.pop();
       break;
 
     case 'DoStatement': {
       const result = this.visitDoStatement(node);
-      this.nodeStack.push(node);
+      this.nodeStack.push({ node });
       this.pushScope(result);
       this.visitAll(node.body);
       this.popScope();
@@ -180,7 +202,7 @@ export abstract class ASTVisitor<T> {
     case 'ForGenericStatement': {
       const result = this.visitForGenericStatement(node);
 
-      this.nodeStack.push(node);
+      this.nodeStack.push({ node });
       this.pushScope(result);
 
       // Visit the variables and their initializers in order (var1, init1, var2, init2)
@@ -197,7 +219,7 @@ export abstract class ASTVisitor<T> {
 
     case 'ForNumericStatement': {
       const result = this.visitForNumericStatement(node);
-      this.nodeStack.push(node);
+      this.nodeStack.push({ node });
       this.pushScope(result);
       this.visitNode(node.variable);
       this.visitNode(node.start);
@@ -211,7 +233,7 @@ export abstract class ASTVisitor<T> {
 
     case 'FunctionDeclaration': {
       const result = this.visitFunctionDeclaration(node);
-      this.nodeStack.push(node);
+      this.nodeStack.push({ node });
 
       // Only visit the function declaration identifier if it's a member expression.
       // Everything else can be taken care of in visitFunctionDeclaration.
@@ -228,21 +250,21 @@ export abstract class ASTVisitor<T> {
 
     case 'GotoStatement':
       this.visitGotoStatement(node);
-      this.nodeStack.push(node);
+      this.nodeStack.push({ node });
       this.visitNode(node.label);
       this.nodeStack.pop();
       break;
 
     case 'IfStatement':
       this.visitIfStatement(node);
-      this.nodeStack.push(node);
+      this.nodeStack.push({ node });
       this.visitAll(node.clauses);
       this.nodeStack.pop();
       break;
 
     case 'IfClause': {
       const result = this.visitIfClause(node);
-      this.nodeStack.push(node);
+      this.nodeStack.push({ node });
       this.visitNode(node.condition);
       this.pushScope(result);
       this.visitAll(node.body);
@@ -253,7 +275,7 @@ export abstract class ASTVisitor<T> {
 
     case 'ElseifClause': {
       const result = this.visitElseifClause(node);
-      this.nodeStack.push(node);
+      this.nodeStack.push({ node });
       this.visitNode(node.condition);
       this.pushScope(result);
       this.visitAll(node.body);
@@ -264,7 +286,7 @@ export abstract class ASTVisitor<T> {
 
     case 'ElseClause': {
       const result = this.visitElseClause(node);
-      this.nodeStack.push(node);
+      this.nodeStack.push({ node });
       this.pushScope(result);
       this.visitAll(node.body);
       this.popScope();
@@ -274,7 +296,7 @@ export abstract class ASTVisitor<T> {
 
     case 'LabelStatement':
       this.visitLabelStatement(node);
-      this.nodeStack.push(node);
+      this.nodeStack.push({ node });
       this.visitNode(node.label);
       this.nodeStack.pop();
       break;
@@ -282,13 +304,13 @@ export abstract class ASTVisitor<T> {
     case 'LocalStatement':
       this.visitLocalStatement(node);
 
-      this.nodeStack.push(node);
+      this.nodeStack.push({ node });
       // We visit the variables & their initializers in order so like
       // variable1, init1, variable2, init2, etc.
       for (let i = 0; i < node.variables.length; i++) {
         this.visitNode(node.variables[i]);
         // The initializer can use the variable it's being assigned to as a parent
-        this.nodeStack.push(node.variables[i]);
+        this.nodeStack.push({ node: node.variables[i], flags: [NodeVisitingFlags.IsAssignmentTarget] });
         if (node.init[i]) this.visitNode(node.init[i]);
         this.nodeStack.pop();
       }
@@ -297,7 +319,7 @@ export abstract class ASTVisitor<T> {
 
     case 'RepeatStatement': {
       const result = this.visitRepeatStatement(node);
-      this.nodeStack.push(node);
+      this.nodeStack.push({ node });
       this.pushScope(result);
       this.visitAll(node.body);
       this.popScope();
@@ -310,14 +332,14 @@ export abstract class ASTVisitor<T> {
 
     case 'ReturnStatement':
       this.visitReturnStatement(node);
-      this.nodeStack.push(node);
+      this.nodeStack.push({ node });
       this.visitAll(node.arguments);
       this.nodeStack.pop();
       break;
 
     case 'WhileStatement': {
       const result = this.visitWhileStatement(node);
-      this.nodeStack.push(node);
+      this.nodeStack.push({ node });
       this.visitNode(node.condition);
       this.pushScope(result);
       this.visitAll(node.body);
@@ -328,7 +350,7 @@ export abstract class ASTVisitor<T> {
 
     case 'BinaryExpression':
       this.visitBinaryExpression(node);
-      this.nodeStack.push(node);
+      this.nodeStack.push({ node });
       this.visitNode(node.left);
       this.visitNode(node.right);
       this.nodeStack.pop();
@@ -340,7 +362,7 @@ export abstract class ASTVisitor<T> {
 
     case 'CallExpression':
       this.visitCallExpression(node);
-      this.nodeStack.push(node);
+      this.nodeStack.push({ node });
       this.visitNode(node.base);
       this.visitAll(node.arguments);
       this.nodeStack.pop();
@@ -352,7 +374,7 @@ export abstract class ASTVisitor<T> {
 
     case 'IndexExpression':
       this.visitIndexExpression(node);
-      this.nodeStack.push(node);
+      this.nodeStack.push({ node });
       this.visitNode(node.base);
       this.visitNode(node.index);
       this.nodeStack.pop();
@@ -360,7 +382,7 @@ export abstract class ASTVisitor<T> {
 
     case 'LogicalExpression':
       this.visitLogicalExpression(node);
-      this.nodeStack.push(node);
+      this.nodeStack.push({ node });
       this.visitNode(node.left);
       this.visitNode(node.right);
       this.nodeStack.pop();
@@ -368,7 +390,7 @@ export abstract class ASTVisitor<T> {
 
     case 'MemberExpression':
       this.visitMemberExpression(node);
-      this.nodeStack.push(node);
+      this.nodeStack.push({ node });
       this.visitNode(node.base);
       this.visitNode(node.identifier);
       this.nodeStack.pop();
@@ -384,7 +406,7 @@ export abstract class ASTVisitor<T> {
 
     case 'StringCallExpression':
       this.visitStringCallExpression(node);
-      this.nodeStack.push(node);
+      this.nodeStack.push({ node });
       this.visitNode(node.base);
       this.visitNode(node.argument);
       this.nodeStack.pop();
@@ -396,7 +418,7 @@ export abstract class ASTVisitor<T> {
 
     case 'TableCallExpression':
       this.visitTableCallExpression(node);
-      this.nodeStack.push(node);
+      this.nodeStack.push({ node });
       this.visitNode(node.base);
       this.visitNode(node.arguments);
       this.nodeStack.pop();
@@ -404,7 +426,7 @@ export abstract class ASTVisitor<T> {
 
     case 'TableConstructorExpression': {
       const result = this.visitTableConstructorExpression(node);
-      this.nodeStack.push(node);
+      this.nodeStack.push({ node });
       this.pushScope(result);
       this.visitAll(node.fields);
       this.popScope();
@@ -414,7 +436,7 @@ export abstract class ASTVisitor<T> {
 
     case 'TableKey':
       this.visitTableKey(node);
-      this.nodeStack.push(node);
+      this.nodeStack.push({ node });
       this.visitNode(node.key);
       this.visitNode(node.value);
       this.nodeStack.pop();
@@ -422,21 +444,21 @@ export abstract class ASTVisitor<T> {
 
     case 'TableKeyString':
       this.visitTableKeyString(node);
-      this.nodeStack.push(node);
+      this.nodeStack.push({ node });
       this.visitNode(node.value);
       this.nodeStack.pop();
       break;
 
     case 'TableValue':
       this.visitTableValue(node);
-      this.nodeStack.push(node);
+      this.nodeStack.push({ node });
       this.visitNode(node.value);
       this.nodeStack.pop();
       break;
 
     case 'UnaryExpression':
       this.visitUnaryExpression(node);
-      this.nodeStack.push(node);
+      this.nodeStack.push({ node });
       this.visitNode(node.argument);
       this.nodeStack.pop();
       break;
