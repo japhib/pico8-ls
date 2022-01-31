@@ -182,9 +182,10 @@ export default class Parser {
 
     chunk.symbols = findSymbols(chunk);
 
-    const { defUs, warnings } = findDefinitionsUsages(chunk);
+    const { defUs, warnings, scopes } = findDefinitionsUsages(chunk);
     chunk.definitionsUsages = defUs;
     chunk.warnings = warnings;
+    chunk.scopes = scopes;
 
     return chunk;
   }

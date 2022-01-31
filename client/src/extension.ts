@@ -10,6 +10,12 @@ export function activate(context: ExtensionContext): void {
     legend,
   );
 
+  languages.registerDocumentSemanticTokensProvider(
+    { language: 'pico-8-lua', scheme: 'file' },
+    SemanticTokenProvider,
+    legend,
+  );
+
   const client = new LanguageClient(
     'pico8-ls',
     'PICO-8 LS',
@@ -48,7 +54,10 @@ function getServerOptions(context: ExtensionContext): ServerOptions {
 function getClientOptions(): LanguageClientOptions {
   return {
     // Register the server for PICO-8 documents
-    documentSelector: [{ scheme: 'file', language: 'pico-8' }],
+    documentSelector: [
+      { scheme: 'file', language: 'pico-8' },
+      { scheme: 'file', language: 'pico-8-lua' },
+    ],
     synchronize: {
       // Notify the server about file changes to .pico8ls files in the workspace
       // (we'll use that file for config later on)

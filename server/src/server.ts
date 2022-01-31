@@ -53,13 +53,10 @@ connection.onInitialize((params: InitializeParams) => {
   const result: InitializeResult = {
     capabilities: {
       textDocumentSync: TextDocumentSyncKind.Incremental,
-      // completionProvider: {
-      //   triggerCharacters: ['.', ':'],
-      //   resolveProvider: true,
-      // },
       documentSymbolProvider: true,
       definitionProvider: true,
       referencesProvider: true,
+      completionProvider: { triggerCharacters: ['.', ':'] },
     },
   };
 
@@ -246,16 +243,9 @@ connection.onDidChangeWatchedFiles(_change => {
 
 // This handler provides the initial list of the completion items.
 connection.onCompletion((textDocumentPosition: TextDocumentPositionParams): CompletionItem[] => {
-  // The pass parameter contains the position of the text document in
-  // which code complete got requested. For the example we ignore this
-  // info and always provide the same completion items.
+  
+  
   return [];
-});
-
-// This handler resolves additional information for the item selected in
-// the completion list.
-connection.onCompletionResolve((item: CompletionItem): CompletionItem => {
-  return item;
 });
 
 // Make the text document manager listen on the connection

@@ -32,12 +32,37 @@ be easily changed to normal wide-whitspace-style.
 - Diagnostics such as usage of undefined variables/functions, redefining a
   local, etc.
 
+## Ideas for other features (may or may not get implemented)
+
+- Code action to transform something like this:
+```lua
+a,b,c = 1,2,3
+```
+into this:
+```lua
+a = 1
+b = 2
+c = 3
+```
+- Intellisense telling you stats of the current file (tokens, characters)
+- Minify the current file
+- Outline based on function names and/or the `-->8` PICO-8 tab indicator
+- Code action to launch PICO-8 on the currently edited cart - and capture `printh` output to debug console
+
+Other helpful snippets for frequently looked-up stuff:
+- List out all numbers for input buttons and colors
+- Memory locations
+- Basic empty cartridge file template
+
 # Changelog
 
-## 0.0.2 (future)
+## 0.0.2 (1/31/2022)
 
+- Started using esbuild for bundling extension (should improve install/update performance)
 - Go to definition
 - Find references
+- Warnings for undefined globals, unused locals
+- Snippets for commonly typed patterns (if, then, function)
 
 ## 0.0.1 (1/23/2022)
 

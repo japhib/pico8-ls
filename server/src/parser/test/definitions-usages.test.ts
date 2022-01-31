@@ -78,6 +78,20 @@ function do_the_thing() print('hi') end`;
     ]);
   });
 
+  it('declares a definition for variables', () => {
+    const code = 'local a\nb = a';
+    const { warnings, definitionsUsages } = parse(code);
+    deepEquals(warnings, []);
+
+    // lookup on the `a` in `b = a`
+    const { definitions, usages } = definitionsUsages.lookup(2, 4)!;
+    deepEquals(definitions, [bounds(1, 6, 1, 7)]);
+    deepEquals(usages, [
+      bounds(1, 6, 1, 7),
+      bounds(2, 4, 2, 5),
+    ]);
+  });
+
   describe('warnings', () => {
     it('adds warning for an undefined variable in function call', () => {
       const { warnings } = parse('do_the_thing()');

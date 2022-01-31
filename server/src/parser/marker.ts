@@ -1,5 +1,5 @@
 import { Token } from './tokens';
-import { Bounds, ASTNode, cloneBounds } from './types';
+import { Bounds, ASTNode, boundsClone } from './types';
 
 export default class Marker {
   loc: Bounds;
@@ -14,7 +14,7 @@ export default class Marker {
   // Complete the location data stored in the `Marker` by adding the location
   // of the *previous token* as an end location.
   complete(previousToken: Token) {
-    this.loc = cloneBounds(this.loc);
+    this.loc = boundsClone(this.loc);
     this.loc.end = previousToken.bounds.end;
   }
 
@@ -23,6 +23,6 @@ export default class Marker {
   }
 
   clone(): Marker {
-    return new Marker(cloneBounds(this.loc));
+    return new Marker(boundsClone(this.loc));
   }
 }

@@ -41,22 +41,6 @@
             "outFiles": ["${workspaceRoot}/client/out/test/**/*.js"]
         },
         {
-            "type": "node",
-            "request": "launch",
-            "name": "Run server/test.ts",
-            "skipFiles": [
-                "<node_internals>/**"
-            ],
-            "program": "${workspaceFolder}/server/src/test.ts",
-            "outFiles": [
-                "${workspaceFolder}/**/*.js"
-            ],
-            "preLaunchTask": {
-                "type": "npm",
-                "script": "compile"
-            }
-        },
-        {
             "name": "npm test server",
             "type": "node",
             "request": "launch",

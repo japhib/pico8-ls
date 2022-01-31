@@ -3,7 +3,7 @@
 import { createWarning, errMessages, Warning } from './errors';
 import { getMemberExpresionBaseIdentifier, getMemberExpressionName, getMemberExpressionParentName, Identifier, MemberExpression, TableConstructorExpression, TableKeyString } from './expressions';
 import { AssignmentStatement, Chunk, ForGenericStatement, ForNumericStatement, FunctionDeclaration, getBareFunctionDeclarationName, LocalStatement } from './statements';
-import { Bounds, boundsEqual } from './types';
+import { Bounds, boundsEqual, boundsSize } from './types';
 import { ASTVisitor } from './visitor';
 import Builtins from './builtins';
 // import { logObj } from './util';
@@ -18,10 +18,12 @@ function emptyDefinitionsUsages(symbolName: string): DefinitionsUsages {
   return { symbolName, definitions: [], usages: [] };
 }
 
-export type DefinitionsUsagesOnLine = {
+export type DefinitionsUsagesWithLocation = {
   loc: Bounds,
   defUs: DefinitionsUsages,
-}[];
+};
+
+export type DefinitionsUsagesOnLine = DefinitionsUsagesWithLocation[];
 
 export class DefinitionsUsagesLookup {
   lines: DefinitionsUsagesOnLine[] = [];
@@ -76,18 +78,31 @@ export class DefinitionsUsagesLookup {
     // Can't find the line, don't bother adding it to the list, just return
     if (!defUsOnLine) return undefined;
 
+    let found: DefinitionsUsagesWithLocation | undefined = undefined;
+
     for (const def of defUsOnLine) {
-      if (line === def.loc.start.line
+      const matches = line === def.loc.start.line
         && column >= def.loc.start.column
-        && column <= def.loc.end.column)
-        return def.defUs;
+        && column <= def.loc.end.column;
+
+      // Make sure we find the match with the narrowest bounds
+      // TODO: maybe keep the list sorted so this is more efficient
+      // (sorting would introduce more work in the AST scanning phase though)
+      const narrower = !found || boundsSize(found.loc) > boundsSize(def.loc);
+
+      if (matches && narrower)
+        found = def;
     }
 
-    return undefined;
+    return found?.defUs;
   }
 }
 
-export function findDefinitionsUsages(chunk: Chunk): { defUs: DefinitionsUsagesLookup, warnings: Warning[] } {
+export function findDefinitionsUsages(chunk: Chunk): {
+  defUs: DefinitionsUsagesLookup,
+  warnings: Warning[],
+  scopes: DefUsageScope,
+} {
   return new DefinitionsUsagesFinder(chunk).findDefinitionsUsages();
 }
 
@@ -98,11 +113,12 @@ enum DefUsagesScopeType {
   Other,
 }
 
-class DefUsageScope {
+export class DefUsageScope {
   type: DefUsagesScopeType;
   name: string | undefined;
   symbols: Map<string, DefinitionsUsages>;
   self: string | undefined;
+  children: DefUsageScope[] = [];
 
   constructor(type: DefUsagesScopeType, arg: { name?: string, self?: string, symbols?: Map<string, DefinitionsUsages> }) {
     this.type = type;
@@ -147,6 +163,17 @@ class DefinitionsUsagesFinder extends ASTVisitor<DefUsageScope> {
     this.chunk = chunk;
   }
 
+  // External entry point
+  findDefinitionsUsages(): { defUs: DefinitionsUsagesLookup, warnings: Warning[], scopes: DefUsageScope } {
+    this.visit(this.chunk);
+    this.resolveEarlyRefs();
+    return {
+      defUs: this.lookup,
+      warnings: this.warnings,
+      scopes: this.topScope(),
+    };
+  }
+
   override startingScope(): DefUsageScope {
     const predefinedGlobals = new Map<string, DefinitionsUsages>();
     for (const fnName in Builtins)
@@ -161,15 +188,6 @@ class DefinitionsUsagesFinder extends ASTVisitor<DefUsageScope> {
     const self = this.topScope()?.self;
     const name = this.topScope()?.name;
     return new DefUsageScope(type, { self, name });
-  }
-
-  findDefinitionsUsages(): { defUs: DefinitionsUsagesLookup, warnings: Warning[] } {
-    this.visit(this.chunk);
-    this.resolveEarlyRefs();
-    return {
-      defUs: this.lookup,
-      warnings: this.warnings,
-    };
   }
 
   // Called to finish resolving early refs.
@@ -206,6 +224,11 @@ class DefinitionsUsagesFinder extends ASTVisitor<DefUsageScope> {
 
       usages.forEach(loc => { this.addUsage(symbolName, loc); });
     }
+  }
+
+  override onEnterScope(enteringScope: DefUsageScope): void {
+    // Add this scope to the children of the parent scope (one scope down)
+    this.topScope(1).children.push(enteringScope);
   }
 
   override onExitScope(scope: DefUsageScope): void {
@@ -305,7 +328,7 @@ class DefinitionsUsagesFinder extends ASTVisitor<DefUsageScope> {
       defUs.usages.push(loc);
 
     // if it's a global variable getting reassigned, add it to the definitions list as well
-    if (!this.isSymbolLocal(symbolName) && this.isInAssignment()) {
+    if (!this.isSymbolLocal(symbolName) && this.isInAssignment() && !this.isInAssignmentTarget()) {
       // Don't add the usage if it's the exact same as the most recent one added
       if (!boundsEqual(loc, defUs.definitions[defUs.definitions.length - 1]))
         defUs.definitions.push(loc);

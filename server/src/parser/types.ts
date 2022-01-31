@@ -17,7 +17,14 @@ export function boundsEqual(a: Bounds, b: Bounds): boolean {
   return a && b && codeLocationsEqual(a.start, b.start) && codeLocationsEqual(a.end, b.end);
 }
 
-export function cloneBounds(bounds: Bounds): Bounds {
+export function boundsSize(b: Bounds): number {
+  const lineSize = b.end.line - b.start.line;
+  const columnSize = b.end.column - b.start.column;
+
+  return columnSize + (10000 * lineSize);
+}
+
+export function boundsClone(bounds: Bounds): Bounds {
   return {
     start: {
       line: bounds.start.line,
