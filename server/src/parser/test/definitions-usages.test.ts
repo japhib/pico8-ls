@@ -2,7 +2,6 @@ import { strictEqual as eq } from 'assert';
 import { DefinitionsUsagesLookup } from '../definitions-usages';
 import { TokenValue } from '../tokens';
 import { Bounds } from '../types';
-import { logObj } from '../util';
 import { bounds, deepEquals, parse, tokenAt } from './test-utils';
 
 // Simulates a Go To Definition request where we hand in a line
@@ -108,6 +107,16 @@ function do_the_thing() print('hi') end`;
     it('adds warning for an undefined variable in assignment', () => {
       const { warnings } = parse('local a\nb.c = a');
       deepEquals(warnings[0], { type: 'Warning', message: 'undefined variable: b' });
+    });
+
+    it('does not give warning for "self" usage in double-nested table', () => {
+      const { warnings } = parse(`a2 = {
+  self_fn = function() self.mem = 0 end,
+  b2 = {
+    self_fn = function() self.mem = 0 end,
+  }
+}`);
+      deepEquals(warnings, []);
     });
   });
 
@@ -371,6 +380,54 @@ a.b.mem()`);
         eq(symbolName, 'a.b.mem');
         deepEquals(definitions, [bounds(6, 23, 6, 31)]);
         deepEquals(usages, [bounds(6, 23, 6, 31), bounds(7, 0, 7, 7)]);
+      }
+    });
+
+    it('handles deeply nested instances of "self" (table version)', () => {
+      const { warnings, definitionsUsages } = parse(`a = {
+  self_fn = function() self.mem = 0 end,
+  b = {
+    self_fn = function() self.mem = 0 end,
+    c = {
+      self_fn = function() self.mem = 0 end,
+    }
+  }
+}
+a.mem()
+a.b.mem()
+a.b.c.mem()
+`);
+
+      deepEquals(warnings, []);
+
+      // "self" on "self.mem" (line 2) takes you to `a`
+      {
+        const { definitions } = definitionsUsages.lookup(2, 24)!;
+        deepEquals(definitions, [bounds(1, 0, 1, 1)]);
+      }
+
+      // "a.mem"
+      {
+        const { symbolName, definitions, usages } = definitionsUsages.lookup(2, 29)!;
+        eq(symbolName, 'a.mem'); // instead of self.mem
+        deepEquals(definitions, [bounds(2, 23, 2, 31)]);
+        deepEquals(usages, [bounds(2, 23, 2, 31), bounds(10, 0, 10, 5)]);
+      }
+
+      // "a.b.mem"
+      {
+        const { symbolName, definitions, usages } = definitionsUsages.lookup(4, 31)!;
+        eq(symbolName, 'b.mem');
+        deepEquals(definitions, [bounds(4, 25, 4, 33)]);
+        deepEquals(usages, [bounds(4, 25, 4, 33), bounds(11, 0, 11, 7)]);
+      }
+
+      // "a.b.c.mem"
+      {
+        const { symbolName, definitions, usages } = definitionsUsages.lookup(6, 33)!;
+        eq(symbolName, 'c.mem');
+        deepEquals(definitions, [bounds(6, 27, 6, 35)]);
+        deepEquals(usages, [bounds(6, 27, 6, 35), bounds(12, 0, 12, 9)]);
       }
     });
   });

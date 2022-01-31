@@ -15,18 +15,18 @@ function encodeUTF8(codepoint: number, highMask?: number) : string | null {
     return String.fromCharCode(codepoint);
   } else if (codepoint < 0x800) {
     return String.fromCharCode(
-      highMask | 0xc0 |  (codepoint >>  6)        ,
+      highMask | 0xc0 |  (codepoint >>  6),
       highMask | 0x80 | ( codepoint        & 0x3f),
     );
   } else if (codepoint < 0x10000) {
     return String.fromCharCode(
-      highMask | 0xe0 |  (codepoint >> 12)        ,
+      highMask | 0xe0 |  (codepoint >> 12),
       highMask | 0x80 | ((codepoint >>  6) & 0x3f),
       highMask | 0x80 | ( codepoint        & 0x3f),
     );
   } else if (codepoint < 0x110000) {
     return String.fromCharCode(
-      highMask | 0xf0 |  (codepoint >> 18)        ,
+      highMask | 0xf0 |  (codepoint >> 18),
       highMask | 0x80 | ((codepoint >> 12) & 0x3f),
       highMask | 0x80 | ((codepoint >>  6) & 0x3f),
       highMask | 0x80 | ( codepoint        & 0x3f),

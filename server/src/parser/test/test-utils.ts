@@ -1,6 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { strictEqual as eq } from 'assert';
+import * as util from 'util';
+import { fail } from 'assert';
 import Lexer from '../lexer';
 import Parser from '../parser';
 import { Chunk } from '../statements';
@@ -35,28 +36,36 @@ export function deepEqualsAST(code: string, expected: any) {
 }
 
 export function deepEquals(actual: any, expected: any) {
-  eq(typeof actual, typeof expected, 'types don\'t match!');
+  if (!_deepEquals(actual, expected))
+    fail(`Objects are not equal!\n\nexpected:\n${util.inspect(expected, { depth: 90 })}\n\nactual:\n${util.inspect(actual, { depth: 90 })}`);
+}
+
+function _deepEquals(actual: any, expected: any): boolean {
+  if (typeof actual !== typeof expected) return false;
 
   if (typeof expected === 'object') {
-    if (Array.isArray(expected)) return deepEqualsArray(actual, expected);
-    else return deepEqualsObject(actual, expected);
+    if (Array.isArray(expected)) return _deepEqualsArray(actual, expected);
+    else return _deepEqualsObject(actual, expected);
   } else {
-    eq(actual, expected, 'values don\'t match!');
+    if (actual !== expected) return false;
+    else return true;
   }
 }
 
-function deepEqualsArray(actual: any[], expected: any[]) {
-  eq(actual.length, expected.length, 'array lengths don\'t match!');
+function _deepEqualsArray(actual: any[], expected: any[]): boolean {
+  if (actual.length !== expected.length) return false;
 
   for (let i = 0; i < expected.length; i++)
-    deepEquals(actual[i], expected[i]);
+    if (!_deepEquals(actual[i], expected[i])) return false;
 
+  return true;
 }
 
-function deepEqualsObject(actual: any, expected: any) {
+function _deepEqualsObject(actual: any, expected: any): boolean {
   for (const key of Object.keys(expected))
-    deepEquals(actual[key], expected[key]);
+    if (!_deepEquals(actual[key], expected[key])) return false;
 
+  return true;
 }
 
 export function locationOfToken(code: string, tokenValue: TokenValue): Bounds {

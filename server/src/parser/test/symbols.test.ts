@@ -272,7 +272,7 @@ describe('SymbolFinder', () => {
     end
     `);
     deepEquals(symbols,
-      [{ name: 'particles.spawn', type: CodeSymbolType.Function , children: [
+      [{ name: 'particles.spawn', type: CodeSymbolType.Function, children: [
         { name: 'props', type: CodeSymbolType.LocalVariable },
       ] }]);
   });

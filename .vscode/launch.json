@@ -60,7 +60,7 @@
             "name": "npm test server",
             "type": "node",
             "request": "launch",
-            "skipFiles": ["<node_internals>/**"],
+            "skipFiles": ["<node_internals>/**", "node_modules/mocha/**"],
             "program": "node_modules/mocha/bin/mocha",
             "args": ["${workspaceFolder}/server/**/*.test.js"],
             "outFiles": [

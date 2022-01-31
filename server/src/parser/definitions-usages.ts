@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unsafe-call */
 
 import { createWarning, errMessages, Warning } from './errors';
-import { getMemberExpresionBaseIdentifier, getMemberExpressionName, getMemberExpressionParentName, Identifier, MemberExpression, TableConstructorExpression } from './expressions';
+import { getMemberExpresionBaseIdentifier, getMemberExpressionName, getMemberExpressionParentName, Identifier, MemberExpression, TableConstructorExpression, TableKeyString } from './expressions';
 import { AssignmentStatement, Chunk, ForGenericStatement, ForNumericStatement, FunctionDeclaration, getBareFunctionDeclarationName, LocalStatement } from './statements';
 import { Bounds, boundsEqual } from './types';
 import { ASTVisitor } from './visitor';
@@ -37,7 +37,37 @@ export class DefinitionsUsagesLookup {
   }
 
   add(loc: Bounds, defUs: DefinitionsUsages) {
-    this.getLine(loc.start.line).push({ loc, defUs });
+    const line = this.getLine(loc.start.line);
+
+    // First check to make sure that there isn't already an item with that name/bounds
+    for (const defUsages of line) {
+      if (defUsages.defUs.symbolName === defUs.symbolName
+        && boundsEqual(defUsages.loc, loc)) {
+        // Name & location is the same, so merge usages/definitions instead of adding them.
+        this.addLocationsIfNotExists(defUs.definitions, defUsages.defUs.definitions);
+        this.addLocationsIfNotExists(defUs.usages, defUsages.defUs.usages);
+        return;
+      }
+    }
+
+    // If we've made it this far, it's not been found, so just add it
+    line.push({ loc, defUs });
+  }
+
+  addLocationsIfNotExists(locs: Bounds[], list: Bounds[]) {
+    for (const loc of locs) {
+      let shouldAdd = true;
+
+      // Only adds the location if it isn't already in the list
+      for (const item of list) {
+        if (boundsEqual(loc, item)) {
+          shouldAdd = false;
+          break;
+        }
+      }
+
+      if (shouldAdd) list.push(loc);
+    }
   }
 
   lookup(line: number, column: number): DefinitionsUsages | undefined {
@@ -61,12 +91,21 @@ export function findDefinitionsUsages(chunk: Chunk): { defUs: DefinitionsUsagesL
   return new DefinitionsUsagesFinder(chunk).findDefinitionsUsages();
 }
 
+enum DefUsagesScopeType {
+  Global,
+  Function,
+  Table,
+  Other,
+}
+
 class DefUsageScope {
+  type: DefUsagesScopeType;
   name: string | undefined;
   symbols: Map<string, DefinitionsUsages>;
   self: string | undefined;
 
-  constructor(arg: { name?: string, self?: string, symbols?: Map<string, DefinitionsUsages> }) {
+  constructor(type: DefUsagesScopeType, arg: { name?: string, self?: string, symbols?: Map<string, DefinitionsUsages> }) {
+    this.type = type;
     this.name = arg.name;
     this.self = arg.self;
     this.symbols = arg.symbols || new Map<string, DefinitionsUsages>();
@@ -112,14 +151,16 @@ class DefinitionsUsagesFinder extends ASTVisitor<DefUsageScope> {
     const predefinedGlobals = new Map<string, DefinitionsUsages>();
     for (const fnName in Builtins)
       predefinedGlobals.set(fnName, emptyDefinitionsUsages(fnName));
-    return new DefUsageScope({ symbols: predefinedGlobals });
+    return new DefUsageScope(DefUsagesScopeType.Global, { symbols: predefinedGlobals });
   }
 
-  override createDefaultScope(): DefUsageScope {
+  override createDefaultScope(type?: DefUsagesScopeType): DefUsageScope {
+    type = type || DefUsagesScopeType.Other;
+
     // carry forward the current self and name, if they exist
     const self = this.topScope()?.self;
     const name = this.topScope()?.name;
-    return new DefUsageScope({ self, name });
+    return new DefUsageScope(type, { self, name });
   }
 
   findDefinitionsUsages(): { defUs: DefinitionsUsagesLookup, warnings: Warning[] } {
@@ -131,26 +172,36 @@ class DefinitionsUsagesFinder extends ASTVisitor<DefUsageScope> {
     };
   }
 
+  // Called to finish resolving early refs.
   resolveEarlyRefs() {
-    for (const earlyRef in this.earlyRefs) {
-      let symbolName = earlyRef;
-      const usages = this.earlyRefs[earlyRef];
+    for (const origSymbolName in this.earlyRefs) {
+      let symbolName = origSymbolName;
+      const usages = this.earlyRefs[origSymbolName];
+
+      const isMemberExpression = symbolName.indexOf('.') !== -1;
+
+      while (!this.isSymbolDefined(symbolName)) {
+        // If it's a member expression, try chopping off the first part of the member expression
+        // until it's just one long. e.g. `a.b.c` => try `a.b.c`, then `b.c`, then just `c`.
+
+        if (symbolName.indexOf('.') === -1)
+          break;
+
+        const parts = symbolName.split('.');
+        symbolName = parts.slice(1).join('.');
+      }
 
       if (!this.isSymbolDefined(symbolName)) {
-        if (symbolName.indexOf('.') === -1) {
+        if (!isMemberExpression && symbolName !== 'self') {
           // Only create warnings for non-member variables
           usages.forEach(loc => {
-            this.warnings.push(createWarning(loc, errMessages.undefinedVariable, symbolName));
+            this.warnings.push(createWarning(loc, errMessages.undefinedVariable, origSymbolName));
           });
-        } else {
-          // Change symbolName to only the last identifier. e.g. `tbl.key` => `key`
-          const parts = symbolName.split('.');
-          symbolName = parts[parts.length - 1];
-
-          // if it's still undefined, create a new symbol without a definition
-          if (!this.globalScope().has(symbolName))
-            this.globalScope().set(symbolName, { symbolName, definitions: [], usages: [] });
         }
+
+        // if it's still undefined, create a new symbol without a definition
+        if (!this.globalScope().has(symbolName))
+          this.globalScope().set(symbolName, { symbolName, definitions: [], usages: [] });
       }
 
       usages.forEach(loc => { this.addUsage(symbolName, loc); });
@@ -158,6 +209,10 @@ class DefinitionsUsagesFinder extends ASTVisitor<DefUsageScope> {
   }
 
   override onExitScope(scope: DefUsageScope): void {
+    // Don't bother checking for locals if it's a table "scope" (not a real scope)
+    if (scope.type === DefUsagesScopeType.Table) return;
+
+    // check for unused locals
     for (const variableName of scope.keys()) {
       const defsUsages = scope.get(variableName)!;
       if (defsUsages.usages.length <= 1) {
@@ -301,7 +356,7 @@ class DefinitionsUsagesFinder extends ASTVisitor<DefUsageScope> {
         break;
       case 'TableKeyString':
         name = previous.key.name;
-        loc = previous.loc!;
+        loc = previous.key.loc!;
         // use the scope name (name of the table getting assigned to)
         self = this.topScope().name;
         break;
@@ -326,7 +381,7 @@ class DefinitionsUsagesFinder extends ASTVisitor<DefUsageScope> {
     }
 
     // Set name to undefined? TODO make sure this is what we want
-    return new DefUsageScope({ self, name: undefined });
+    return new DefUsageScope(DefUsagesScopeType.Function, { self, name: undefined });
   }
 
   override visitIdentifier(node: Identifier): void {
@@ -448,11 +503,15 @@ class DefinitionsUsagesFinder extends ASTVisitor<DefUsageScope> {
         if (membExprName) name = membExprName;
         break;
       }
-      return new DefUsageScope({ name, self });
+      return new DefUsageScope(DefUsagesScopeType.Table, { name, self });
     }
 
     // If not, then no new scope, just add the default parent
-    return this.createDefaultScope();
+    return this.createDefaultScope(DefUsagesScopeType.Table);
+  }
+
+  override visitTableKeyString(node: TableKeyString): void {
+    this.addDefinition(node.key.name, node.key.loc!);
   }
 
   override visitMemberExpression(membExpr: MemberExpression): void {
