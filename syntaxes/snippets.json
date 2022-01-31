@@ -1,0 +1,34 @@
+{
+	"function": {
+		"prefix": "function",
+		"body": [
+			"function $1($2)",
+			"\t$3",
+			"end"
+		]
+	},
+	"while": {
+		"prefix": "while",
+		"body": [
+			"while $1 do",
+			"\t$2",
+			"end"
+		]
+	},
+	"if": {
+		"prefix": "if",
+		"body": [
+			"if $1 then",
+			"\t$2",
+			"end"
+		]
+	},
+	"for": {
+		"prefix": "for",
+		"body": [
+			"for $1 do",
+			"\t$2",
+			"end"
+		]
+	}
+}

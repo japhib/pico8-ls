@@ -37,6 +37,7 @@ const provider: DocumentSemanticTokensProvider = {
         continue;
 
       // currently only support double-slash line comments
+      // (since I can't figure out how to include those in syntaxes/pico-8-lua.tmLanguage.json)
       const match = line.text.indexOf('//');
       if (match !== -1) {
         tokensBuilder.push(

@@ -1,8 +1,6 @@
 {
     "comments": {
-        // symbol used for single line comment. Remove this entry if your language does not support line comments
         "lineComment": "--",
-        // symbols used for start and end a block comment. Remove this entry if your language does not support block comments
         "blockComment": [ "--[[", "]]" ]
     },
     // symbols used as brackets
@@ -26,5 +24,18 @@
         ["(", ")"],
         ["\"", "\""],
         ["'", "'"]
-    ]
+    ],
+    "folding": {
+        "markers": {
+            "start": "({|\b(function|while|if|for)\b)",
+            "end": "(end|})"
+        }
+    },
+    // This isn't working, idk why
+    // "onEnterRules": [{
+    //     "beforeText": "({|\b(function|while|if|for)\b)",
+    //     "action": {
+    //         "indent": "indent"
+    //     }
+    // }]
 }

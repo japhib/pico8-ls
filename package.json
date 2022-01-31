@@ -18,6 +18,10 @@
 		"onLanguage:pico-8-lua"
 	],
 	"main": "./client/out/extension",
+	"categories": [
+		"Programming Languages",
+		"Snippets"
+	],
 	"contributes": {
 		"configuration": {
 			"type": "object",
@@ -78,6 +82,12 @@
 				"language": "pico-8-lua",
 				"scopeName": "source.pico8.lua",
 				"path": "syntaxes/pico-8-lua.tmLanguage.json"
+			}
+		],
+		"snippets": [
+			{
+				"language": "pico-8",
+				"path": "syntaxes/snippets.json"
 			}
 		]
 	},
