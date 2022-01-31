@@ -266,7 +266,6 @@ a.b.c.d = {}`);
         const { symbolName, definitions, usages } = definitionsUsages.lookup(3, 2)!;
         eq(symbolName, 'a.b');
         deepEquals(definitions, [bounds(3, 0, 3, 3)]);
-        logObj(usages, 'usages');
         deepEquals(usages, [
           bounds(3, 0, 3, 3),
           bounds(4, 0, 4, 3),
@@ -279,7 +278,6 @@ a.b.c.d = {}`);
         const { symbolName, definitions, usages } = definitionsUsages.lookup(4, 4)!;
         eq(symbolName, 'a.b.c');
         deepEquals(definitions, [bounds(4, 0, 4, 5)]);
-        logObj(usages, 'usages');
         deepEquals(usages, [
           bounds(4, 0, 4, 5),
           bounds(5, 0, 5, 5),
@@ -291,10 +289,88 @@ a.b.c.d = {}`);
         const { symbolName, definitions, usages } = definitionsUsages.lookup(5, 6)!;
         eq(symbolName, 'a.b.c.d');
         deepEquals(definitions, [bounds(5, 0, 5, 7)]);
-        logObj(usages, 'usages');
         deepEquals(usages, [
           bounds(5, 0, 5, 7),
         ]);
+      }
+    });
+
+    it('handles deeply nested instances of "self" (assignment version)', () => {
+      const { warnings, definitionsUsages } = parse(`
+a = {}
+a.self_fn = function() self.mem = 0 end
+a.mem()
+a.b = {}
+a.b.self_fn = function() self.mem = 0 end
+a.b.mem()
+a.b.c = {}
+a.b.c.mem() -- function call is before definition!
+a.b.c.self_fn = function() self.mem = 0 end`);
+
+      deepEquals(warnings, []);
+
+      // "self" on "self.mem" (line 3) takes you to `a`
+      {
+        const { definitions } = definitionsUsages.lookup(3, 25)!;
+        deepEquals(definitions, [bounds(2, 0, 2, 1)]);
+      }
+
+      // "a.mem"
+      {
+        const { symbolName, definitions, usages } = definitionsUsages.lookup(3, 30)!;
+        eq(symbolName, 'a.mem'); // instead of self.mem
+        deepEquals(definitions, [bounds(3, 23, 3, 31)]);
+        deepEquals(usages, [bounds(3, 23, 3, 31), bounds(4, 0, 4, 5)]);
+      }
+
+      // "a.b.mem"
+      {
+        const { symbolName, definitions, usages } = definitionsUsages.lookup(6, 32)!;
+        eq(symbolName, 'a.b.mem');
+        deepEquals(definitions, [bounds(6, 25, 6, 33)]);
+        deepEquals(usages, [bounds(6, 25, 6, 33), bounds(7, 0, 7, 7)]);
+      }
+
+      // "a.b.c.mem"
+      {
+        const { symbolName, definitions, usages } = definitionsUsages.lookup(10, 34)!;
+        eq(symbolName, 'a.b.c.mem');
+        deepEquals(definitions, [bounds(10, 27, 10, 35)]);
+        deepEquals(usages, [bounds(10, 27, 10, 35), bounds(9, 0, 9, 9)]);
+      }
+    });
+
+    it('handles deeply nested instances of "self" (function version)', () => {
+      const { warnings, definitionsUsages } = parse(`
+a = {}
+function a.self_fn() self.mem = 0 end
+a.mem()
+a.b = {}
+function a.b:self_fn() self.mem = 0 end
+a.b.mem()`);
+
+      deepEquals(warnings, []);
+
+      // "self" on "self.mem" (line 3) takes you to `a`
+      {
+        const { definitions } = definitionsUsages.lookup(3, 23)!;
+        deepEquals(definitions, [bounds(2, 0, 2, 1)]);
+      }
+
+      // "a.mem"
+      {
+        const { symbolName, definitions, usages } = definitionsUsages.lookup(3, 28)!;
+        eq(symbolName, 'a.mem'); // instead of self.mem
+        deepEquals(definitions, [bounds(3, 21, 3, 29)]);
+        deepEquals(usages, [bounds(3, 21, 3, 29), bounds(4, 0, 4, 5)]);
+      }
+
+      // "a.b.mem"
+      {
+        const { symbolName, definitions, usages } = definitionsUsages.lookup(6, 30)!;
+        eq(symbolName, 'a.b.mem');
+        deepEquals(definitions, [bounds(6, 23, 6, 31)]);
+        deepEquals(usages, [bounds(6, 23, 6, 31), bounds(7, 0, 7, 7)]);
       }
     });
   });

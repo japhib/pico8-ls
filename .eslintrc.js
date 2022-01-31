@@ -83,5 +83,6 @@ module.exports = {
     'object-curly-spacing': 'off',
     'no-multiple-empty-lines': ['error', { max: 1 }],
     'eol-last': ['error', 'always'],
+    'comma-spacing': ['error', { 'before': false, 'after': true }],
   },
 };
