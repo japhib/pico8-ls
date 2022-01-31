@@ -58,7 +58,7 @@ Other helpful snippets for frequently looked-up stuff:
 
 ## 0.0.2 (1/31/2022)
 
-- Started using esbuild for bundling extension (should improve install/update performance)
+- Started using esbuild for bundling extension (should improve install/load performance)
 - Go to definition
 - Find references
 - Warnings for undefined globals, unused locals

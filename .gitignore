@@ -1,4 +1,8 @@
 out
+out-min
 node_modules
 client/server
 .vscode-test
+
+# The built extension
+*.vsix

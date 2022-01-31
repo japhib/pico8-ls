@@ -1,15 +1,21 @@
 .vscode/**
 **/*.ts
 **/*.map
+**/*.lua
 .gitignore
 **/tsconfig.json
 **/tsconfig.base.json
-contributing.md
-.travis.yml
+scripts/**
+testfiles/**
+.eslintignore
+.eslintrc.js
+.gitignore
+
+# node_modules are bundled into the minified release thing by esbuild
 client/node_modules/**
-!client/node_modules/vscode-jsonrpc/**
-!client/node_modules/vscode-languageclient/**
-!client/node_modules/vscode-languageserver-protocol/**
-!client/node_modules/vscode-languageserver-types/**
-!client/node_modules/{minimatch,brace-expansion,concat-map,balanced-match}/**
-!client/node_modules/{semver,lru-cache,yallist}/**
+server/node_modules/**
+node_modules/**
+
+# `out` is a plain Typescript build, while `out-min` is the minified build
+client/out/**
+server/out/**
