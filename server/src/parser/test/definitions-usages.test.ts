@@ -239,5 +239,70 @@ end`);
         bounds(3, 9, 3, 15),
       ]);
     });
+
+    it('handles deeply nested member expression usages/definitions', () => {
+      const { warnings, definitionsUsages } = parse(`
+a = {}
+a.b = {}
+a.b.c = {}
+a.b.c.d = {}`);
+
+      deepEquals(warnings, []);
+
+      // a
+      {
+        const { definitions, usages } = definitionsUsages.lookup(2, 0)!;
+        deepEquals(definitions, [bounds(2, 0, 2, 1)]);
+        deepEquals(usages, [
+          bounds(2, 0, 2, 1),
+          bounds(3, 0, 3, 1),
+          bounds(4, 0, 4, 1),
+          bounds(5, 0, 5, 1),
+        ]);
+      }
+
+      // b
+      {
+        const { symbolName, definitions, usages } = definitionsUsages.lookup(3, 2)!;
+        eq(symbolName, 'a.b');
+        deepEquals(definitions, [bounds(3, 0, 3, 3)]);
+        logObj(usages, 'usages');
+        deepEquals(usages, [
+          bounds(3, 0, 3, 3),
+          bounds(4, 0, 4, 3),
+          bounds(5, 0, 5, 3),
+        ]);
+      }
+
+      // c
+      {
+        const { symbolName, definitions, usages } = definitionsUsages.lookup(4, 4)!;
+        eq(symbolName, 'a.b.c');
+        deepEquals(definitions, [bounds(4, 0, 4, 5)]);
+        logObj(usages, 'usages');
+        deepEquals(usages, [
+          bounds(4, 0, 4, 5),
+          bounds(5, 0, 5, 5),
+        ]);
+      }
+
+      // d
+      {
+        const { symbolName, definitions, usages } = definitionsUsages.lookup(5, 6)!;
+        eq(symbolName, 'a.b.c.d');
+        deepEquals(definitions, [bounds(5, 0, 5, 7)]);
+        logObj(usages, 'usages');
+        deepEquals(usages, [
+          bounds(5, 0, 5, 7),
+        ]);
+      }
+    });
   });
 });
+
+/*
+function object:extend() end
+-- usage of object
+function a.b.c:d() end
+-- usage of a, a.b, a.b.c
+*/

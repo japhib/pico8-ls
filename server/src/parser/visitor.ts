@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-empty-function */
 /* eslint-disable @typescript-eslint/no-unused-vars */
-import { BinaryExpression, BooleanLiteral, CallExpression, Expression, GeneralTableField, Identifier, IndexExpression, LogicalExpression,
+import { BinaryExpression, BooleanLiteral, CallExpression, Expression, GeneralTableField, getMemberExpressionName, Identifier, IndexExpression, LogicalExpression,
   MemberExpression, NilLiteral, NumericLiteral, StringCallExpression, StringLiteral, TableCallExpression,
   TableConstructorExpression, TableKey, TableKeyString, TableValue, UnaryExpression, VarargLiteral,
 } from './expressions';
@@ -158,8 +158,7 @@ export abstract class ASTVisitor<T> {
   }
 
   private visitNode(node: VisitableASTNode) {
-    // console.log('\nvisitNode ' + node.type + '\nnode stack: [' + this.nodeStack.map(node => node.node.type).join(' | ') + ']');
-    // + '\nscope stack: [' + this.scopeStack.map(s => util.format('%o', s)) + ']\n');
+    // console.log('\nvisitNode ' + node.type + ', node stack: [' + this.nodeStack.map(node => node.node.type).join(' | ') + ']');
     // logObj(node, 'current node');
     switch (node.type) {
     case 'AssignmentStatement':

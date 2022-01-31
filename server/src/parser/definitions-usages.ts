@@ -6,7 +6,7 @@ import { AssignmentStatement, Chunk, ForGenericStatement, ForNumericStatement, F
 import { Bounds, boundsEqual } from './types';
 import { ASTVisitor } from './visitor';
 import Builtins from './builtins';
-import { logObj } from './util';
+// import { logObj } from './util';
 
 export type DefinitionsUsages = {
   symbolName: string,
@@ -284,22 +284,10 @@ class DefinitionsUsagesFinder extends ASTVisitor<DefUsageScope> {
       self = getMemberExpressionParentName(node.identifier);
     }
     else if (!node.identifier && this.isInAssignment()) {
-      const previous = this.topNode().node;
-
-      // first check if we're in an assignment to a member expression
-      if (previous.type === 'MemberExpression') {
-        self = getMemberExpressionParentName(previous);
-      }
-      else if (previous.type === 'TableKeyString') {
-        // use the scope name (name of the table getting assigned to)
-        self = this.topScope().name;
-      }
-    }
-
-    // If the function does NOT have an identifier, but we're in an assignment
-    // or in a table constructor, use the variable name that we're being
-    // assigned to.
-    if (!name && this.isInAssignment()) {
+      // If the function does NOT have an identifier, but we're in an assignment
+      // or in a table constructor, use the variable name that we're being
+      // assigned to. We also can get the value from `self` based on the
+      // variable name we're being assigned to.
       const previous = this.topNode().node;
       switch (previous.type) {
       case 'Identifier':
@@ -307,12 +295,15 @@ class DefinitionsUsagesFinder extends ASTVisitor<DefUsageScope> {
         loc = previous.loc!;
         break;
       case 'MemberExpression':
+        self = getMemberExpressionParentName(previous);
         name = getMemberExpressionName(previous) || previous.identifier.name;
         loc = previous.loc!;
         break;
       case 'TableKeyString':
         name = previous.key.name;
         loc = previous.loc!;
+        // use the scope name (name of the table getting assigned to)
+        self = this.topScope().name;
         break;
       default:
         // this shouldn't happen
@@ -334,7 +325,7 @@ class DefinitionsUsagesFinder extends ASTVisitor<DefUsageScope> {
       this.addDefinition(name, loc!, this.globalScope());
     }
 
-    // Set name to undefined? TODO maybe fix
+    // Set name to undefined? TODO make sure this is what we want
     return new DefUsageScope({ self, name: undefined });
   }
 
@@ -346,7 +337,7 @@ class DefinitionsUsagesFinder extends ASTVisitor<DefUsageScope> {
       return;
     }
     // Special case: member expression. This is handled in visitMemberExpression
-    // so don't re-process it again here.
+    // so don't re-process it again here. (Unless we're in an assignment target.)
     if (topNode?.type === 'MemberExpression' && !this.isInAssignmentTarget())
       return;
 
@@ -469,11 +460,43 @@ class DefinitionsUsagesFinder extends ASTVisitor<DefUsageScope> {
     // been taken care of. So we don't worry about it.
     if (this.isInAssignment()) return;
 
-    // If we're in the identifier of a function declaration, it's also already
-    // been taken care of
-    if (this.topNode() && this.topNode().node.type === 'FunctionDeclaration') return;
+    // Add usage(s) of base(s)
+    this.addUsagesOfBases(membExpr);
 
-    // Add usage of base if it's an identifier
+    // Add usage of the full thing
+    const { name } = this.resolveSelf(membExpr);
+    this.addUsage(name, membExpr.loc!);
+  }
+
+  // Add a usage for each "base" this member expression has.
+  // e.g. `a.b.c.d` => add usages for `a.b.c`, `a.b`, and `a`
+  addUsagesOfBases(memberExpression: MemberExpression) {
+    let current = memberExpression.base;
+    while (true) {
+      switch (current.type) {
+      case 'Identifier':
+        // this is the base identifier. Add usage and stop iterating.
+        this.addUsage(current.name, current.loc!);
+        return;
+
+      case 'MemberExpression':
+        // Add usage for entire member expression
+        // (Use "self" for base name if it's something weird like "getter().something")
+        const name = getMemberExpressionName(current) || `self.${current.identifier.name}`;
+        this.addUsage(name, current.loc!);
+        // Keep recursing
+        current = current.base;
+        break;
+
+      default:
+        // It's something other than an identifier or member expression
+        return;
+      }
+    }
+  }
+
+  // TODO is baseName ever used?
+  resolveSelf(membExpr: MemberExpression): { name: string, baseName: string | undefined } {
     const base = getMemberExpresionBaseIdentifier(membExpr);
     let name = getMemberExpressionName(membExpr) || `self.${membExpr.identifier.name}`;
     let baseName = base?.name;
@@ -485,10 +508,6 @@ class DefinitionsUsagesFinder extends ASTVisitor<DefUsageScope> {
       name = name.replace(/\bself\b/, scopedSelf);
     }
 
-    // Add usage of the base name since it's getting referenced
-    if (base && baseName) this.addUsage(baseName, base.loc!);
-
-    // Add usage of the full thing
-    this.addUsage(name, membExpr.loc!);
+    return { name, baseName };
   }
 }
