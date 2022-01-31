@@ -34,9 +34,7 @@ export abstract class ASTVisitor<T> {
   // Parent tracking.
   nodeStack: NodeGettingVisited[] = [];
 
-  constructor() {
-    this.scopeStack.push(this.startingScope());
-  }
+  constructor() {}
 
   topScope(idx?: number) {
     let offset = 1;
@@ -54,11 +52,11 @@ export abstract class ASTVisitor<T> {
 
   // The starting value that gets pushed into the scope. Uses createDefaultScope
   // by default.
-  startingScope(): T { return this.createDefaultScope(); }
+  startingScope(): T { return this.createDefaultScope(null); }
 
   // The value that gets pushed onto the stack when entering a new scope
   // if you *don't* have a visitor defined for that function.
-  abstract createDefaultScope(): T;
+  abstract createDefaultScope(scopeNode: VisitableASTNode | null): T;
 
   private pushScope(value: T, scopeNode: VisitableASTNode) {
     this.scopeStack.push(value);
@@ -111,16 +109,16 @@ export abstract class ASTVisitor<T> {
   }
 
   // Scope-creating statements
-  visitIfClause(node: IfClause): T { return this.createDefaultScope(); }
-  visitElseifClause(node: ElseifClause): T { return this.createDefaultScope(); }
-  visitElseClause(node: ElseClause): T { return this.createDefaultScope(); }
-  visitDoStatement(node: DoStatement): T { return this.createDefaultScope(); }
-  visitForGenericStatement(node: ForGenericStatement): T { return this.createDefaultScope(); }
-  visitForNumericStatement(node: ForNumericStatement): T { return this.createDefaultScope(); }
-  visitFunctionDeclaration(node: FunctionDeclaration): T { return this.createDefaultScope(); }
-  visitRepeatStatement(node: RepeatStatement): T { return this.createDefaultScope(); }
-  visitWhileStatement(node: WhileStatement): T { return this.createDefaultScope(); }
-  visitTableConstructorExpression(node: TableConstructorExpression): T { return this.createDefaultScope(); }
+  visitIfClause(node: IfClause): T { return this.createDefaultScope(node); }
+  visitElseifClause(node: ElseifClause): T { return this.createDefaultScope(node); }
+  visitElseClause(node: ElseClause): T { return this.createDefaultScope(node); }
+  visitDoStatement(node: DoStatement): T { return this.createDefaultScope(node); }
+  visitForGenericStatement(node: ForGenericStatement): T { return this.createDefaultScope(node); }
+  visitForNumericStatement(node: ForNumericStatement): T { return this.createDefaultScope(node); }
+  visitFunctionDeclaration(node: FunctionDeclaration): T { return this.createDefaultScope(node); }
+  visitRepeatStatement(node: RepeatStatement): T { return this.createDefaultScope(node); }
+  visitWhileStatement(node: WhileStatement): T { return this.createDefaultScope(node); }
+  visitTableConstructorExpression(node: TableConstructorExpression): T { return this.createDefaultScope(node); }
 
   // Other Statements
   visitAssignmentStatement(node: AssignmentStatement): void {}
@@ -153,9 +151,9 @@ export abstract class ASTVisitor<T> {
 
   // Public entry point for kicking off visiting every node in the AST.
   visit(chunk: Chunk) {
+    this.scopeStack.push(this.startingScope());
     for (const statement of chunk.body)
       this.visitNode(statement);
-
   }
 
   private visitAll(nodes: VisitableASTNode[]) {

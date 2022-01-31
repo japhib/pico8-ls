@@ -28,19 +28,19 @@ export type IfStatement = ASTNode & {
   clauses: GeneralIfClause[],
 };
 
-export type IfClause = {
+export type IfClause = ASTNode & {
   type: 'IfClause',
   condition: Expression,
   body: Statement[],
 };
 
-export type ElseifClause = {
+export type ElseifClause = ASTNode & {
   type: 'ElseifClause',
   condition: Expression,
   body: Statement[],
 };
 
-export type ElseClause = {
+export type ElseClause = ASTNode & {
   type: 'ElseClause',
   body: Statement[],
 };

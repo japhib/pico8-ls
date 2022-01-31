@@ -3,10 +3,9 @@
 import { createWarning, errMessages, Warning } from './errors';
 import { getMemberExpresionBaseIdentifier, getMemberExpressionName, getMemberExpressionParentName, Identifier, MemberExpression, TableConstructorExpression, TableKeyString } from './expressions';
 import { AssignmentStatement, Chunk, ForGenericStatement, ForNumericStatement, FunctionDeclaration, getBareFunctionDeclarationName, LocalStatement } from './statements';
-import { Bounds, boundsEqual, boundsSize } from './types';
-import { ASTVisitor } from './visitor';
+import { Bounds, boundsEqual, boundsSize, CodeLocation } from './types';
+import { ASTVisitor, VisitableASTNode } from './visitor';
 import Builtins from './builtins';
-// import { logObj } from './util';
 
 export type DefinitionsUsages = {
   symbolName: string,
@@ -98,19 +97,19 @@ export class DefinitionsUsagesLookup {
   }
 }
 
-export function findDefinitionsUsages(chunk: Chunk): {
+export function findDefinitionsUsages(chunk: Chunk, dontAddGlobalSymbols: boolean): {
   defUs: DefinitionsUsagesLookup,
   warnings: Warning[],
   scopes: DefUsageScope,
 } {
-  return new DefinitionsUsagesFinder(chunk).findDefinitionsUsages();
+  return new DefinitionsUsagesFinder(chunk, dontAddGlobalSymbols).findDefinitionsUsages();
 }
 
-enum DefUsagesScopeType {
-  Global,
-  Function,
-  Table,
-  Other,
+export enum DefUsagesScopeType {
+  Global = 'Global',
+  Function = 'Function',
+  Table = 'Table',
+  Other = 'Other',
 }
 
 export class DefUsageScope {
@@ -118,10 +117,13 @@ export class DefUsageScope {
   name: string | undefined;
   symbols: Map<string, DefinitionsUsages>;
   self: string | undefined;
+  loc: Bounds | null;
   children: DefUsageScope[] = [];
+  parent: DefUsageScope | undefined;
 
-  constructor(type: DefUsagesScopeType, arg: { name?: string, self?: string, symbols?: Map<string, DefinitionsUsages> }) {
+  constructor(type: DefUsagesScopeType, loc: Bounds | null, arg: { name?: string, self?: string, symbols?: Map<string, DefinitionsUsages> }) {
     this.type = type;
+    this.loc = loc;
     this.name = arg.name;
     this.self = arg.self;
     this.symbols = arg.symbols || new Map<string, DefinitionsUsages>();
@@ -142,6 +144,54 @@ export class DefUsageScope {
   keys() {
     return this.symbols.keys();
   }
+
+  contains(codeLocation: CodeLocation): boolean {
+    // It's only null for the global scope, in which case all code locations are contained
+    if (this.loc === null) return true;
+
+    const withinLines = codeLocation.line >= this.loc.start.line && codeLocation.line <= this.loc.end.line;
+    if (!withinLines) return false;
+
+    // one-line scope
+    if (this.loc.start.line === this.loc.end.line)
+      return codeLocation.column >= this.loc.start.column && codeLocation.column <= this.loc.end.column;
+
+    // First line
+    if (codeLocation.line === this.loc.start.line)
+      return codeLocation.column >= this.loc.start.column;
+
+    // last line
+    if (codeLocation.line === this.loc.end.line)
+      return codeLocation.column <= this.loc.end.column;
+
+    // it's on a middle line, columns don't matter
+    return true;
+  }
+
+  lookupScopeFor(codeLocation: CodeLocation): DefUsageScope {
+    for (const childScope of this.children) {
+      // If any of the children match, recurse into that child.
+      // This way we find the narrowest scope that matches a given code location.
+      if (childScope.contains(codeLocation))
+        return childScope.lookupScopeFor(codeLocation);
+    }
+
+    // If we've gotten this far, there are no children, or none of the children
+    // match. So the current scope is the best match.
+    return this;
+  }
+
+  // Returns a list of all symbols in scope at that moment, including the
+  // current scope and all its parents.
+  allSymbols(): string[] {
+    const symbols: string[] = [];
+    let current: DefUsageScope | undefined = this;
+    while (current) {
+      symbols.push(...current.symbols.keys());
+      current = current.parent;
+    }
+    return symbols;
+  }
 }
 
 class DefinitionsUsagesFinder extends ASTVisitor<DefUsageScope> {
@@ -158,9 +208,14 @@ class DefinitionsUsagesFinder extends ASTVisitor<DefUsageScope> {
   // (just undefined variables so far)
   warnings: Warning[] = [];
 
-  constructor(chunk: Chunk) {
+  // Flag for not adding global PICO-8 functions like fillp, spr, map, etc.
+  // Used for testing, to make the output more clear.
+  dontAddGlobalSymbols: boolean;
+
+  constructor(chunk: Chunk, dontAddGlobalSymbols?: boolean) {
     super();
     this.chunk = chunk;
+    this.dontAddGlobalSymbols = !!dontAddGlobalSymbols;
   }
 
   // External entry point
@@ -176,18 +231,22 @@ class DefinitionsUsagesFinder extends ASTVisitor<DefUsageScope> {
 
   override startingScope(): DefUsageScope {
     const predefinedGlobals = new Map<string, DefinitionsUsages>();
-    for (const fnName in Builtins)
-      predefinedGlobals.set(fnName, emptyDefinitionsUsages(fnName));
-    return new DefUsageScope(DefUsagesScopeType.Global, { symbols: predefinedGlobals });
+
+    if (!this.dontAddGlobalSymbols) {
+      for (const fnName in Builtins)
+        predefinedGlobals.set(fnName, emptyDefinitionsUsages(fnName));
+    }
+
+    return new DefUsageScope(DefUsagesScopeType.Global, null, { symbols: predefinedGlobals });
   }
 
-  override createDefaultScope(type?: DefUsagesScopeType): DefUsageScope {
+  override createDefaultScope(scopeNode: VisitableASTNode | null, type?: DefUsagesScopeType): DefUsageScope {
     type = type || DefUsagesScopeType.Other;
 
     // carry forward the current self and name, if they exist
     const self = this.topScope()?.self;
     const name = this.topScope()?.name;
-    return new DefUsageScope(type, { self, name });
+    return new DefUsageScope(type, scopeNode?.loc || null, { self, name });
   }
 
   // Called to finish resolving early refs.
@@ -229,6 +288,7 @@ class DefinitionsUsagesFinder extends ASTVisitor<DefUsageScope> {
   override onEnterScope(enteringScope: DefUsageScope): void {
     // Add this scope to the children of the parent scope (one scope down)
     this.topScope(1).children.push(enteringScope);
+    enteringScope.parent = this.topScope(1);
   }
 
   override onExitScope(scope: DefUsageScope): void {
@@ -404,7 +464,7 @@ class DefinitionsUsagesFinder extends ASTVisitor<DefUsageScope> {
     }
 
     // Set name to undefined? TODO make sure this is what we want
-    return new DefUsageScope(DefUsagesScopeType.Function, { self, name: undefined });
+    return new DefUsageScope(DefUsagesScopeType.Function, node.loc!, { self, name: name || undefined });
   }
 
   override visitIdentifier(node: Identifier): void {
@@ -495,14 +555,14 @@ class DefinitionsUsagesFinder extends ASTVisitor<DefUsageScope> {
     for (const variable of node.variables)
       this.addDefinition(variable.name, variable.loc!);
 
-    return this.createDefaultScope();
+    return this.createDefaultScope(node);
   }
 
   override visitForNumericStatement(node: ForNumericStatement): DefUsageScope {
     // Add symbols for the variable created in the for statement
     this.addDefinition(node.variable.name, node.variable.loc!);
 
-    return this.createDefaultScope();
+    return this.createDefaultScope(node);
   }
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -526,11 +586,11 @@ class DefinitionsUsagesFinder extends ASTVisitor<DefUsageScope> {
         if (membExprName) name = membExprName;
         break;
       }
-      return new DefUsageScope(DefUsagesScopeType.Table, { name, self });
+      return new DefUsageScope(DefUsagesScopeType.Table, node.loc!, { name, self });
     }
 
     // If not, then no new scope, just add the default parent
-    return this.createDefaultScope(DefUsagesScopeType.Table);
+    return this.createDefaultScope(node, DefUsagesScopeType.Table);
   }
 
   override visitTableKeyString(node: TableKeyString): void {

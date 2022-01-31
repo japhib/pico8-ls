@@ -23,10 +23,10 @@ import { TextDocument } from 'vscode-languageserver-textdocument';
 import Parser from './parser/parser';
 import { Bounds } from './parser/types';
 import { CodeSymbolType, CodeSymbol } from './parser/symbols';
-import { DefinitionsUsages, DefinitionsUsagesLookup } from './parser/definitions-usages';
+import { DefinitionsUsages, DefinitionsUsagesLookup, DefUsageScope } from './parser/definitions-usages';
 import { ParseError, Warning } from './parser/errors';
 
-console.log('Server starting.');
+console.log('PICO-8 Language Server starting.');
 
 const connection = createConnection(ProposedFeatures.all);
 
@@ -56,7 +56,7 @@ connection.onInitialize((params: InitializeParams) => {
       documentSymbolProvider: true,
       definitionProvider: true,
       referencesProvider: true,
-      completionProvider: { triggerCharacters: ['.', ':'] },
+      completionProvider: { triggerCharacters: ['.', ':'], resolveProvider: true },
     },
   };
 
@@ -106,6 +106,8 @@ documents.onDidClose(e => documentSettings.delete(e.document.uri));
 const documentSymbols: Map<string, DocumentSymbol[]> = new Map<string, DocumentSymbol[]>();
 // Definition/Usages lookup table for open documents
 const documentDefUsage: Map<string, DefinitionsUsagesLookup> = new Map<string, DefinitionsUsagesLookup>();
+// Scopes, for lookup up symbols for auto-completion
+const documentScopes: Map<string, DefUsageScope> = new Map<string, DefUsageScope>();
 
 connection.onDidChangeConfiguration(change => {
   if (hasConfigurationCapability) {
@@ -177,14 +179,13 @@ async function validateTextDocument(textDocument: TextDocument) {
 
   // parse document
   const parser = new Parser(textDocument.getText());
-  const { errors, warnings, symbols, definitionsUsages } = parser.parse();
+  const { errors, warnings, symbols, definitionsUsages, scopes } = parser.parse();
 
-  // set document symbols in cache
+  // Set document info in caches
   const symbolInfo: DocumentSymbol[] = symbols.map(sym => toDocumentSymbol(textDocument, sym));
   documentSymbols.set(textDocument.uri, symbolInfo);
-
-  // set document definitions/usages in cache
   documentDefUsage.set(textDocument.uri, definitionsUsages);
+  documentScopes.set(textDocument.uri, scopes!);
 
   // send errors back to client immediately
   const diagnostics: Diagnostic[] = [];
@@ -241,11 +242,32 @@ connection.onDidChangeWatchedFiles(_change => {
 });
 
 // This handler provides the initial list of the completion items.
-connection.onCompletion((textDocumentPosition: TextDocumentPositionParams): CompletionItem[] => {
-  
-  
-  return [];
+connection.onCompletion((params: TextDocumentPositionParams): CompletionItem[] => {
+  const scopes = documentScopes.get(params.textDocument.uri);
+  if (!scopes) {
+    console.log('Definition/usages lookup table unavailable for ' + params.textDocument.uri);
+    return [];
+  }
+
+  return scopes.lookupScopeFor({
+    // They use 0-index line numbers, we use 1-index
+    line: params.position.line + 1,
+    column: params.position.character,
+    // index is 0 because it is unused in the lookup (TODO fixme)
+    index: 0})
+    .allSymbols()
+    .map(sym => {
+      return {
+        label: sym
+      }
+    });
 });
+
+connection.onCompletionResolve((item: CompletionItem) => {
+  // For now, just return the item unchanged
+  // (In the future we'll look up docs etc.)
+  return item;
+})
 
 // Make the text document manager listen on the connection
 // for open, change and close text document events
@@ -254,4 +276,4 @@ documents.listen(connection);
 // Listen on the connection
 connection.listen();
 
-console.log('Server launched.');
+console.log('PICO-8 Language Server launched.');

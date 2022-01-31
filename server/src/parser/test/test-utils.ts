@@ -26,8 +26,8 @@ export function getLexedTokens(input: string): Token[] {
   return tokens;
 }
 
-export function parse(input: string): Chunk {
-  return new Parser(input).parseChunk();
+export function parse(input: string, dontAddGlobalSymbols?: boolean): Chunk {
+  return new Parser(input, dontAddGlobalSymbols).parseChunk();
 }
 
 export function deepEqualsAST(code: string, expected: any) {

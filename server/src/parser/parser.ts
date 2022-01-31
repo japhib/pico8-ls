@@ -36,8 +36,13 @@ export default class Parser {
   // Keep track of all errors that occurred while parsing.
   errors: errors.ParseError[] = [];
 
-  constructor(input: string) {
+  // Flag for telling DefinitionsUsagesFinder not to add global PICO-8
+  // predefined functions. Used for testing, just to make output a bit clearer.
+  dontAddGlobalSymbols: boolean;
+
+  constructor(input: string, dontAddGlobalSymbols?: boolean) {
     this.lexer = new Lexer(input);
+    this.dontAddGlobalSymbols = !!dontAddGlobalSymbols;
   }
 
   get token(): Token {
@@ -182,7 +187,7 @@ export default class Parser {
 
     chunk.symbols = findSymbols(chunk);
 
-    const { defUs, warnings, scopes } = findDefinitionsUsages(chunk);
+    const { defUs, warnings, scopes } = findDefinitionsUsages(chunk, this.dontAddGlobalSymbols);
     chunk.definitionsUsages = defUs;
     chunk.warnings = warnings;
     chunk.scopes = scopes;
