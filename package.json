@@ -5,7 +5,7 @@
 	"author": "JanPaul Bergeson",
 	"publisher": "PollywogGames",
 	"license": "MIT",
-	"version": "0.0.1",
+	"version": "0.0.2",
 	"repository": {
 		"type": "git",
 		"url": "https://github.com/japhib/pico8-ls"
@@ -25,15 +25,15 @@
 	"contributes": {
 		"configuration": {
 			"type": "object",
-			"title": "Example configuration",
+			"title": "PICO-8 LS configuration",
 			"properties": {
-				"languageServerExample.maxNumberOfProblems": {
+				"pico8-ls.maxNumberOfProblems": {
 					"scope": "resource",
 					"type": "number",
 					"default": 100,
 					"description": "Controls the maximum number of problems produced by the server."
 				},
-				"languageServerExample.trace.server": {
+				"pico8-ls.trace.server": {
 					"scope": "window",
 					"type": "string",
 					"enum": [
