@@ -34,7 +34,6 @@ const documents = new TextDocuments(TextDocument);
 
 let hasConfigurationCapability = false;
 let hasWorkspaceFolderCapability = false;
-let hasDiagnosticRelatedInformationCapability = false;
 
 // Set up some initial configs
 connection.onInitialize((params: InitializeParams) => {
@@ -44,11 +43,6 @@ connection.onInitialize((params: InitializeParams) => {
   // If not, we fall back using global settings.
   hasConfigurationCapability = !!(capabilities.workspace && capabilities.workspace.configuration);
   hasWorkspaceFolderCapability = !!(capabilities.workspace && capabilities.workspace.workspaceFolders);
-  hasDiagnosticRelatedInformationCapability = !!(
-    capabilities.textDocument &&
-    capabilities.textDocument.publishDiagnostics &&
-    capabilities.textDocument.publishDiagnostics.relatedInformation
-  );
 
   const result: InitializeResult = {
     capabilities: {

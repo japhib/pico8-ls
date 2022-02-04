@@ -1,0 +1,8 @@
+{
+  "name": "scripts",
+  "main": "api_update.js",
+  "dependencies": {
+    "he": "^1.2.0",
+    "node-html-parser": "^5.2.0"
+  }
+}
