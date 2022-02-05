@@ -1,5 +1,6 @@
 import {
   CompletionItem,
+  CompletionItemTag,
   createConnection,
   DefinitionParams,
   Diagnostic,
@@ -8,9 +9,11 @@ import {
   DocumentSymbol,
   DocumentSymbolParams,
   DocumentUri,
+  HoverParams,
   InitializeParams,
   InitializeResult,
   Location,
+  Position,
   ProposedFeatures,
   Range,
   ReferenceParams,
@@ -25,6 +28,8 @@ import { Bounds } from './parser/types';
 import { CodeSymbolType, CodeSymbol } from './parser/symbols';
 import { DefinitionsUsages, DefinitionsUsagesLookup, DefUsageScope } from './parser/definitions-usages';
 import { ParseError, Warning } from './parser/errors';
+import Builtins, { BuiltinFunctionInfo } from './parser/builtins';
+import { isIdentifierPart } from './parser/lexer';
 
 console.log('PICO-8 Language Server starting.');
 
@@ -51,6 +56,7 @@ connection.onInitialize((params: InitializeParams) => {
       definitionProvider: true,
       referencesProvider: true,
       completionProvider: { triggerCharacters: ['.', ':'], resolveProvider: true },
+      hoverProvider: true,
     },
   };
 
@@ -96,6 +102,8 @@ const documentSettings: Map<string, Thenable<DocumentSettings>> = new Map<string
 // When a document is closed, purge its entry from the cache
 documents.onDidClose(e => documentSettings.delete(e.document.uri));
 
+// Text for open documents
+const documentTextCache: Map<string, TextDocument> = new Map<string, TextDocument>();
 // Symbols for open documents
 const documentSymbols: Map<string, DocumentSymbol[]> = new Map<string, DocumentSymbol[]>();
 // Definition/Usages lookup table for open documents
@@ -172,7 +180,9 @@ async function validateTextDocument(textDocument: TextDocument) {
   const settings = await getDocumentSettings(textDocument.uri);
 
   // parse document
-  const parser = new Parser(textDocument.getText());
+  const text = textDocument.getText();
+  documentTextCache.set(textDocument.uri, textDocument);
+  const parser = new Parser(text);
   const { errors, warnings, symbols, definitionsUsages, scopes } = parser.parse();
 
   // Set document info in caches
@@ -251,17 +261,77 @@ connection.onCompletion((params: TextDocumentPositionParams): CompletionItem[] =
     index: 0})
     .allSymbols()
     .map(sym => {
-      return {
-        label: sym
-      }
+      return { label: sym }
     });
 });
 
+function toDocumentationMarkdown(name: string, info: BuiltinFunctionInfo) : string {
+  if (!info.sig) return '';
+
+  return `## ${name}
+
+\`${info.sig}\`
+
+${info.desc}
+
+### Params:
+${info.params?.map(p => ` - ${p}`).join('\n')}`;
+}
+
 connection.onCompletionResolve((item: CompletionItem) => {
-  // For now, just return the item unchanged
-  // (In the future we'll look up docs etc.)
+  const name = item.label;
+
+  const info = Builtins[name];
+  if (info) {
+    item.detail = info.sig;
+    item.documentation = {
+      kind: 'markdown',
+      value: toDocumentationMarkdown(name, info),
+    }
+    if (info.deprecated) item.tags = [CompletionItemTag.Deprecated];
+  }
+
   return item;
-})
+});
+
+function identifierAtPosition(position: number, text: string) {
+  let i;
+  for (i = position; i >= 0; i--) {
+    if (!isIdentifierPart(text.charCodeAt(i))) {
+      i++;
+      break;
+    }
+  }
+  const begin = i;
+
+  for (i = position; i < text.length; i++) {
+    if (!isIdentifierPart(text.charCodeAt(i))) {
+      break;
+    }
+  }
+  const end = i;
+
+  return text.substring(begin, end);
+}
+
+connection.onHover((params: HoverParams) => {
+  const text = documentTextCache.get(params.textDocument.uri);
+  if (!text) return undefined;
+
+  const line = params.position.line;
+  const textOnLine = text.getText({
+    start: Position.create(line, 0),
+    end: Position.create(line, Number.MAX_VALUE),
+  });
+  const identifier = identifierAtPosition(params.position.character, textOnLine);
+  
+  const info = Builtins[identifier];
+  if (info) {
+    return {
+      contents: toDocumentationMarkdown(identifier, info)
+    };
+  }
+});
 
 // Make the text document manager listen on the connection
 // for open, change and close text document events

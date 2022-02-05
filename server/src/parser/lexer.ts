@@ -788,7 +788,7 @@ function isIdentifierStart(charCode: number): boolean {
   return false;
 }
 
-function isIdentifierPart(charCode: number): boolean {
+export function isIdentifierPart(charCode: number): boolean {
   if ((charCode >= 65 && charCode <= 90) // A-Z
     || (charCode >= 97 && charCode <= 122) // a-z
     || 95 === charCode // _

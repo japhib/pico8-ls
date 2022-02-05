@@ -1,5 +1,12 @@
+export type BuiltinFunctionInfo = {
+  sig?: string,
+  desc?: string,
+  params?: string[]
+  deprecated?: boolean,
+};
+
 // A list of all the built-in functions of PICO-8
-export default {
+const Builtins: { [key: string]: BuiltinFunctionInfo } = {
   circ: {
     sig: 'circ( x, y, [r,] [col]  )',
     desc: 'Draws a circle shape, without fill.',
@@ -740,3 +747,5 @@ export default {
     ],
   },
 };
+
+export default Builtins;

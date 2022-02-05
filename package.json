@@ -72,7 +72,11 @@
 				"extensions": [
 					".lua"
 				],
-				"configuration": "./syntaxes/language-configuration.json"
+				"configuration": "./syntaxes/language-configuration.json",
+				"icon": {
+					"light": "./img/light/icon.png",
+					"dark": "./img/dark/icon.png"
+				}
 			}
 		],
 		"grammars": [
