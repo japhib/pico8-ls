@@ -1,9 +1,7 @@
 # PICO-8 Language Server
 
-A language server implementation for PICO-8. Includes a VSCode client extension
-that automatically sets up and runs the language server. Since it's a language
-server, it could also be easily set up for use in other editors like Vim, Atom,
-etc.
+Full language support for the [PICO-8](https://www.lexaloffle.com/pico-8.php)
+dialect of Lua. 
 
 The goal is to have all the features you'd expect in a full-fledged language
 server, such as [the one for Lua](https://marketplace.visualstudio.com/items?itemName=sumneko.lua),
@@ -18,19 +16,19 @@ be easily changed to normal wide-whitspace-style.
 
 - Syntax highlighting
 - Syntax errors
+- Warnings on undefined variable usage
 - Find symbol in document
 - Go to definition
 - Find references
+- Hover support for built-in functions
+- Auto-completion
+- Signature help
 
 ## Planned features
 
-- Hover support for showing docs, both for built-in and user functions
-- Auto-completion
-- `#include` files
-- Signature help
+- Hover support for user-defined functions/variables
+- support for `#include`ing other files
 - Code formatter
-- Diagnostics such as usage of undefined variables/functions, redefining a
-  local, etc.
 
 ## Ideas for other features (may or may not get implemented)
 
@@ -56,6 +54,13 @@ Other helpful snippets for frequently looked-up stuff:
 
 # Changelog
 
+## 0.0.3 (future)
+
+- Hover support for built-in functions
+- Auto-completion
+- Signature help
+- Disabling warnings for unused locals until bugs are fixed
+
 ## 0.0.2 (1/31/2022)
 
 - Started using esbuild for bundling extension (should improve install/load performance)
@@ -70,3 +75,9 @@ First release, very basic feature set:
 - Syntax highlighting
 - Syntax errors
 - Go to symbol
+
+# Credits
+
+PICO-8 Lua parser based on https://github.com/fstirlitz/luaparse
+
+[PICO-8](https://www.lexaloffle.com/pico-8.php) by Lexaloffle Games
