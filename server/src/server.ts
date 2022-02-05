@@ -17,6 +17,8 @@ import {
   ProposedFeatures,
   Range,
   ReferenceParams,
+  SignatureHelpParams,
+  SignatureInformation,
   SymbolKind,
   TextDocumentPositionParams,
   TextDocuments,
@@ -57,6 +59,7 @@ connection.onInitialize((params: InitializeParams) => {
       referencesProvider: true,
       completionProvider: { triggerCharacters: ['.', ':'], resolveProvider: true },
       hoverProvider: true,
+      signatureHelpProvider: { triggerCharacters: ['('], retriggerCharacters: [','] },
     },
   };
 
@@ -314,15 +317,19 @@ function identifierAtPosition(position: number, text: string) {
   return text.substring(begin, end);
 }
 
-connection.onHover((params: HoverParams) => {
-  const text = documentTextCache.get(params.textDocument.uri);
+function getTextOnLine(textDocumentUri: string, position: Position): string | undefined {
+  const text = documentTextCache.get(textDocumentUri);
   if (!text) return undefined;
 
-  const line = params.position.line;
-  const textOnLine = text.getText({
-    start: Position.create(line, 0),
-    end: Position.create(line, Number.MAX_VALUE),
+  return text.getText({
+    start: Position.create(position.line, 0),
+    end: Position.create(position.line, Number.MAX_VALUE),
   });
+}
+
+connection.onHover((params: HoverParams) => {
+  const textOnLine = getTextOnLine(params.textDocument.uri, params.position);
+  if (!textOnLine) return undefined;
   const identifier = identifierAtPosition(params.position.character, textOnLine);
   
   const info = Builtins[identifier];
@@ -332,6 +339,51 @@ connection.onHover((params: HoverParams) => {
     };
   }
 });
+
+connection.onSignatureHelp((params: SignatureHelpParams) => {
+  const textOnLine = getTextOnLine(params.textDocument.uri, params.position);
+  if (!textOnLine) return undefined;
+  
+  // get position of starting (
+  let i = params.position.character;
+  let numCommas = 0;
+  while (i >= 0 && textOnLine[i] !== '(') {
+    if (textOnLine[i] === ',') numCommas++;
+    i--;
+  }
+  
+  // not found
+  if (i < 0) return undefined;
+
+  const startingParenPos = i;
+
+  // get identifier before that
+  const identifier = identifierAtPosition(startingParenPos - 1, textOnLine);
+  const info = Builtins[identifier];
+  if (!info || !info.sig || !info.params) return undefined;
+
+  const signatureInfo: SignatureInformation = {
+    label: info.sig!,
+    documentation: {
+      kind: 'markdown',
+      value: toDocumentationMarkdown(identifier, info),
+    },
+    activeParameter: numCommas,
+    parameters: info.params.map(p => {
+      const idxOfColon = p.indexOf(':');
+      return {
+        label: p.substring(0, idxOfColon),
+        documentation: p,
+      };
+    }),
+  }
+
+  return {
+    signatures: [signatureInfo],
+    activeSignature: 0,
+    activeParameter: numCommas
+  }
+})
 
 // Make the text document manager listen on the connection
 // for open, change and close text document events
