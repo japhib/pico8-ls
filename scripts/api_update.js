@@ -7,7 +7,7 @@ const { inspect } = require('util');
 // Helper script for generating builtins.ts, the list of built-in functions in PICO-8 and their documentation.
 // After running, you probably have to go through and fix some of the docs still.
 
-const funcs = [
+let funcs = [
   // graphics
   'camera', 'circ', 'circfill', 'clip', 'cls', 'color', 'cursor', 'fget', 'fillp', 'flip', 'fset', 'line',
   'oval', 'ovalfill', 'pal', 'palt', 'pget', 'print', 'pset', 'rect', 'rectfill', 'sget', 'spr', 'sset', 'sspr', 'tline',
@@ -25,14 +25,14 @@ const funcs = [
   'map', 'mget', 'mset',
 
   // memory
-  'memcpy', 'memset', 'peek', 'poke',
+  'memcpy', 'memset', 'peek', 'poke', 'peek2', 'poke2', 'peek4', 'poke4',
 
   // math
   'abs', 'atan2', 'band', 'bnot', 'bor', 'bxor', 'ceil', 'cos', 'flr', 'lshr', 'max', 'mid', 'min', 'rnd',
   'rotl', 'rotr', 'sgn', 'shl', 'shr', 'sin', 'sqrt', 'srand',
 
   // cartridges
-  'cartdata', 'dget', 'dset', 'cstore', 'reload',
+  'cartdata', 'dget', 'dset', 'cstore', 'reload', 'menuitem',
 
   // coroutines
   'cocreate', 'coresume', 'costatus', 'coyield',

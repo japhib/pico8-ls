@@ -261,10 +261,10 @@ connection.onCompletion((params: TextDocumentPositionParams): CompletionItem[] =
     line: params.position.line + 1,
     column: params.position.character,
     // index is 0 because it is unused in the lookup (TODO fixme)
-    index: 0})
+    index: 0 })
     .allSymbols()
     .map(sym => {
-      return { label: sym }
+      return { label: sym };
     });
 });
 
@@ -290,7 +290,7 @@ connection.onCompletionResolve((item: CompletionItem) => {
     item.documentation = {
       kind: 'markdown',
       value: toDocumentationMarkdown(name, info),
-    }
+    };
     if (info.deprecated) item.tags = [CompletionItemTag.Deprecated];
   }
 
@@ -308,9 +308,9 @@ function identifierAtPosition(position: number, text: string) {
   const begin = i;
 
   for (i = position; i < text.length; i++) {
-    if (!isIdentifierPart(text.charCodeAt(i))) {
+    if (!isIdentifierPart(text.charCodeAt(i)))
       break;
-    }
+
   }
   const end = i;
 
@@ -331,11 +331,11 @@ connection.onHover((params: HoverParams) => {
   const textOnLine = getTextOnLine(params.textDocument.uri, params.position);
   if (!textOnLine) return undefined;
   const identifier = identifierAtPosition(params.position.character, textOnLine);
-  
+
   const info = Builtins[identifier];
   if (info) {
     return {
-      contents: toDocumentationMarkdown(identifier, info)
+      contents: toDocumentationMarkdown(identifier, info),
     };
   }
 });
@@ -343,7 +343,7 @@ connection.onHover((params: HoverParams) => {
 connection.onSignatureHelp((params: SignatureHelpParams) => {
   const textOnLine = getTextOnLine(params.textDocument.uri, params.position);
   if (!textOnLine) return undefined;
-  
+
   // get position of starting (
   let i = params.position.character;
   let numCommas = 0;
@@ -351,7 +351,7 @@ connection.onSignatureHelp((params: SignatureHelpParams) => {
     if (textOnLine[i] === ',') numCommas++;
     i--;
   }
-  
+
   // not found
   if (i < 0) return undefined;
 
@@ -363,7 +363,7 @@ connection.onSignatureHelp((params: SignatureHelpParams) => {
   if (!info || !info.sig || !info.params) return undefined;
 
   const signatureInfo: SignatureInformation = {
-    label: info.sig!,
+    label: info.sig,
     documentation: {
       kind: 'markdown',
       value: toDocumentationMarkdown(identifier, info),
@@ -376,14 +376,14 @@ connection.onSignatureHelp((params: SignatureHelpParams) => {
         documentation: p,
       };
     }),
-  }
+  };
 
   return {
     signatures: [signatureInfo],
     activeSignature: 0,
-    activeParameter: numCommas
-  }
-})
+    activeParameter: numCommas,
+  };
+});
 
 // Make the text document manager listen on the connection
 // for open, change and close text document events

@@ -295,15 +295,16 @@ class DefinitionsUsagesFinder extends ASTVisitor<DefUsageScope> {
     // Don't bother checking for locals if it's a table "scope" (not a real scope)
     if (scope.type === DefUsagesScopeType.Table) return;
 
-    // check for unused locals
-    for (const variableName of scope.keys()) {
-      const defsUsages = scope.get(variableName)!;
-      if (defsUsages.usages.length <= 1) {
-        // Create an 'unused local' warning on the definition
-        const definition = defsUsages.definitions[0];
-        this.warnings.push(createWarning(definition, errMessages.unusedLocal, variableName));
-      }
-    }
+    // TODO re-enable this when bugs are fixed
+    // // check for unused locals
+    // for (const variableName of scope.keys()) {
+    //   const defsUsages = scope.get(variableName)!;
+    //   if (defsUsages.usages.length <= 1) {
+    //     // Create an 'unused local' warning on the definition
+    //     const definition = defsUsages.definitions[0];
+    //     this.warnings.push(createWarning(definition, errMessages.unusedLocal, variableName));
+    //   }
+    // }
   }
 
   // some helpers

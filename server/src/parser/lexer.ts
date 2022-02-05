@@ -61,7 +61,7 @@ export default class Lexer {
     this.input = input;
     this.length = this.input.length;
 
-    this.encodingMode = encodingModes[EncodingModeType.PseudoLatin1];
+    this.encodingMode = encodingModes[EncodingModeType.XUserDefined];
 
     // prime the pump
     this.skipHeader();

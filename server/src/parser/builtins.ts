@@ -746,6 +746,47 @@ const Builtins: { [key: string]: BuiltinFunctionInfo } = {
       'usehex: If true, uses 32-bit unsigned fixed point hexadecimal notation for number values. The default is to use concise decimal notation for number values.',
     ],
   },
+  menuitem: {
+    sig: 'menuitem( index, [label,] [callback]  )',
+    desc: 'Adds a custom item to the PICO-8 menu.',
+    params: [
+      'index: The item index, a number between 1 and 5.',
+      'label: The label text of the menu item to add or change.',
+      'callback: A Lua function to call when the user selects this menu item.',
+    ],
+  },
+  poke4: {
+    sig: 'poke4( addr, [...]  )',
+    desc: 'Writes one or more 32-bit fixed-point PICO-8 number values to contiguous groups of four consecutive memory locations.',
+    params: [
+      'addr: The address of the first memory location.',
+      '...: The 32-bit values to write to memory. If these are omitted, a zero is written to the first 4 bytes.',
+    ],
+  },
+  poke2: {
+    sig: 'poke2( addr, [...]  )',
+    desc: 'Writes one or more 16-bit values to contiguous groups of two consecutive memory locations.',
+    params: [
+      'addr: The address of the first memory location.',
+      '...: The 16-bit values to write to memory. If these are omitted, a zero is written to the first 2 bytes.',
+    ],
+  },
+  peek2: {
+    sig: 'peek2( addr, [n]  )',
+    desc: 'Reads one or more 16-bit values from contiguous groups of two consecutive memory locations.',
+    params: [
+      'addr: The address of the first memory location.',
+      'n: The number of values to return. (1 by default, 8192 max.)',
+    ],
+  },
+  peek4: {
+    sig: 'peek4( addr, [n]  )',
+    desc: 'Reads one or more 32-bit fixed-point number values from contiguous groups of four consecutive memory locations.',
+    params: [
+      'addr: The address of the first memory location.',
+      'n: The number of values to return. (1 by default, 8192 max.)',
+    ],
+  },
 };
 
 export default Builtins;

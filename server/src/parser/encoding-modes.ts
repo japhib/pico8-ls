@@ -81,7 +81,7 @@ class XUserDefined implements EncodingMode {
   discardStrings = false;
 
   fixup(loc: CodeLocation, s: string): string {
-    return checkChars(loc, s, /[^\x00-\x7f\uf780-\uf7ff]/);
+    return s; //checkChars(loc, s, /[^\x00-\x7f\uf780-\uf7ff]/);
   }
 
   encodeByte(val: null | number) {
