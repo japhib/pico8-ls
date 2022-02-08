@@ -12,6 +12,12 @@ using the same coding environment. For instance, it will include a formatter
 so that code written in a very tight style inside the PICO-8 code editor can
 be easily changed to normal wide-whitspace-style.
 
+### Technical Note
+
+This extension uses the [Language Server Protocol](https://microsoft.github.io/language-server-protocol/),
+so while it's mainly made for VSCode, it could also be used for other editors
+such as NeoVim, Atom, etc.
+
 ## Implemented Features
 
 - Syntax highlighting
@@ -43,23 +49,17 @@ b = 2
 c = 3
 ```
 - Intellisense telling you stats of the current file (tokens, characters)
-- Minify the current file
 - Outline based on function names and/or the `-->8` PICO-8 tab indicator
-- Code action to launch PICO-8 on the currently edited cart - and capture `printh` output to debug console
-
-Other helpful snippets for frequently looked-up stuff:
-- List out all numbers for input buttons and colors
-- Memory locations
-- Basic empty cartridge file template
 
 # Changelog
 
-## 0.0.3 (future)
+## 0.0.3 (2/7/2022)
 
 - Hover support for built-in functions
 - Auto-completion
 - Signature help
 - Disabling warnings for unused locals until bugs are fixed
+- Remove some warnings about Unicode characters left over from luaparse library
 
 ## 0.0.2 (1/31/2022)
 
