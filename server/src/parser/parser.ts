@@ -280,6 +280,12 @@ export default class Parser {
       }
     }
 
+    // special ? print function
+    if (this.token.type === TokenType.Punctuator && this.token.value === '?') {
+      this.lexer.next();
+      return this.parseSpecialPrint(flowContext);
+    }
+
     // Assignments memorizes the location and pushes it manually for wrapper nodes.
     this.popLocation();
 
@@ -386,7 +392,7 @@ export default class Parser {
 
   parseIfStatement(flowContext: FlowContext): IfStatement {
     const clauses: GeneralIfClause[] = [];
-    let condition;
+    let condition: Expression;
     let body;
 
     // IfClauses begin at the same location as the parent IfStatement.
@@ -404,31 +410,27 @@ export default class Parser {
 
         this.lexer.newlineSignificant = true;
 
-        this.createScope();
-        flowContext.pushScope();
-        const statement = this.parseStatement(flowContext);
-        if (!statement) errors.raiseUnexpectedToken('statement', this.token);
-
-        flowContext.popScope();
-        this.destroyScope();
-        clauses.push(this.finishNode(AST.ifClause(condition, [statement])));
-
-        if (this.lexer.consume('else')) {
+        this.lexer.withSignificantNewline((() => {
           this.createScope();
           flowContext.pushScope();
-          const elseStatement = this.parseStatement(flowContext);
-          if (!elseStatement) errors.raiseUnexpectedToken('statement', this.token);
+          const statement = this.parseStatement(flowContext);
+          if (!statement) errors.raiseUnexpectedToken('statement', this.token);
 
           flowContext.popScope();
           this.destroyScope();
-          clauses.push(this.finishNode(AST.elseClause([elseStatement])));
-        }
+          clauses.push(this.finishNode(AST.ifClause(condition, [statement])));
 
-        // Consume the significant newline
-        if (this.token.type == TokenType.Newline)
-          this.lexer.next();
+          if (this.lexer.consume('else')) {
+            this.createScope();
+            flowContext.pushScope();
+            const elseStatement = this.parseStatement(flowContext);
+            if (!elseStatement) errors.raiseUnexpectedToken('statement', this.token);
 
-        this.lexer.newlineSignificant = false;
+            flowContext.popScope();
+            this.destroyScope();
+            clauses.push(this.finishNode(AST.elseClause([elseStatement])));
+          }
+        }).bind(this));
 
         return this.finishNode(AST.ifStatement(clauses));
       } else {
@@ -689,6 +691,18 @@ export default class Parser {
     return this.finishNode(AST.assignmentStatement(targets as Variable[], operator, values));
   }
 
+  // Special PICO-8 print statement: ? expression '\n'
+  parseSpecialPrint(flowContext: FlowContext): CallStatement {
+    let expression: Expression;
+    this.lexer.withSignificantNewline((() => {
+      expression = this.parseExpectedExpression(flowContext);
+    }).bind(this));
+
+    const base = this.finishNode(AST.identifier('?'));
+    const callExpression = this.finishNode(AST.callExpression(base, [expression!]));
+    return this.finishNode(AST.callStatement(callExpression));
+  }
+
   // ### Non-statements
 
   //     Identifier ::= Name
@@ -880,24 +894,28 @@ export default class Parser {
     if (1 === length) {
       switch (charCode) {
       case 94: return 12; // ^
-      case 42: case 47: case 37: return 10; // * / %
+      case 42: case 47: case 37: case 92: return 10; // * / % \
       case 43: case 45: return 9; // + -
-      case 38: return 6; // &
-      case 126: return 5; // ~
-      case 124: return 4; // |
+      case 38: return 6; // & (bitwise AND)
+      case 124: return 4; // | (bitwise OR)
       case 60: case 62: return 3; // < >
       }
     } else if (2 === length) {
       switch (charCode) {
-      case 47: return 10; // //
       case 46: return 8; // ..
       case 60: case 62:
         if('<<' === operator || '>>' === operator) return 7; // << >>
         return 3; // <= >=
       case 33: case 61: case 126: return 3; // == ~= !=
       case 111: return 1; // or
+      case 94: return 5; // ^^ (bitwise XOR, pico-8 lua uses the normal bitwise XOR ~ as bitwise NOT)
       }
-    } else if (97 === charCode && 'and' === operator) {return 2;}
+    } else if (3 === length) {
+      switch (operator) {
+      case '>>>': case '<<>': case '>><': return 7;
+      case 'and': return 2;
+      }
+    }
     return 0;
   }
 
@@ -1096,10 +1114,11 @@ export default class Parser {
   }
 }
 
-// TODO add @a (peek), %a (peek2), $a (peek4) unary operators
-// (see: https://pico-8.fandom.com/wiki/Lua#Operator_priorities)
 function isUnary(token: Token): boolean {
-  if (token.type === TokenType.Punctuator) return ['#', '-', '~'].includes(token.value as string);
+  // PICO-8 uses @a (peek), %a (peek2), $a (peek4) as unary operators
+  // (see: https://pico-8.fandom.com/wiki/Lua#Operator_priorities)
+  // ~ is bitwise NOT
+  if (token.type === TokenType.Punctuator) return ['#', '-', '~', '@', '%', '$'].includes(token.value as string);
   if (token.type === TokenType.Keyword) return 'not' === token.value;
   return false;
 }

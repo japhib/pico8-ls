@@ -101,6 +101,7 @@
 	"scripts": {
 		"vscode:prepublish": "npm run compile",
 		"compile": "npm run esbuild-client && npm run esbuild-server",
+		"compile-tsc": "cd server && npm run compile && cd ..",
 		"esbuild-client": "esbuild ./client/src/extension.ts --bundle --outfile=./client/out-min/main.js --external:vscode --format=cjs --platform=node --minify",
 		"esbuild-server": "esbuild ./server/src/server.ts --bundle --outfile=./server/out-min/main.js --external:vscode --format=cjs --platform=node --minify",
 		"lint": "eslint ./client/src ./server/src --ext .ts",

@@ -1,4 +1,5 @@
 import { strictEqual as eq } from 'assert';
+import { logObj } from '../util';
 import { bounds, deepEquals, deepEqualsAST, getTestFileContents, parse } from './test-utils';
 
 describe('Parser', () => {
@@ -170,6 +171,153 @@ describe('Parser', () => {
           value: 1,
         }],
       },
+    ]);
+  });
+
+  it('parses a PICO-8 "print" operator (?)', () => {
+    // This is the same as print("hi")
+    // (Note the argument must be on the same line as the ?)
+    const { body, errors } = parse('?"hi"');
+    deepEquals(errors, []);
+    deepEquals(body, [
+      { type: 'CallStatement', expression: {
+        type: 'CallExpression',
+        base: { type: 'Identifier', name: '?' },
+        arguments: [ { type: 'StringLiteral', value: 'hi' }],
+      } },
+    ]);
+  });
+
+  it('parses PICO-8 arithmetic operators', () => {
+    const code = `a = -a
+a = a + b
+a = a - b
+a = a * b
+a = a / b
+a = a \\ b -- division + floor
+a = a % b  -- modulo
+a = a ^ b  -- exponentiation`;
+    const { body, errors } = parse(code);
+    deepEquals(errors, []);
+    deepEquals(body, [
+      { type: 'AssignmentStatement', init: [{ type: 'UnaryExpression', operator: '-' }] },
+      { type: 'AssignmentStatement', init: [{ type: 'BinaryExpression', operator: '+' }] },
+      { type: 'AssignmentStatement', init: [{ type: 'BinaryExpression', operator: '-' }] },
+      { type: 'AssignmentStatement', init: [{ type: 'BinaryExpression', operator: '*' }] },
+      { type: 'AssignmentStatement', init: [{ type: 'BinaryExpression', operator: '/' }] },
+      { type: 'AssignmentStatement', init: [{ type: 'BinaryExpression', operator: '\\' }] },
+      { type: 'AssignmentStatement', init: [{ type: 'BinaryExpression', operator: '%' }] },
+      { type: 'AssignmentStatement', init: [{ type: 'BinaryExpression', operator: '^' }] },
+    ]);
+  });
+
+  it('parses PICO-8 bitwise operators', () => {
+    const code = `
+a = ~a -- not
+a = a | b -- or
+a = a & b -- and
+a = a ^^ b -- xor
+a = a << b -- shift left
+a = a >> b -- arithmetic shift right
+a = a >>> b -- logical shift right
+a = a <<> b -- rotate left
+a = a >>< b -- rotate right`;
+    const { body, errors } = parse(code);
+    deepEquals(errors, []);
+    deepEquals(body, [
+      { type: 'AssignmentStatement', init: [{ type: 'UnaryExpression', operator: '~' }] },
+      { type: 'AssignmentStatement', init: [{ type: 'BinaryExpression', operator: '|' }] },
+      { type: 'AssignmentStatement', init: [{ type: 'BinaryExpression', operator: '&' }] },
+      { type: 'AssignmentStatement', init: [{ type: 'BinaryExpression', operator: '^^' }] },
+      { type: 'AssignmentStatement', init: [{ type: 'BinaryExpression', operator: '<<' }] },
+      { type: 'AssignmentStatement', init: [{ type: 'BinaryExpression', operator: '>>' }] },
+      { type: 'AssignmentStatement', init: [{ type: 'BinaryExpression', operator: '>>>' }] },
+      { type: 'AssignmentStatement', init: [{ type: 'BinaryExpression', operator: '<<>' }] },
+      { type: 'AssignmentStatement', init: [{ type: 'BinaryExpression', operator: '>><' }] },
+    ]);
+  });
+
+  it('parses PICO-8 memory operators', () => {
+    const code = `
+a = @a -- peek()
+a = %a -- peek2()
+a = $a -- peek4()`;
+    const { body, errors } = parse(code);
+    deepEquals(errors, []);
+    deepEquals(body, [
+      { type: 'AssignmentStatement', init: [{ type: 'UnaryExpression', operator: '@' }] },
+      { type: 'AssignmentStatement', init: [{ type: 'UnaryExpression', operator: '%' }] },
+      { type: 'AssignmentStatement', init: [{ type: 'UnaryExpression', operator: '$' }] },
+    ]);
+  });
+
+  it('parses PICO-8 relational and misc operators', () => {
+    const code = `
+a = a < b
+a = a > b
+a = a <= b
+a = a >= b
+a = a == b
+a = a ~= b
+a = a != b -- PICO-8 alias for 'not equals'
+a = a and b
+a = a or b
+a = not a
+a = a .. b`;
+    const { body, errors } = parse(code);
+    deepEquals(errors, []);
+    deepEquals(body, [
+      { type: 'AssignmentStatement', init: [{ type: 'BinaryExpression', operator: '<' }] },
+      { type: 'AssignmentStatement', init: [{ type: 'BinaryExpression', operator: '>' }] },
+      { type: 'AssignmentStatement', init: [{ type: 'BinaryExpression', operator: '<=' }] },
+      { type: 'AssignmentStatement', init: [{ type: 'BinaryExpression', operator: '>=' }] },
+      { type: 'AssignmentStatement', init: [{ type: 'BinaryExpression', operator: '==' }] },
+      { type: 'AssignmentStatement', init: [{ type: 'BinaryExpression', operator: '~=' }] },
+      { type: 'AssignmentStatement', init: [{ type: 'BinaryExpression', operator: '!=' }] },
+      { type: 'AssignmentStatement', init: [{ type: 'LogicalExpression', operator: 'and' }] },
+      { type: 'AssignmentStatement', init: [{ type: 'LogicalExpression', operator: 'or' }] },
+      { type: 'AssignmentStatement', init: [{ type: 'UnaryExpression', operator: 'not' }] },
+      { type: 'AssignmentStatement', init: [{ type: 'BinaryExpression', operator: '..' }] },
+    ]);
+  });
+
+  it('parses PICO-8 assignment operators', () => {
+    const code = `
+a += b
+a -= b
+a *= b
+a /= b
+a \\= b
+a %= b
+a ^= b
+a ..= b
+a |= b
+a &= b
+a ^^= b
+a <<= b
+a >>= b
+a >>>= b
+a <<>= b
+a >><= b`;
+    const { body, errors } = parse(code);
+    deepEquals(errors, []);
+    deepEquals(body, [
+      { type: 'AssignmentStatement', operator: '+=' },
+      { type: 'AssignmentStatement', operator: '-=' },
+      { type: 'AssignmentStatement', operator: '*=' },
+      { type: 'AssignmentStatement', operator: '/=' },
+      { type: 'AssignmentStatement', operator: '\\=' },
+      { type: 'AssignmentStatement', operator: '%=' },
+      { type: 'AssignmentStatement', operator: '^=' },
+      { type: 'AssignmentStatement', operator: '..=' },
+      { type: 'AssignmentStatement', operator: '|=' },
+      { type: 'AssignmentStatement', operator: '&=' },
+      { type: 'AssignmentStatement', operator: '^^=' },
+      { type: 'AssignmentStatement', operator: '<<=' },
+      { type: 'AssignmentStatement', operator: '>>=' },
+      { type: 'AssignmentStatement', operator: '>>>=' },
+      { type: 'AssignmentStatement', operator: '<<>=' },
+      { type: 'AssignmentStatement', operator: '>><=' },
     ]);
   });
 

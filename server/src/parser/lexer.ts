@@ -100,6 +100,23 @@ export default class Lexer {
     }
   }
 
+  withSignificantNewline(func: (() => void)) {
+    this.newlineSignificant = true;
+    try {
+      func();
+    }
+    finally {
+      // This goes in 'finally' so it doesn't corrupt the state if there's
+      // an error during parsing
+
+      // Consume the significant newline
+      if (this.token!.type == TokenType.Newline)
+        this.next();
+
+      this.newlineSignificant = false;
+    }
+  }
+
   // #### Raise a general unexpected error
   //
   // Usage should pass either a token object or a symbol string which was

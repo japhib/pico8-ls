@@ -108,12 +108,13 @@ function do_the_thing() print('hi') end`;
       deepEquals(warnings, [{ type: 'Warning', message: 'undefined variable: b' }]);
     });
 
-    it('adds warning for an unused parameter', () => {
+    // TODO add these back in when bugs are fixed and unused-local warning is re-enabled
+    it.skip('adds warning for an unused parameter', () => {
       const { warnings } = parse('function somefn(a) print("hi") end');
       deepEquals(warnings, [{ type: 'Warning', message: 'a is defined but not used' }]);
     });
 
-    it('adds warning for an unused local', () => {
+    it.skip('adds warning for an unused local', () => {
       const { warnings } = parse('function somefn() local a = 1 end');
       deepEquals(warnings, [{ type: 'Warning', message: 'a is defined but not used' }]);
     });
