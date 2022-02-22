@@ -53,6 +53,11 @@ c = 3
 
 # Changelog
 
+## 0.3.1 (2/22/2022)
+
+- Removed one of the leading 0's from the versioning scheme
+- Added `stat` with docs to the builtins
+
 ## 0.0.3 (2/7/2022)
 
 - Hover support for built-in functions

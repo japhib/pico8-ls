@@ -787,6 +787,13 @@ const Builtins: { [key: string]: BuiltinFunctionInfo } = {
       'n: The number of values to return. (1 by default, 8192 max.)',
     ],
   },
+  stat: {
+    sig: 'stat( n )',
+    desc: 'Returns information about the current runtime environment.',
+    params: [
+      'n: The ID of the information to return.',
+    ],
+  },
 };
 
 export default Builtins;

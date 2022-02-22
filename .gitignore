@@ -3,6 +3,7 @@ out-min
 node_modules
 client/server
 .vscode-test
+.idea/
 
 # The built extension
 *.vsix

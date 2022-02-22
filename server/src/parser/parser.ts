@@ -3,14 +3,40 @@ import { FlowContext } from './control-flow';
 import { findDefinitionsUsages } from './definitions-usages';
 import * as errors from './errors';
 import { errMessages, raiseErrForToken } from './errors';
-import { CallExpression, Expression, Identifier, Variable, Literal, MemberExpression, StringCallExpression, StringLiteral,
-  TableCallExpression, TableConstructorExpression, VarargLiteral,
+import {
+  CallExpression,
+  Expression,
+  Identifier,
+  Literal,
+  MemberExpression,
+  StringCallExpression,
+  StringLiteral,
+  TableCallExpression,
+  TableConstructorExpression,
+  VarargLiteral,
+  Variable,
 } from './expressions';
 import Lexer from './lexer';
 import Marker from './marker';
-import { AssignmentStatement, BreakStatement, CallStatement, Chunk, DoStatement, ForGenericStatement, ForNumericStatement,
-  FunctionDeclaration, GeneralIfClause, GotoStatement, IfStatement, LabelStatement, LocalStatement, RepeatStatement,
-  ReturnStatement, Statement, WhileStatement } from './statements';
+import {
+  AssignmentStatement,
+  BreakStatement,
+  CallStatement,
+  Chunk,
+  DoStatement,
+  ForGenericStatement,
+  ForNumericStatement,
+  FunctionDeclaration,
+  GeneralIfClause,
+  GotoStatement,
+  IfStatement,
+  LabelStatement,
+  LocalStatement,
+  RepeatStatement,
+  ReturnStatement,
+  Statement,
+  WhileStatement,
+} from './statements';
 import { findSymbols } from './symbols';
 import { Token, TokenType } from './tokens';
 import { indexOfObject } from './util';
@@ -867,8 +893,7 @@ export default class Parser {
   //
 
   parseExpression(flowContext: FlowContext): Expression | null {
-    const expression = this.parseSubExpression(0, flowContext);
-    return expression;
+    return this.parseSubExpression(0, flowContext);
   }
 
   // Parse an expression expecting it to be valid.

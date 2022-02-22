@@ -10,6 +10,7 @@ testfiles/**
 .eslintignore
 .eslintrc.js
 .gitignore
+.idea/**
 
 # node_modules are bundled into the minified release thing by esbuild
 client/node_modules/**

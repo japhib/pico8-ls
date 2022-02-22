@@ -818,7 +818,6 @@ export function isIdentifierPart(charCode: number): boolean {
 
 // TODO should `true`, `false` and `nil` be keywords for PICO-8?
 // [3.1 Lexical Conventions](http://www.lua.org/manual/5.2/manual.html#3.1)
-//
 // `true`, `false` and `nil` will not be considered keywords, but literals.
 function isKeyword(id: string): boolean {
   switch (id.length) {
