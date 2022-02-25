@@ -1,5 +1,5 @@
 import {
-  CompletionItem, CompletionItemTag, createConnection, DefinitionParams, Diagnostic, DiagnosticSeverity, DidChangeConfigurationNotification,
+  CompletionItem, CompletionItemTag, createConnection, DefinitionParams, Diagnostic, DiagnosticSeverity, DidChangeConfigurationNotification, DocumentFormattingParams,
   DocumentSymbol, DocumentSymbolParams, DocumentUri, HoverParams, InitializeParams, InitializeResult, Location, Position, ProposedFeatures,
   Range, ReferenceParams, SignatureHelpParams, SignatureInformation, SymbolKind, TextDocumentPositionParams, TextDocuments, TextDocumentSyncKind,
   WorkspaceFolder,
@@ -14,6 +14,7 @@ import { Builtins, BuiltinFunctionInfo } from './parser/builtins';
 import { isIdentifierPart } from './parser/lexer';
 import ResolvedFile, { FileResolver, pathToFileURL } from './parser/file-resolver';
 import { Chunk, Include } from './parser/statements';
+import Formatter from './parser/formatter';
 import { findProjects, getProjectFiles, iterateProject, ParsedDocumentsMap, Project, ProjectDocument, ProjectDocumentNode, projectToString } from './projects';
 import * as url from 'url';
 import * as fs from 'fs';
@@ -51,6 +52,7 @@ connection.onInitialize((params: InitializeParams) => {
       completionProvider: { triggerCharacters: [ '.', ':' ], resolveProvider: true },
       hoverProvider: true,
       signatureHelpProvider: { triggerCharacters: [ '(' ], retriggerCharacters: [ ',' ] },
+      documentFormattingProvider: true,
     },
   };
 
@@ -67,7 +69,8 @@ connection.onInitialize((params: InitializeParams) => {
 connection.onInitialized(() => {
   if (hasConfigurationCapability) {
     // Register for all config changes
-    connection.client.register(DidChangeConfigurationNotification.type, undefined);
+    // The "void" here is so we don't get a "floating promise" warning
+    void connection.client.register(DidChangeConfigurationNotification.type, undefined);
   }
 
   if (hasWorkspaceFolderCapability) {
@@ -674,6 +677,27 @@ connection.onSignatureHelp((params: SignatureHelpParams) => {
     activeSignature: 0,
     activeParameter: numCommas,
   };
+});
+
+connection.onDocumentFormatting((params: DocumentFormattingParams) => {
+  const document = documentTextCache.get(params.textDocument.uri);
+  if (!document) return null;
+
+  // parse document
+  const text = document.getText();
+  const parser = new Parser(text);
+  const parsedChunk = parser.parse();
+  if (parsedChunk.errors.length > 0) {
+    console.error('Can\'t format document when there are parsing errors!');
+    return null;
+  }
+
+  const formatter = new Formatter(params.options);
+  const formatted = formatter.formatChunk(parsedChunk);
+  return [{
+    range: Range.create(document.positionAt(0), document.positionAt(Number.MAX_VALUE)),
+    newText: formatted,
+  }];
 });
 
 // Make the text document manager listen on the connection

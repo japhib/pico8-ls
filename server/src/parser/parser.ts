@@ -577,7 +577,7 @@ export default class Parser {
           }
         }).bind(this));
 
-        return this.finishNode(AST.ifStatement(clauses));
+        return this.finishNode(AST.ifStatement(clauses, true));
       } else {
         errors.raiseUnexpectedToken('statement', this.token);
       }
@@ -619,7 +619,7 @@ export default class Parser {
     }
 
     this.lexer.expect('end');
-    return this.finishNode(AST.ifStatement(clauses));
+    return this.finishNode(AST.ifStatement(clauses, false));
   }
 
   // There are two types of for statements, generic and numeric.

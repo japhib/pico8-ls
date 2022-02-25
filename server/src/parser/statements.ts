@@ -26,6 +26,7 @@ export type ReturnStatement = ASTNode & {
 export type IfStatement = ASTNode & {
   type: 'IfStatement',
   clauses: GeneralIfClause[],
+  oneLine: boolean,
 };
 
 export type IfClause = ASTNode & {
