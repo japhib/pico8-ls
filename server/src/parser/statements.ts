@@ -1,6 +1,15 @@
 import { DefinitionsUsagesLookup, DefUsageScope } from './definitions-usages';
 import { ParseError, Warning } from './errors';
-import { Comment_, Expression, Identifier, VarargLiteral, Variable, MemberExpression, getMemberExpressionName } from './expressions';
+import {
+  Comment_,
+  Expression,
+  Identifier,
+  VarargLiteral,
+  Variable,
+  MemberExpression,
+  getMemberExpressionName,
+  CallExpression,
+} from './expressions';
 import { CodeSymbol } from './symbols';
 import { ASTNode } from './types';
 
@@ -26,6 +35,7 @@ export type ReturnStatement = ASTNode & {
 export type IfStatement = ASTNode & {
   type: 'IfStatement',
   clauses: GeneralIfClause[],
+  oneLine: boolean,
 };
 
 export type IfClause = ASTNode & {

@@ -41,10 +41,11 @@ export default class AST {
     };
   }
 
-  static ifStatement(clauses: GeneralIfClause[]): IfStatement {
+  static ifStatement(clauses: GeneralIfClause[], oneLine: boolean): IfStatement {
     return {
       type: 'IfStatement',
       clauses: clauses,
+      oneLine,
     };
   }
 
