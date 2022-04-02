@@ -7,11 +7,6 @@ The goal is to have all the features you'd expect in a full-fledged language
 server, such as [the one for Lua](https://marketplace.visualstudio.com/items?itemName=sumneko.lua),
 but specifically tailored for a frictionless PICO-8 experience.
 
-This includes working with other people's cartridges that may or may not be
-using the same coding environment. For instance, it will include a formatter
-so that code written in a very tight style inside the PICO-8 code editor can
-be easily changed to normal wide-whitspace-style.
-
 ### Technical Note
 
 This extension uses the [Language Server Protocol](https://microsoft.github.io/language-server-protocol/),
@@ -32,26 +27,14 @@ such as NeoVim, Atom, etc.
 
 ## Planned features
 
-- Hover support for user-defined functions/variables
+- Hover support/signature help for user-defined functions/variables
 - support for `#include`ing other files
-- Code formatter
-
-## Ideas for other features (may or may not get implemented)
-
-- Code action to transform something like this:
-```lua
-a,b,c = 1,2,3
-```
-into this:
-```lua
-a = 1
-b = 2
-c = 3
-```
-- Intellisense telling you stats of the current file (tokens, characters)
-- Outline based on function names and/or the `-->8` PICO-8 tab indicator
 
 # Changelog
+
+## 0.3.2 (4/1/2022)
+
+- Fixed plugin not working on Windows because of problem parsing CRLF line endings
 
 ## 0.3.1 (2/22/2022)
 

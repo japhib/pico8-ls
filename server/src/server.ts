@@ -180,8 +180,6 @@ function toDiagnostic(textDocument: TextDocument, err: ParseError | Warning): Di
 }
 
 async function validateTextDocument(textDocument: TextDocument) {
-  const settings = await getDocumentSettings(textDocument.uri);
-
   // parse document
   const text = textDocument.getText();
   documentTextCache.set(textDocument.uri, textDocument);

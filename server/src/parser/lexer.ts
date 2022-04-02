@@ -48,9 +48,9 @@ export default class Lexer {
   fullP8File: boolean = false;
   reachedEnd: boolean = false;
 
-  input: string;
-  length: number;
-  encodingMode: EncodingMode;
+  input: string = '';
+  length: number = 0;
+  encodingMode: EncodingMode = encodingModes[EncodingModeType.XUserDefined];
 
   // Special flag that indicates we shouldn't skip over a newline, instead
   // treating it as a special newline token. This is useful for the special
@@ -61,8 +61,6 @@ export default class Lexer {
     this.input = input;
     this.length = this.input.length;
 
-    this.encodingMode = encodingModes[EncodingModeType.XUserDefined];
-
     // prime the pump
     this.skipHeader();
   }
@@ -72,7 +70,7 @@ export default class Lexer {
       this.fullP8File = true;
 
       // skip lines until we get to __lua__
-      while (this.currentLine() !== '__lua__')
+      while (this.index < this.length && this.currentLine() !== '__lua__')
         this.skipLine();
 
       // Skip the __lua__ line
@@ -82,7 +80,8 @@ export default class Lexer {
 
   currentLine(): string {
     let i = this.lineStart;
-    while (i < this.length && this.input.charCodeAt(i) != 10)
+    // look for \r and \n
+    while (i < this.length && this.input.charCodeAt(i) != 10 && this.input.charCodeAt(i) != 13)
       i++;
 
     return this.input.substring(this.lineStart, i);
@@ -90,8 +89,9 @@ export default class Lexer {
 
   skipLine() {
     while (this.index < this.length) {
-      if (this.input.charCodeAt(this.index) === 10) {
-        // skip the newline character
+      const charCode = this.input.charCodeAt(this.index);
+      if (isLineTerminator(charCode)) {
+        // skip the newline character(s)
         this.consumeEOL();
         break;
       } else {
@@ -324,12 +324,13 @@ export default class Lexer {
 
     if (isLineTerminator(charCode)) {
       // Count \n\r and \r\n as one newline.
-      if (10 === charCode && 13 === peekCharCode) ++this.peekCharCodeindex;
-      if (13 === charCode && 10 === peekCharCode) ++this.peekCharCodeindex;
-      this.line++;
-      this.index++;
-      this.lineStart = this.index;
+      let forward = 1;
+      if (10 === charCode && 13 === peekCharCode) { this.peekCharCodeindex++; forward = 2; }
+      if (13 === charCode && 10 === peekCharCode) { this.peekCharCodeindex++; forward = 2; }
+      this.index += forward;
 
+      this.line++;
+      this.lineStart = this.index;
       return true;
     }
     return false;
