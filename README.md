@@ -32,6 +32,11 @@ such as NeoVim, Atom, etc.
 
 # Changelog
 
+## 0.3.3 (4/6/2022)
+
+- Add support for [P8SCII](https://pico-8.fandom.com/wiki/P8SCII) control codes in string literals
+- Added built-in t() and time() functions
+
 ## 0.3.2 (4/1/2022)
 
 - Fixed plugin not working on Windows because of problem parsing CRLF line endings
