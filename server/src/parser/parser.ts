@@ -246,6 +246,7 @@ export default class Parser {
           this.lexer.newlineSignificant = true;
           while (this.token.type !== TokenType.Newline && !endingFunction(this.token))
             this.lexer.next();
+
           this.lexer.newlineSignificant = false;
 
           if (this.token.type === TokenType.Newline)

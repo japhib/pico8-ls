@@ -180,24 +180,28 @@ function toDiagnostic(textDocument: TextDocument, err: ParseError | Warning): Di
 }
 
 async function validateTextDocument(textDocument: TextDocument) {
-  // parse document
-  const text = textDocument.getText();
-  documentTextCache.set(textDocument.uri, textDocument);
-  const parser = new Parser(text);
-  const { errors, warnings, symbols, definitionsUsages, scopes } = parser.parse();
+  try {
+    // parse document
+    const text = textDocument.getText();
+    documentTextCache.set(textDocument.uri, textDocument);
+    const parser = new Parser(text);
+    const { errors, warnings, symbols, definitionsUsages, scopes } = parser.parse();
 
-  // Set document info in caches
-  const symbolInfo: DocumentSymbol[] = symbols.map(sym => toDocumentSymbol(textDocument, sym));
-  documentSymbols.set(textDocument.uri, symbolInfo);
-  documentDefUsage.set(textDocument.uri, definitionsUsages);
-  documentScopes.set(textDocument.uri, scopes!);
+    // Set document info in caches
+    const symbolInfo: DocumentSymbol[] = symbols.map(sym => toDocumentSymbol(textDocument, sym));
+    documentSymbols.set(textDocument.uri, symbolInfo);
+    documentDefUsage.set(textDocument.uri, definitionsUsages);
+    documentScopes.set(textDocument.uri, scopes!);
 
-  // send errors back to client immediately
-  const diagnostics: Diagnostic[] = [];
-  const toDiagnosticBound = toDiagnostic.bind(null, textDocument);
-  diagnostics.push(...errors.map(toDiagnosticBound));
-  diagnostics.push(...warnings.map(toDiagnosticBound));
-  connection.sendDiagnostics({ uri: textDocument.uri, diagnostics });
+    // send errors back to client immediately
+    const diagnostics: Diagnostic[] = [];
+    const toDiagnosticBound = toDiagnostic.bind(null, textDocument);
+    diagnostics.push(...errors.map(toDiagnosticBound));
+    diagnostics.push(...warnings.map(toDiagnosticBound));
+    connection.sendDiagnostics({ uri: textDocument.uri, diagnostics });
+  } catch(e) {
+    console.log(e);
+  }
 }
 
 connection.onDocumentSymbol((params: DocumentSymbolParams) => {

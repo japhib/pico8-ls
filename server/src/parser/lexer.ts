@@ -581,13 +581,9 @@ export default class Lexer {
     const sequenceStart = this.index;
     switch (this.input.charAt(this.index)) {
     // Lua allow the following escape sequences.
-    case 'a': ++this.index; return '\x07';
     case 'n': ++this.index; return '\n';
     case 'r': ++this.index; return '\r';
     case 't': ++this.index; return '\t';
-    case 'v': ++this.index; return '\x0b';
-    case 'b': ++this.index; return '\b';
-    case 'f': ++this.index; return '\f';
 
       // Backslash at the end of the line. We treat all line endings as equivalent,
       // and as representing the [LF] character (code 10). Lua 5.1 through 5.3
@@ -596,19 +592,6 @@ export default class Lexer {
     case '\n':
       this.consumeEOL();
       return '\n';
-
-    case '0': case '1': case '2': case '3': case '4':
-    case '5': case '6': case '7': case '8': case '9':
-      // \ddd, where ddd is a sequence of up to three decimal digits.
-      while (isDecDigit(this.input.charCodeAt(this.index)) && this.index - sequenceStart < 3) ++this.index;
-
-      const frag = this.input.slice(sequenceStart, this.index);
-      const ddd = parseInt(frag, 10);
-      if (ddd > 255)
-        this.raiseErr(errMessages.decimalEscapeTooLarge, '\\' + ddd);
-
-      // TODO use frag again?
-      return this.encodingMode.encodeByte(ddd);//, '\\' + frag);
 
     case 'z':
       ++this.index;
@@ -628,6 +611,21 @@ export default class Lexer {
       break;
 
     case '\\': case '"': case '\'':
+      return this.input.charAt(this.index++);
+
+    // P8SCII control codes to ignore, see: https://pico-8.fandom.com/wiki/P8SCII
+    case '0':
+    case '1':
+    case '*':
+    case '#':
+    case '-':
+    case '|':
+    case '+':
+    case '^':
+    case 'a':
+    case 'b':
+    case 'v':
+    case 'f':
       return this.input.charAt(this.index++);
     }
 

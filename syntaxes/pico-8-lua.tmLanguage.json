@@ -261,12 +261,8 @@
     "escaped_char": {
       "patterns": [
         {
-          "match": "\\\\[abfnrtvz\\\\\"'\\n]",
+          "match": "\\\\[abfnrtv\\\\\"'\\n01\\*#\\-\\|\\+\\^]",
           "name": "constant.character.escape.lua"
-        },
-        {
-          "match": "\\\\\\d{1,3}",
-          "name": "constant.character.escape.byte.lua"
         },
         {
           "match": "\\\\x[0-9A-Fa-f][0-9A-Fa-f]",

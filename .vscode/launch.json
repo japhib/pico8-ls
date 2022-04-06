@@ -13,7 +13,7 @@
             "outFiles": ["${workspaceRoot}/client/out/**/*.js"],
             "preLaunchTask": {
                 "type": "npm",
-                "script": "compile"
+                "script": "compile-nomin"
             }
         },
         {

@@ -794,6 +794,14 @@ const Builtins: { [key: string]: BuiltinFunctionInfo } = {
       'n: The ID of the information to return.',
     ],
   },
+  t: {
+    sig: 't( )',
+    desc: 'Returns the amount of time since PICO-8 was last started, as a (fractional) number of seconds.',
+  },
+  time: {
+    sig: 'time( )',
+    desc: 'Returns the amount of time since PICO-8 was last started, as a (fractional) number of seconds.',
+  },
 };
 
 export default Builtins;

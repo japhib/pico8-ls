@@ -290,6 +290,10 @@ __gfx__
     it('errors on hex number literal with malformed binary exponent', () => {
       assert.throws(() => { getLexedTokens('0x3pQ'); }, ParseError);
     });
+
+    it('errors on malformed string escape sequence', () => {
+      assert.throws(() => { getLexedTokens('\'\\^\''); }, ParseError);
+    });
   });
 
   describe('locations', () => {
