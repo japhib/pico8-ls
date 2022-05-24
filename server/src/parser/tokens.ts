@@ -11,6 +11,7 @@ export enum TokenType {
   NilLiteral = 'NilLiteral',
   VarargLiteral = 'VarargLiteral',
   Newline = 'Newline',
+  Raw = 'Raw',
 }
 
 export type TokenValue = string | boolean | number | null;

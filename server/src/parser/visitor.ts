@@ -6,7 +6,7 @@ import { BinaryExpression, BooleanLiteral, CallExpression, Expression, GeneralTa
 } from './expressions';
 import { LabelStatement, BreakStatement, GotoStatement, ReturnStatement, IfStatement, WhileStatement,
   DoStatement, RepeatStatement, LocalStatement, AssignmentStatement, CallStatement, FunctionDeclaration,
-  ForNumericStatement, ForGenericStatement, ElseClause, ElseifClause, IfClause, Chunk, GeneralIfClause, Statement,
+  ForNumericStatement, ForGenericStatement, ElseClause, ElseifClause, IfClause, Chunk, GeneralIfClause, Statement, IncludeStatement,
 } from './statements';
 import { logObj } from './util';
 
@@ -129,6 +129,7 @@ export abstract class ASTVisitor<T> {
   visitLabelStatement(node: LabelStatement): void {}
   visitLocalStatement(node: LocalStatement): void {}
   visitReturnStatement(node: ReturnStatement): void {}
+  visitIncludeStatement(node: IncludeStatement): void {}
 
   // Expressions
   visitBinaryExpression(node: BinaryExpression): void {}
@@ -349,6 +350,10 @@ export abstract class ASTVisitor<T> {
       this.nodeStack.pop();
       break;
     }
+
+    case 'IncludeStatement':
+      this.visitIncludeStatement(node);
+      break;
 
     case 'BinaryExpression':
       this.visitBinaryExpression(node);

@@ -343,7 +343,6 @@ export default class Lexer {
         this.index++;
       else if (!this.consumeEOL())
         break;
-
     }
   }
 
@@ -750,6 +749,24 @@ export default class Lexer {
       this.token = this.lookahead;
       this.lookahead = this.lex();
     }
+  }
+
+  consumeRestOfLine(fromIdx?: number) {
+    this.previousToken = this.token;
+
+    // Reset index to the number if provided, in case lookahead already ran forward
+    if (fromIdx === undefined) fromIdx = this.index;
+    else this.index = fromIdx;
+
+    let charCode = this.input.charCodeAt(this.index);
+    while (this.index < this.length && !isLineTerminator(charCode)) {
+      this.index++;
+      charCode = this.input.charCodeAt(this.index);
+    }
+
+    this.token = this.makeToken(TokenType.Raw, this.input.slice(fromIdx, this.index));
+
+    this.lookahead = this.lex();
   }
 
   // Consume a token if its value matches. Once consumed or not, return the

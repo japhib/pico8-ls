@@ -1,4 +1,4 @@
-import { strictEqual as eq } from 'assert';
+import { fail, strictEqual as eq } from 'assert';
 import { logObj } from '../util';
 import { bounds, deepEquals, deepEqualsAST, getTestFileContents, parse } from './test-utils';
 
@@ -397,6 +397,20 @@ __gfx__
         { message: '\')\' expected near \'+\'' },
         { message: 'unexpected symbol \'*\' near \'3\'' },
       ]);
+    });
+  });
+
+  describe.only('include statement', () => {
+    it('parses correct include statement', () => {
+      const { body, errors } = parse('#include other_file.lua');
+      deepEquals(errors, []);
+      deepEquals(body, [{ type: 'IncludeStatement', filename: 'other_file.lua' }]);
+    });
+
+    it('parses correct include statement', () => {
+      const { body, errors } = parse('#include other_file.lua');
+      deepEquals(errors, []);
+      deepEquals(body, [{ type: 'IncludeStatement', filename: 'other_file.lua' }]);
     });
   });
 });

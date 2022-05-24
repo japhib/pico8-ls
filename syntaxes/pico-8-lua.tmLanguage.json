@@ -4,6 +4,19 @@
   "scopeName": "source.pico8.lua",
   "patterns": [
     {
+      "begin": "(#include)\\s+(.*)$",
+      "beginCaptures": {
+        "1": {
+          "name": "keyword.control.include"
+        },
+        "2": {
+          "name": "string.quoted.other.include_filename"
+        }
+      },
+      "end": "$",
+      "name": "meta.preprocessor.include"
+    },
+    {
       "begin": "\\b(?:(local)\\s+)?(function)\\s*(?:\\s+([a-zA-Z_][a-zA-Z0-9_]*(?:([\\.:])[a-zA-Z_][a-zA-Z0-9_]*)?)\\s*)?(\\()",
       "beginCaptures": {
         "1": {

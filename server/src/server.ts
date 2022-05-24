@@ -30,7 +30,7 @@ import { Bounds } from './parser/types';
 import { CodeSymbolType, CodeSymbol } from './parser/symbols';
 import { DefinitionsUsages, DefinitionsUsagesLookup, DefUsageScope } from './parser/definitions-usages';
 import { ParseError, Warning } from './parser/errors';
-import Builtins, { BuiltinFunctionInfo } from './parser/builtins';
+import { Builtins, BuiltinFunctionInfo } from './parser/builtins';
 import { isIdentifierPart } from './parser/lexer';
 
 console.log('PICO-8 Language Server starting.');

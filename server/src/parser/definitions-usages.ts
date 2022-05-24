@@ -5,7 +5,7 @@ import { getMemberExpresionBaseIdentifier, getMemberExpressionName, getMemberExp
 import { AssignmentStatement, Chunk, ForGenericStatement, ForNumericStatement, FunctionDeclaration, getBareFunctionDeclarationName, LocalStatement } from './statements';
 import { Bounds, boundsEqual, boundsSize, CodeLocation } from './types';
 import { ASTVisitor, VisitableASTNode } from './visitor';
-import Builtins from './builtins';
+import { BuiltinConstants, Builtins } from './builtins';
 
 export type DefinitionsUsages = {
   symbolName: string,
@@ -234,6 +234,8 @@ class DefinitionsUsagesFinder extends ASTVisitor<DefUsageScope> {
 
     if (!this.dontAddGlobalSymbols) {
       for (const fnName in Builtins)
+        predefinedGlobals.set(fnName, emptyDefinitionsUsages(fnName));
+      for (const fnName of BuiltinConstants)
         predefinedGlobals.set(fnName, emptyDefinitionsUsages(fnName));
     }
 

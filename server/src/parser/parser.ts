@@ -30,6 +30,7 @@ import {
   GeneralIfClause,
   GotoStatement,
   IfStatement,
+  IncludeStatement,
   LabelStatement,
   LocalStatement,
   RepeatStatement,
@@ -46,9 +47,9 @@ export type Scope = string[];
 export default class Parser {
   lexer: Lexer;
 
-  // Locations are stored in FILO-array as a `Marker` object consisting of both
-  // `loc` and `range` data. Once a `Marker` is popped off the list an end
-  // location is added and the data is attached to a syntax node.
+  // Locations are stored in a stack as a `Marker` object consisting of both
+  // `loc` and `range` data. Once a `Marker` is popped off the stack an end
+  // location is pushed and the data is attached to a syntax node.
   locations: Marker[] = [];
 
   // Store each block scope as a an array of identifier names. Each scope is
@@ -307,10 +308,19 @@ export default class Parser {
       }
     }
 
-    // special ? print function
-    if (this.token.type === TokenType.Punctuator && this.token.value === '?') {
-      this.lexer.next();
-      return this.parseSpecialPrint(flowContext);
+    if (this.token.type === TokenType.Punctuator) {
+      switch (this.token.value) {
+      // special ? print function
+      case '?':
+        this.lexer.next();
+        return this.parseSpecialPrint(flowContext);
+
+        // #include filename.lua
+      case '#':
+        const currTokenIdx = this.token.bounds.start.index;
+        this.lexer.consumeRestOfLine(currTokenIdx);
+        return this.parseIncludeStatement();
+      }
     }
 
     // Assignments memorizes the location and pushes it manually for wrapper nodes.
@@ -728,6 +738,23 @@ export default class Parser {
     const base = this.finishNode(AST.identifier('?'));
     const callExpression = this.finishNode(AST.callExpression(base, [expression!]));
     return this.finishNode(AST.callStatement(callExpression));
+  }
+
+  // Special PICO-8 include statement: '#include' filename
+  parseIncludeStatement(): IncludeStatement {
+    const line = this.token.value as string;
+
+    const includeRegexp = /#include\s+(.*)$/;
+    const match = includeRegexp.exec(line);
+    if (!match) errors.raiseUnexpectedToken('#include <filename>', this.token);
+
+    // skip over the rest of the line for the next statement to be parsed
+    this.lexer.next();
+
+    return this.finishNode({
+      type: 'IncludeStatement',
+      filename: match[1],
+    });
   }
 
   // ### Non-statements

@@ -83,6 +83,11 @@ export type CallStatement = ASTNode & {
   expression: Expression | null,
 };
 
+export type IncludeStatement = ASTNode & {
+  type: 'IncludeStatement',
+  filename: string,
+};
+
 export type ForNumericStatement = ASTNode & {
   type: 'ForNumericStatement',
   variable: Identifier,
@@ -134,7 +139,7 @@ export function getBareFunctionDeclarationName(funcDeclaration: FunctionDeclarat
 
 export type Statement = LabelStatement | BreakStatement | GotoStatement | ReturnStatement | IfStatement
   | WhileStatement | DoStatement | RepeatStatement | LocalStatement | AssignmentStatement | CallStatement
-  | FunctionDeclaration | ForNumericStatement | ForGenericStatement;
+  | FunctionDeclaration | ForNumericStatement | ForGenericStatement | IncludeStatement;
 
 export type Chunk = {
   type: 'Chunk',

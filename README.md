@@ -27,6 +27,7 @@ such as NeoVim, Atom, etc.
 
 ## Planned features
 
+- Snippets for common idioms (functions, loops, #include, etc.)
 - Hover support/signature help for user-defined functions/variables
 - support for `#include`ing other files
 

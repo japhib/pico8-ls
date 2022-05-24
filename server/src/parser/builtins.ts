@@ -6,7 +6,7 @@ export type BuiltinFunctionInfo = {
 };
 
 // A list of all the built-in functions of PICO-8
-const Builtins: { [key: string]: BuiltinFunctionInfo } = {
+export const Builtins: { [key: string]: BuiltinFunctionInfo } = {
   circ: {
     sig: 'circ( x, y, [r,] [col]  )',
     desc: 'Draws a circle shape, without fill.',
@@ -804,4 +804,32 @@ const Builtins: { [key: string]: BuiltinFunctionInfo } = {
   },
 };
 
-export default Builtins;
+// The symbols you get by typing shift+A, etc all the way to shift+Z
+export const BuiltinConstants: Set<string> = new Set<string>([
+  '█',
+  '▒',
+  '🐱',
+  '⬇️',
+  '░',
+  '✽',
+  '●',
+  '♥',
+  '☉',
+  '웃',
+  '⌂',
+  '⬅️',
+  '😐',
+  '♪',
+  '🅾️',
+  '◆',
+  '…',
+  '➡️',
+  '★',
+  '⧗',
+  '⬆️',
+  'ˇ',
+  '∧',
+  '❎',
+  '▤',
+  '▥',
+]);
