@@ -38,21 +38,27 @@ export abstract class ASTVisitor<T> {
 
   topScope(idx?: number) {
     let offset = 1;
-    if (idx) offset += idx;
+    if (idx) {
+      offset += idx;
+    }
 
     return this.scopeStack[this.scopeStack.length - offset];
   }
 
   topNode(idx?: number) {
     let offset = 1;
-    if (idx) offset += idx;
+    if (idx) {
+      offset += idx;
+    }
 
     return this.nodeStack[this.nodeStack.length - offset];
   }
 
   // The starting value that gets pushed into the scope. Uses createDefaultScope
   // by default.
-  startingScope(): T { return this.createDefaultScope(null); }
+  startingScope(): T {
+    return this.createDefaultScope(null);
+  }
 
   // The value that gets pushed onto the stack when entering a new scope
   // if you *don't* have a visitor defined for that function.
@@ -109,16 +115,36 @@ export abstract class ASTVisitor<T> {
   }
 
   // Scope-creating statements
-  visitIfClause(node: IfClause): T { return this.createDefaultScope(node); }
-  visitElseifClause(node: ElseifClause): T { return this.createDefaultScope(node); }
-  visitElseClause(node: ElseClause): T { return this.createDefaultScope(node); }
-  visitDoStatement(node: DoStatement): T { return this.createDefaultScope(node); }
-  visitForGenericStatement(node: ForGenericStatement): T { return this.createDefaultScope(node); }
-  visitForNumericStatement(node: ForNumericStatement): T { return this.createDefaultScope(node); }
-  visitFunctionDeclaration(node: FunctionDeclaration): T { return this.createDefaultScope(node); }
-  visitRepeatStatement(node: RepeatStatement): T { return this.createDefaultScope(node); }
-  visitWhileStatement(node: WhileStatement): T { return this.createDefaultScope(node); }
-  visitTableConstructorExpression(node: TableConstructorExpression): T { return this.createDefaultScope(node); }
+  visitIfClause(node: IfClause): T {
+    return this.createDefaultScope(node);
+  }
+  visitElseifClause(node: ElseifClause): T {
+    return this.createDefaultScope(node);
+  }
+  visitElseClause(node: ElseClause): T {
+    return this.createDefaultScope(node);
+  }
+  visitDoStatement(node: DoStatement): T {
+    return this.createDefaultScope(node);
+  }
+  visitForGenericStatement(node: ForGenericStatement): T {
+    return this.createDefaultScope(node);
+  }
+  visitForNumericStatement(node: ForNumericStatement): T {
+    return this.createDefaultScope(node);
+  }
+  visitFunctionDeclaration(node: FunctionDeclaration): T {
+    return this.createDefaultScope(node);
+  }
+  visitRepeatStatement(node: RepeatStatement): T {
+    return this.createDefaultScope(node);
+  }
+  visitWhileStatement(node: WhileStatement): T {
+    return this.createDefaultScope(node);
+  }
+  visitTableConstructorExpression(node: TableConstructorExpression): T {
+    return this.createDefaultScope(node);
+  }
 
   // Other Statements
   visitAssignmentStatement(node: AssignmentStatement): void {}
@@ -153,12 +179,15 @@ export abstract class ASTVisitor<T> {
   // Public entry point for kicking off visiting every node in the AST.
   visit(chunk: Chunk) {
     this.scopeStack.push(this.startingScope());
-    for (const statement of chunk.body)
+    for (const statement of chunk.body) {
       this.visitNode(statement);
+    }
   }
 
   private visitAll(nodes: VisitableASTNode[]) {
-    for (const n of nodes) this.visitNode(n);
+    for (const n of nodes) {
+      this.visitNode(n);
+    }
   }
 
   private visitNode(node: VisitableASTNode) {
@@ -174,8 +203,10 @@ export abstract class ASTVisitor<T> {
       for (let i = 0; i < node.variables.length; i++) {
         this.visitNode(node.variables[i]);
         // The initializer can use the variable it's being assigned to as a parent
-        this.nodeStack.push({ node: node.variables[i], flags: [NodeVisitingFlags.IsAssignmentTarget] });
-        if (node.init[i]) this.visitNode(node.init[i]);
+        this.nodeStack.push({ node: node.variables[i], flags: [ NodeVisitingFlags.IsAssignmentTarget ] });
+        if (node.init[i]) {
+          this.visitNode(node.init[i]);
+        }
         this.nodeStack.pop();
       }
       this.nodeStack.pop();
@@ -188,7 +219,9 @@ export abstract class ASTVisitor<T> {
     case 'CallStatement':
       this.visitCallStatement(node);
       this.nodeStack.push({ node });
-      if (node.expression) this.visitNode(node.expression);
+      if (node.expression) {
+        this.visitNode(node.expression);
+      }
       this.nodeStack.pop();
       break;
 
@@ -211,7 +244,9 @@ export abstract class ASTVisitor<T> {
       // Visit the variables and their initializers in order (var1, init1, var2, init2)
       for (let i = 0; i < node.variables.length; i++) {
         this.visitNode(node.variables[i]);
-        if (node.iterators[i]) this.visitNode(node.iterators[i]);
+        if (node.iterators[i]) {
+          this.visitNode(node.iterators[i]);
+        }
       }
 
       this.visitAll(node.body);
@@ -227,7 +262,9 @@ export abstract class ASTVisitor<T> {
       this.visitNode(node.variable);
       this.visitNode(node.start);
       this.visitNode(node.end);
-      if (node.step) this.visitNode(node.step);
+      if (node.step) {
+        this.visitNode(node.step);
+      }
       this.visitAll(node.body);
       this.popScope();
       this.nodeStack.pop();
@@ -240,8 +277,9 @@ export abstract class ASTVisitor<T> {
 
       // Only visit the function declaration identifier if it's a member expression.
       // Everything else can be taken care of in visitFunctionDeclaration.
-      if (node.identifier && node.identifier.type === 'MemberExpression')
+      if (node.identifier && node.identifier.type === 'MemberExpression') {
         this.visitNode(node.identifier);
+      }
 
       this.pushScope(result, node);
       this.visitAll(node.parameters);
@@ -313,8 +351,10 @@ export abstract class ASTVisitor<T> {
       for (let i = 0; i < node.variables.length; i++) {
         this.visitNode(node.variables[i]);
         // The initializer can use the variable it's being assigned to as a parent
-        this.nodeStack.push({ node: node.variables[i], flags: [NodeVisitingFlags.IsAssignmentTarget] });
-        if (node.init[i]) this.visitNode(node.init[i]);
+        this.nodeStack.push({ node: node.variables[i], flags: [ NodeVisitingFlags.IsAssignmentTarget ] });
+        if (node.init[i]) {
+          this.visitNode(node.init[i]);
+        }
         this.nodeStack.pop();
       }
       this.nodeStack.pop();

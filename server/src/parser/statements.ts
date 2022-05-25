@@ -117,18 +117,21 @@ export type FunctionDeclaration = ASTNode & {
 export const AnonymousFunctionName = '<anonymous function>';
 
 export function getFunctionDeclarationName(funcDeclaration: FunctionDeclaration): string {
-  if (!funcDeclaration.identifier)
+  if (!funcDeclaration.identifier) {
     return AnonymousFunctionName;
+  }
 
-  if (funcDeclaration.identifier.type === 'Identifier')
+  if (funcDeclaration.identifier.type === 'Identifier') {
     return funcDeclaration.identifier.name;
+  }
 
   return getMemberExpressionName(funcDeclaration.identifier) || AnonymousFunctionName;
 }
 
 export function getBareFunctionDeclarationName(funcDeclaration: FunctionDeclaration): string {
-  if (!funcDeclaration.identifier)
+  if (!funcDeclaration.identifier) {
     return AnonymousFunctionName;
+  }
 
   if (funcDeclaration.identifier.type === 'Identifier') {
     return funcDeclaration.identifier.name;

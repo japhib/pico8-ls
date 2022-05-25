@@ -106,8 +106,11 @@ export function getMemberExpressionName(memberExpression: MemberExpression): str
 
   case 'MemberExpression':
     const maybeBaseName = getMemberExpressionName(memberExpression.base);
-    if (maybeBaseName === undefined) return undefined;
-    else baseName = maybeBaseName;
+    if (maybeBaseName === undefined) {
+      return undefined;
+    } else {
+      baseName = maybeBaseName;
+    }
     break;
 
   default:

@@ -32,6 +32,7 @@ import { DefinitionsUsages, DefinitionsUsagesLookup, DefUsageScope } from './par
 import { ParseError, Warning } from './parser/errors';
 import { Builtins, BuiltinFunctionInfo } from './parser/builtins';
 import { isIdentifierPart } from './parser/lexer';
+import ResolvedFile from './parser/file-resolver';
 
 console.log('PICO-8 Language Server starting.');
 
@@ -57,9 +58,9 @@ connection.onInitialize((params: InitializeParams) => {
       documentSymbolProvider: true,
       definitionProvider: true,
       referencesProvider: true,
-      completionProvider: { triggerCharacters: ['.', ':'], resolveProvider: true },
+      completionProvider: { triggerCharacters: [ '.', ':' ], resolveProvider: true },
       hoverProvider: true,
-      signatureHelpProvider: { triggerCharacters: ['('], retriggerCharacters: [','] },
+      signatureHelpProvider: { triggerCharacters: [ '(' ], retriggerCharacters: [ ',' ] },
     },
   };
 
@@ -128,8 +129,9 @@ connection.onDidChangeConfiguration(change => {
 });
 
 function getDocumentSettings(resource: string): Thenable<DocumentSettings> {
-  if (!hasConfigurationCapability)
+  if (!hasConfigurationCapability) {
     return Promise.resolve(globalSettings);
+  }
 
   let result = documentSettings.get(resource);
   if (!result) {
@@ -184,7 +186,7 @@ async function validateTextDocument(textDocument: TextDocument) {
     // parse document
     const text = textDocument.getText();
     documentTextCache.set(textDocument.uri, textDocument);
-    const parser = new Parser(text);
+    const parser = new Parser(ResolvedFile.fromFileURL(textDocument.uri), text);
     const { errors, warnings, symbols, definitionsUsages, scopes } = parser.parse();
 
     // Set document info in caches
@@ -233,14 +235,18 @@ function boundsToLocation(uri: DocumentUri, bounds: Bounds): Location {
 
 connection.onDefinition((params: DefinitionParams) => {
   const result = getDefinitionsUsagesForPosition(params);
-  if (!result) return [];
+  if (!result) {
+    return [];
+  }
 
   return result.definitions.map(bounds => boundsToLocation(params.textDocument.uri, bounds));
 });
 
 connection.onReferences((params: ReferenceParams) => {
   const result = getDefinitionsUsagesForPosition(params);
-  if (!result) return [];
+  if (!result) {
+    return [];
+  }
 
   return result.usages.map(bounds => boundsToLocation(params.textDocument.uri, bounds));
 });
@@ -271,7 +277,9 @@ connection.onCompletion((params: TextDocumentPositionParams): CompletionItem[] =
 });
 
 function toDocumentationMarkdown(name: string, info: BuiltinFunctionInfo) : string {
-  if (!info.sig) return '';
+  if (!info.sig) {
+    return '';
+  }
 
   return `## ${name}
 
@@ -293,7 +301,9 @@ connection.onCompletionResolve((item: CompletionItem) => {
       kind: 'markdown',
       value: toDocumentationMarkdown(name, info),
     };
-    if (info.deprecated) item.tags = [CompletionItemTag.Deprecated];
+    if (info.deprecated) {
+      item.tags = [ CompletionItemTag.Deprecated ];
+    }
   }
 
   return item;
@@ -310,8 +320,9 @@ function identifierAtPosition(position: number, text: string) {
   const begin = i;
 
   for (i = position; i < text.length; i++) {
-    if (!isIdentifierPart(text.charCodeAt(i)))
+    if (!isIdentifierPart(text.charCodeAt(i))) {
       break;
+    }
 
   }
   const end = i;
@@ -321,7 +332,9 @@ function identifierAtPosition(position: number, text: string) {
 
 function getTextOnLine(textDocumentUri: string, position: Position): string | undefined {
   const text = documentTextCache.get(textDocumentUri);
-  if (!text) return undefined;
+  if (!text) {
+    return undefined;
+  }
 
   return text.getText({
     start: Position.create(position.line, 0),
@@ -331,7 +344,9 @@ function getTextOnLine(textDocumentUri: string, position: Position): string | un
 
 connection.onHover((params: HoverParams) => {
   const textOnLine = getTextOnLine(params.textDocument.uri, params.position);
-  if (!textOnLine) return undefined;
+  if (!textOnLine) {
+    return undefined;
+  }
   const identifier = identifierAtPosition(params.position.character, textOnLine);
 
   const info = Builtins[identifier];
@@ -344,25 +359,33 @@ connection.onHover((params: HoverParams) => {
 
 connection.onSignatureHelp((params: SignatureHelpParams) => {
   const textOnLine = getTextOnLine(params.textDocument.uri, params.position);
-  if (!textOnLine) return undefined;
+  if (!textOnLine) {
+    return undefined;
+  }
 
   // get position of starting (
   let i = params.position.character;
   let numCommas = 0;
   while (i >= 0 && textOnLine[i] !== '(') {
-    if (textOnLine[i] === ',') numCommas++;
+    if (textOnLine[i] === ',') {
+      numCommas++;
+    }
     i--;
   }
 
   // not found
-  if (i < 0) return undefined;
+  if (i < 0) {
+    return undefined;
+  }
 
   const startingParenPos = i;
 
   // get identifier before that
   const identifier = identifierAtPosition(startingParenPos - 1, textOnLine);
   const info = Builtins[identifier];
-  if (!info || !info.sig || !info.params) return undefined;
+  if (!info || !info.sig || !info.params) {
+    return undefined;
+  }
 
   const signatureInfo: SignatureInformation = {
     label: info.sig,
@@ -381,7 +404,7 @@ connection.onSignatureHelp((params: SignatureHelpParams) => {
   };
 
   return {
-    signatures: [signatureInfo],
+    signatures: [ signatureInfo ],
     activeSignature: 0,
     activeParameter: numCommas,
   };

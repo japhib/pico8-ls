@@ -16,6 +16,7 @@ import {
   VarargLiteral,
   Variable,
 } from './expressions';
+import ResolvedFile, { FileResolver, RealFileResolver, resolveIncludeFile } from './file-resolver';
 import Lexer from './lexer';
 import Marker from './marker';
 import {
@@ -45,7 +46,14 @@ import { indexOfObject } from './util';
 export type Scope = string[];
 
 export default class Parser {
-  lexer: Lexer;
+  includeFileResolver: FileResolver;
+
+  // A stack of lexers representing the file and any '#include'ed files we're
+  // currently working with.
+  //
+  // The lexer at position 0 (bottom of the stack) is the lexer for the "main"
+  // file that we're working with.
+  lexerStack: Lexer[];
 
   // Locations are stored in a stack as a `Marker` object consisting of both
   // `loc` and `range` data. Once a `Marker` is popped off the stack an end
@@ -54,7 +62,7 @@ export default class Parser {
 
   // Store each block scope as a an array of identifier names. Each scope is
   // stored in an FILO-array.
-  scopes: Scope[] = [[]];
+  scopes: Scope[] = [ [] ];
   // The current scope index
   scopeDepth = 0;
   // A list of all global identifier nodes.
@@ -67,9 +75,22 @@ export default class Parser {
   // predefined functions. Used for testing, just to make output a bit clearer.
   dontAddGlobalSymbols: boolean;
 
-  constructor(input: string, dontAddGlobalSymbols?: boolean) {
-    this.lexer = new Lexer(input);
+  // eslint-disable-next-line @typescript-eslint/ban-types
+  constructor(filename: ResolvedFile, input: string, includeFileResolver?: FileResolver, dontAddGlobalSymbols?: boolean) {
+    this.includeFileResolver = includeFileResolver || new RealFileResolver();
     this.dontAddGlobalSymbols = !!dontAddGlobalSymbols;
+
+    this.lexerStack = [ new Lexer(input, filename) ];
+  }
+
+  // Returns the top lexer on the stack
+  get lexer(): Lexer {
+    return this.lexerStack[this.lexerStack.length - 1];
+  }
+
+  // Returns the filename of the current lexer
+  get filename(): ResolvedFile {
+    return this.lexer.filename;
   }
 
   get token(): Token {
@@ -165,7 +186,9 @@ export default class Parser {
 
   // Add identifier name to the current scope if it doesnt already exist.
   scopeIdentifierName(name: string) {
-    if (-1 !== this.scopes[this.scopeDepth].indexOf(name)) return;
+    if (-1 !== this.scopes[this.scopeDepth].indexOf(name)) {
+      return;
+    }
     this.scopes[this.scopeDepth].push(name);
   }
 
@@ -178,8 +201,9 @@ export default class Parser {
   // Attach scope information to node. If the node is global, store it in the
   // globals array so we can return the information to the user.
   attachScope(node: Identifier, isLocal: boolean) {
-    if (!isLocal && -1 === indexOfObject(this.globals, 'name', node.name))
+    if (!isLocal && -1 === indexOfObject(this.globals, 'name', node.name)) {
       this.globals.push(node);
+    }
 
     node.isLocal = isLocal;
   }
@@ -207,8 +231,9 @@ export default class Parser {
     flowContext.popScope();
     this.destroyScope();
 
-    if (this.token.type !== TokenType.EOF)
+    if (this.token.type !== TokenType.EOF) {
       this.errors.push(this.getUnexpectedTokenErr(this.token));
+    }
 
     const chunk = this.finishNode(AST.chunk(body, this.errors));
 
@@ -234,10 +259,29 @@ export default class Parser {
     while (!endingFunction(this.token)) {
       try {
         const statement = this.parseStatement(flowContext);
-        this.lexer.consume(';');
-        // Statements are only added if they are returned, this allows us to
-        // ignore some statements, such as EmptyStatement.
-        if (statement) block.push(statement);
+
+        if (statement?.type === 'IncludeStatement') {
+          // Include statement - Load the included file and push a new lexer on
+          // top of the stack to lex it.
+          const resolvedInclude = resolveIncludeFile(this.filename, statement.filename);
+
+          // Check for circular dependencies
+          if (this.lexerStack.some(l => l.filename.equals(resolvedInclude))) {
+            this.errors.push(this.getIncludeStatementError(statement, 'Circular #includes detected!'));
+          } else {
+            // Load the file
+            this.includeFile(statement, resolvedInclude);
+          }
+        } else {
+          // optional semicolon ending the statement
+          this.lexer.consume(';');
+
+          // Statements are only added if they are returned, this allows us to
+          // ignore some statements, such as EmptyStatement.
+          if (statement) {
+            block.push(statement);
+          }
+        }
       } catch (e) {
         if (errors.isParseError(e)) {
           // Caught a parse error. Add it to errors and synchronize.
@@ -245,27 +289,48 @@ export default class Parser {
 
           // Discard tokens until we get to the end of the line or end of the block
           this.lexer.newlineSignificant = true;
-          while (this.token.type !== TokenType.Newline && !endingFunction(this.token))
+          while (this.token.type !== TokenType.Newline && !endingFunction(this.token)) {
             this.lexer.next();
+          }
 
           this.lexer.newlineSignificant = false;
 
-          if (this.token.type === TokenType.Newline)
+          if (this.token.type === TokenType.Newline) {
             // If we got to a newline, consume the newline token and continue parsing.
             this.lexer.next();
-          else
-            // Otherwise we got to the end of the block so we should stop.
+          } else {
+          // Otherwise we got to the end of the block so we should stop.
             break;
+          }
 
         } else {
           // whoops, it was some other error, shouldn't have caught it
           throw e;
         }
       }
+
+      if (isEndOfFile(this.token) && this.lexerStack.length > 1) {
+        this.lexerStack.pop();
+      }
     }
 
     // Doesn't really need an ast node
     return block;
+  }
+
+  includeFile(statement: IncludeStatement, resolvedInclude: ResolvedFile) {
+    console.log(JSON.stringify(resolvedInclude));
+    if (!this.includeFileResolver.doesFileExist(resolvedInclude.path)) {
+      this.errors.push(this.getIncludeStatementError(statement, 'File does not exist'));
+      return;
+    }
+
+    const fileContents = this.includeFileResolver.loadFileContents(resolvedInclude.path);
+    console.log(fileContents);
+    const newLexer = new Lexer(fileContents, resolvedInclude);
+    newLexer.next();
+
+    this.lexerStack.push(newLexer);
   }
 
   // There are two types of statements, simple and compound.
@@ -277,8 +342,11 @@ export default class Parser {
   parseStatement(flowContext: FlowContext): Statement | null {
     this.markLocation();
 
-    if (this.token.type === TokenType.Punctuator)
-      if (this.lexer.consume('::')) return this.parseLabelStatement(flowContext);
+    if (this.token.type === TokenType.Punctuator) {
+      if (this.lexer.consume('::')) {
+        return this.parseLabelStatement(flowContext);
+      }
+    }
 
     // When a `;` is encounted, simply eat it without storing it.
     if (this.lexer.consume(';')) {
@@ -300,8 +368,9 @@ export default class Parser {
       case 'for':      this.lexer.next(); return this.parseForStatement(flowContext);
       case 'repeat':   this.lexer.next(); return this.parseRepeatStatement(flowContext);
       case 'break':    this.lexer.next();
-        if (!flowContext.isInLoop())
+        if (!flowContext.isInLoop()) {
           raiseErrForToken(this.token, errMessages.noLoopToBreak, this.token.value);
+        }
         return this.parseBreakStatement();
       case 'do':       this.lexer.next(); return this.parseDoStatement(flowContext);
       case 'goto':     this.lexer.next(); return this.parseGotoStatement(flowContext);
@@ -411,7 +480,9 @@ export default class Parser {
 
     if ('end' !== this.token.value) {
       let expression = this.parseExpression(flowContext);
-      if (null != expression) expressions.push(expression);
+      if (null != expression) {
+        expressions.push(expression);
+      }
       while (this.lexer.consume(',')) {
         expression = this.parseExpectedExpression(flowContext);
         expressions.push(expression);
@@ -451,21 +522,25 @@ export default class Parser {
           this.createScope();
           flowContext.pushScope();
           const statement = this.parseStatement(flowContext);
-          if (!statement) errors.raiseUnexpectedToken('statement', this.token);
+          if (!statement) {
+            errors.raiseUnexpectedToken('statement', this.token);
+          }
 
           flowContext.popScope();
           this.destroyScope();
-          clauses.push(this.finishNode(AST.ifClause(condition, [statement])));
+          clauses.push(this.finishNode(AST.ifClause(condition, [ statement ])));
 
           if (this.lexer.consume('else')) {
             this.createScope();
             flowContext.pushScope();
             const elseStatement = this.parseStatement(flowContext);
-            if (!elseStatement) errors.raiseUnexpectedToken('statement', this.token);
+            if (!elseStatement) {
+              errors.raiseUnexpectedToken('statement', this.token);
+            }
 
             flowContext.popScope();
             this.destroyScope();
-            clauses.push(this.finishNode(AST.elseClause([elseStatement])));
+            clauses.push(this.finishNode(AST.elseClause([ elseStatement ])));
           }
         }).bind(this));
 
@@ -547,11 +622,10 @@ export default class Parser {
       this.destroyScope();
 
       return this.finishNode(AST.forNumericStatement(variable, start, end, step, body));
-    }
     // If not, it's a Generic For Statement
-    else {
+    } else {
       // The namelist can contain one or more identifiers.
-      const variables = [variable];
+      const variables = [ variable ];
       while (this.lexer.consume(',')) {
         variable = this.parseIdentifier();
         // Each variable in the namelist is locally scoped.
@@ -618,9 +692,9 @@ export default class Parser {
       // Therefore assignments can't use their declarator. And the identifiers
       // shouldn't be added to the scope until the statement is complete.
       {
-        for (let i = 0, l = variables.length; i < l; ++i)
+        for (let i = 0, l = variables.length; i < l; ++i) {
           this.scopeIdentifier(variables[i]);
-
+        }
       }
 
       return this.finishNode(AST.localStatement(variables, operator, init));
@@ -698,11 +772,13 @@ export default class Parser {
 
       targets.push(base);
 
-      if (',' !== this.token.value)
+      if (',' !== this.token.value) {
         break;
+      }
 
-      if (!lvalue)
+      if (!lvalue) {
         this.unexpectedToken(this.token);
+      }
 
       this.lexer.next();
     } while (true);
@@ -714,14 +790,16 @@ export default class Parser {
       this.unexpectedToken(this.token);
     }
 
-    if (!isAssignmentOperator(this.token))
+    if (!isAssignmentOperator(this.token)) {
       errors.raiseUnexpectedToken('assignment operator', this.token);
+    }
     const operator = this.token.value as string;
     this.lexer.next();
 
     const values = [];
-    do
+    do {
       values.push(this.parseExpectedExpression(flowContext));
+    }
     while (this.lexer.consume(','));
 
     this.pushLocation(startMarker);
@@ -736,7 +814,7 @@ export default class Parser {
     }).bind(this));
 
     const base = this.finishNode(AST.identifier('?'));
-    const callExpression = this.finishNode(AST.callExpression(base, [expression!]));
+    const callExpression = this.finishNode(AST.callExpression(base, [ expression! ]));
     return this.finishNode(AST.callStatement(callExpression));
   }
 
@@ -746,7 +824,9 @@ export default class Parser {
 
     const includeRegexp = /#include\s+(.*)$/;
     const match = includeRegexp.exec(line);
-    if (!match) errors.raiseUnexpectedToken('#include <filename>', this.token);
+    if (!match) {
+      errors.raiseUnexpectedToken('#include <filename>', this.token);
+    }
 
     // skip over the rest of the line for the next statement to be parsed
     this.lexer.next();
@@ -757,6 +837,10 @@ export default class Parser {
     });
   }
 
+  getIncludeStatementError(statement: IncludeStatement, errorMessage: string) {
+    return new errors.ParseError(`Can't #include ${statement.filename} from ${this.filename.path}: ${errorMessage}`, statement.loc!);
+  }
+
   // ### Non-statements
 
   //     Identifier ::= Name
@@ -764,7 +848,9 @@ export default class Parser {
   parseIdentifier(): Identifier {
     this.markLocation();
     const identifier = this.token.value as string;
-    if (this.token.type !== TokenType.Identifier) errors.raiseUnexpectedToken('<name>', this.token);
+    if (this.token.type !== TokenType.Identifier) {
+      errors.raiseUnexpectedToken('<name>', this.token);
+    }
     this.lexer.next();
     return this.finishNode(AST.identifier(identifier));
   }
@@ -796,8 +882,7 @@ export default class Parser {
           // parameters are local.
           this.scopeIdentifier(parameter);
           parameters.push(parameter);
-        }
-        else if (this.token.type === TokenType.VarargLiteral) {
+        } else if (this.token.type === TokenType.VarargLiteral) {
           flowContext.allowVararg = true;
           parameters.push(this.parsePrimaryExpression(flowContext) as VarargLiteral);
           // No arguments are allowed after a Vararg.
@@ -806,8 +891,9 @@ export default class Parser {
           this.errors.push(errors.createErrForToken(this.token, errMessages.expectedToken, '<name> or \'...\'', this.token.value));
 
           // Discard tokens until we get a ')' or ','
-          while (this.token.value !== ')' && this.token.value !== ',')
+          while (this.token.value !== ')' && this.token.value !== ',') {
             this.lexer.next();
+          }
 
         }
       } while (this.lexer.consume(','));
@@ -816,7 +902,9 @@ export default class Parser {
         this.errors.push(errors.createErrForToken(this.token, errMessages.expected, ')', this.token.value));
 
         // Discard tokens until we get a ')'
-        while (this.token.value !== ')') this.lexer.next();
+        while (this.token.value !== ')') {
+          this.lexer.next();
+        }
         // consume the ')'
         this.lexer.next();
       }
@@ -928,8 +1016,11 @@ export default class Parser {
 
   parseExpectedExpression(flowContext: FlowContext): Expression {
     const expression = this.parseExpression(flowContext);
-    if (null == expression) errors.raiseUnexpectedToken('<expression>', this.token);
-    else return expression;
+    if (null == expression) {
+      errors.raiseUnexpectedToken('<expression>', this.token);
+    } else {
+      return expression;
+    }
   }
 
   // Return the precedence priority of the operator.
@@ -957,7 +1048,9 @@ export default class Parser {
       switch (charCode) {
       case 46: return 8; // ..
       case 60: case 62:
-        if('<<' === operator || '>>' === operator) return 7; // << >>
+        if('<<' === operator || '>>' === operator) {
+          return 7;
+        } // << >>
         return 3; // <= >=
       case 33: case 61: case 126: return 3; // == ~= !=
       case 111: return 1; // or
@@ -993,7 +1086,9 @@ export default class Parser {
       this.markLocation();
       this.lexer.next();
       const argument = this.parseSubExpression(10, flowContext);
-      if (argument == null) errors.raiseUnexpectedToken('<expression>', this.token);
+      if (argument == null) {
+        errors.raiseUnexpectedToken('<expression>', this.token);
+      }
       expression = this.finishNode(AST.unaryExpression(operator, argument));
     }
 
@@ -1002,12 +1097,15 @@ export default class Parser {
       expression = this.parsePrimaryExpression(flowContext);
 
       // PrefixExpression
-      if (null == expression)
+      if (null == expression) {
         expression = this.parsePrefixExpression(flowContext);
+      }
 
     }
     // This is not a valid left hand expression.
-    if (null == expression) return null;
+    if (null == expression) {
+      return null;
+    }
 
     let precedence;
     while (true) {
@@ -1016,12 +1114,18 @@ export default class Parser {
       precedence = (this.token.type === TokenType.Punctuator || this.token.type === TokenType.Keyword) ?
         this.binaryPrecedence(operator) : 0;
 
-      if (precedence === 0 || precedence <= minPrecedence) break;
+      if (precedence === 0 || precedence <= minPrecedence) {
+        break;
+      }
       // Right-hand precedence operators
-      if ('^' === operator || '..' === operator) --precedence;
+      if ('^' === operator || '..' === operator) {
+        --precedence;
+      }
       this.lexer.next();
       const right = this.parseSubExpression(precedence, flowContext);
-      if (null == right) errors.raiseUnexpectedToken('<expression>', this.token);
+      if (null == right) {
+        errors.raiseUnexpectedToken('<expression>', this.token);
+      }
       // Push in the marker created before the loop to wrap its entirety.
       this.pushLocation(marker);
       expression = this.finishNode(AST.binaryExpression(operator, expression, right));
@@ -1093,8 +1197,9 @@ export default class Parser {
     // The suffix
     for (;;) {
       const newBase = this.parsePrefixExpressionPart(base, marker, flowContext);
-      if (newBase === null)
+      if (newBase === null) {
         break;
+      }
       base = newBase;
     }
 
@@ -1113,7 +1218,9 @@ export default class Parser {
         // List of expressions
         const expressions = [];
         let expression = this.parseExpression(flowContext);
-        if (null != expression) expressions.push(expression);
+        if (null != expression) {
+          expressions.push(expression);
+        }
         while (this.lexer.consume(',')) {
           expression = this.parseExpectedExpression(flowContext);
           expressions.push(expression);
@@ -1139,14 +1246,15 @@ export default class Parser {
   //          | functiondef | tableconstructor | '...'
 
   parsePrimaryExpression(flowContext: FlowContext): Literal | FunctionDeclaration | TableConstructorExpression | null {
-    const literals = [TokenType.StringLiteral, TokenType.NumericLiteral, TokenType.BooleanLiteral, TokenType.NilLiteral, TokenType.VarargLiteral];
+    const literals = [ TokenType.StringLiteral, TokenType.NumericLiteral, TokenType.BooleanLiteral, TokenType.NilLiteral, TokenType.VarargLiteral ];
     const value = this.token.value;
     const type = this.token.type;
 
     const marker = this.createLocationMarker();
 
-    if (type === TokenType.VarargLiteral && !flowContext.allowVararg)
+    if (type === TokenType.VarargLiteral && !flowContext.allowVararg) {
       raiseErrForToken(this.token, errMessages.cannotUseVararg, this.token.value);
+    }
 
     if (literals.includes(type)) {
       this.pushLocation(marker);
@@ -1171,21 +1279,29 @@ function isUnary(token: Token): boolean {
   // PICO-8 uses @a (peek), %a (peek2), $a (peek4) as unary operators
   // (see: https://pico-8.fandom.com/wiki/Lua#Operator_priorities)
   // ~ is bitwise NOT
-  if (token.type === TokenType.Punctuator) return ['#', '-', '~', '@', '%', '$'].includes(token.value as string);
-  if (token.type === TokenType.Keyword) return 'not' === token.value;
+  if (token.type === TokenType.Punctuator) {
+    return [ '#', '-', '~', '@', '%', '$' ].includes(token.value as string);
+  }
+  if (token.type === TokenType.Keyword) {
+    return 'not' === token.value;
+  }
   return false;
 }
 
 function isAssignmentOperator(token: Token): boolean {
   return token.type === TokenType.Punctuator &&
-    ['=', '+=', '-=', '*=', '/=', '\\=', '%=', '^=', '..=', '|=',
-      '&=', '^^=', '<<=', '>>=', '>>>=', '<<>=', '>><='].includes(token.value as string);
+    [ '=', '+=', '-=', '*=', '/=', '\\=', '%=', '^=', '..=', '|=',
+      '&=', '^^=', '<<=', '>>=', '>>>=', '<<>=', '>><=' ].includes(token.value as string);
 }
 
 // Check if the token syntactically closes a block.
 function isBlockFollow(token: Token) {
-  if (token.type === TokenType.EOF) return true;
-  if (token.type !== TokenType.Keyword) return false;
+  if (token.type === TokenType.EOF) {
+    return true;
+  }
+  if (token.type !== TokenType.Keyword) {
+    return false;
+  }
   switch (token.value) {
   case 'else': case 'elseif':
   case 'end': case 'until':

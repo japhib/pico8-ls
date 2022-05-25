@@ -19,11 +19,14 @@ export default class SymbolLocationLookup {
 
   getSymbol(line: number, column: number): CodeSymbol | undefined {
     const symbolsOnLine = this.symbolsByLine[line];
-    if (!symbolsOnLine) return undefined;
+    if (!symbolsOnLine) {
+      return undefined;
+    }
 
     for (const symbol of symbolsOnLine) {
-      if (column >= symbol.loc.start.column && column <= symbol.loc.end.column)
+      if (column >= symbol.loc.start.column && column <= symbol.loc.end.column) {
         return symbol;
+      }
     }
 
     // wasn't found.

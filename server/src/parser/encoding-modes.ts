@@ -39,15 +39,17 @@ function encodeUTF8(codepoint: number, highMask?: number) : string | null {
 
 function toHex(num: number, digits: number): string {
   let result = num.toString(16);
-  while (result.length < digits)
+  while (result.length < digits) {
     result = '0' + result;
+  }
   return result;
 }
 
 function checkChars(loc: CodeLocation, s: string, rx: RegExp) {
   const m = rx.exec(s);
-  if (!m)
+  if (!m) {
     return s;
+  }
   raiseErr({ start: loc, end: loc }, errMessages.invalidCodeUnit, toHex(m[0].charCodeAt(0), 4).toUpperCase());
 }
 
@@ -65,8 +67,9 @@ class PseudoLatin1 implements EncodingMode {
   }
 
   encodeByte(val: null | number) {
-    if (val === null)
+    if (val === null) {
       return '';
+    }
     return String.fromCharCode(val);
   }
 
@@ -85,10 +88,12 @@ class XUserDefined implements EncodingMode {
   }
 
   encodeByte(val: null | number) {
-    if (val === null)
+    if (val === null) {
       return '';
-    if (val >= 0x80)
+    }
+    if (val >= 0x80) {
       return String.fromCharCode(val | 0xf700);
+    }
     return String.fromCharCode(val);
   }
 

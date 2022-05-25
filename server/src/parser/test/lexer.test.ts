@@ -5,23 +5,26 @@ import { Token, TokenType, TokenValue } from '../tokens';
 import { deepEquals, getLexedTokens } from './test-utils';
 
 function assertNextToken(tokens: Token[], type: TokenType, value?: TokenValue) {
-  if (tokens.length === 0)
+  if (tokens.length === 0) {
     assert.fail('no more tokens!');
+  }
 
   const token = tokens[0];
   tokens.shift();
 
   assert.strictEqual(token.type, type);
 
-  if (value !== undefined)
+  if (value !== undefined) {
     assert.strictEqual(token.value, value);
+  }
 }
 
 function assertNoMoreTokens(tokens: Token[]) {
   assertNextToken(tokens, TokenType.EOF);
 
-  if (tokens.length !== 0)
+  if (tokens.length !== 0) {
     assert.fail('extra tokens! ' + tokens.map(t => `${t.type}[${t.value}]`).join(', '));
+  }
 
 }
 
@@ -87,8 +90,9 @@ describe('Lexer', () => {
     describe('Punctuators', () => {
       function assertLexesOperators(...ops: string[]) {
         const tokens = getLexedTokens(ops.join(' '));
-        for (const op of ops)
+        for (const op of ops) {
           assertNextToken(tokens, TokenType.Punctuator, op);
+        }
 
         assertNoMoreTokens(tokens);
       }
@@ -122,8 +126,9 @@ describe('Lexer', () => {
       const tokens = getLexedTokens('true false truee falsee _true _false');
       assertNextToken(tokens, TokenType.BooleanLiteral, true);
       assertNextToken(tokens, TokenType.BooleanLiteral, false);
-      for (let i = 0; i < 4; i++)
+      for (let i = 0; i < 4; i++) {
         assertNextToken(tokens, TokenType.Identifier);
+      }
       assertNoMoreTokens(tokens);
     });
 
@@ -268,31 +273,43 @@ __gfx__
 
   describe('error handling', () => {
     it('returns an error for an unterminated string literal', () => {
-      assert.throws(() => { getLexedTokens('"asdf'); }, ParseError);
+      assert.throws(() => {
+        getLexedTokens('"asdf');
+      }, ParseError);
     });
 
     it('doesn\'t return an error the second time next() is called', () => {
       const lexer = new Lexer('"asdf');
 
-      assert.throws(() => { lexer.next(); }, ParseError);
+      assert.throws(() => {
+        lexer.next();
+      }, ParseError);
       lexer.next();
       assert.strictEqual(lexer.token!.type, TokenType.EOF);
     });
 
     it('errors on unterminated long string literal', () => {
-      assert.throws(() => { getLexedTokens('[[asdf'); }, ParseError);
+      assert.throws(() => {
+        getLexedTokens('[[asdf');
+      }, ParseError);
     });
 
     it('errors on malformed hex number literal', () => {
-      assert.throws(() => { getLexedTokens('0xZ'); }, ParseError);
+      assert.throws(() => {
+        getLexedTokens('0xZ');
+      }, ParseError);
     });
 
     it('errors on hex number literal with malformed binary exponent', () => {
-      assert.throws(() => { getLexedTokens('0x3pQ'); }, ParseError);
+      assert.throws(() => {
+        getLexedTokens('0x3pQ');
+      }, ParseError);
     });
 
     it('errors on malformed string escape sequence', () => {
-      assert.throws(() => { getLexedTokens('\'\\^\''); }, ParseError);
+      assert.throws(() => {
+        getLexedTokens('\'\\^\'');
+      }, ParseError);
     });
   });
 

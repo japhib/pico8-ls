@@ -60,12 +60,12 @@ function fn2()
 end`;
     const { scopes } = parse(code, true);
     // Lookup symbols inside first function call
-    deepEquals(scopes?.lookupScopeFor(codeLoc(3, 2)).allSymbols(), ['b', 'a', 'fn', 'fn2']);
+    deepEquals(scopes?.lookupScopeFor(codeLoc(3, 2)).allSymbols(), [ 'b', 'a', 'fn', 'fn2' ]);
     // Lookup scope inside while loop
-    deepEquals(scopes?.lookupScopeFor(codeLoc(5, 4)).allSymbols(), ['c', 'b', 'a', 'fn', 'fn2']);
+    deepEquals(scopes?.lookupScopeFor(codeLoc(5, 4)).allSymbols(), [ 'c', 'b', 'a', 'fn', 'fn2' ]);
     // Lookup scope after first function
-    deepEquals(scopes?.lookupScopeFor(codeLoc(8, 0)).allSymbols(), ['a', 'fn', 'fn2']);
+    deepEquals(scopes?.lookupScopeFor(codeLoc(8, 0)).allSymbols(), [ 'a', 'fn', 'fn2' ]);
     // Lookup scope inside second function
-    deepEquals(scopes?.lookupScopeFor(codeLoc(10, 0)).allSymbols(), ['d', 'a', 'fn', 'fn2']);
+    deepEquals(scopes?.lookupScopeFor(codeLoc(10, 0)).allSymbols(), [ 'd', 'a', 'fn', 'fn2' ]);
   });
 });

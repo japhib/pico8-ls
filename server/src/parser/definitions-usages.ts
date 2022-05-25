@@ -67,7 +67,9 @@ export class DefinitionsUsagesLookup {
         }
       }
 
-      if (shouldAdd) list.push(loc);
+      if (shouldAdd) {
+        list.push(loc);
+      }
     }
   }
 
@@ -75,7 +77,9 @@ export class DefinitionsUsagesLookup {
     const defUsOnLine = this.lines[line];
 
     // Can't find the line, don't bother adding it to the list, just return
-    if (!defUsOnLine) return undefined;
+    if (!defUsOnLine) {
+      return undefined;
+    }
 
     let found: DefinitionsUsagesWithLocation | undefined = undefined;
 
@@ -89,8 +93,9 @@ export class DefinitionsUsagesLookup {
       // (sorting would introduce more work in the AST scanning phase though)
       const narrower = !found || boundsSize(found.loc) > boundsSize(def.loc);
 
-      if (matches && narrower)
+      if (matches && narrower) {
         found = def;
+      }
     }
 
     return found?.defUs;
@@ -147,22 +152,29 @@ export class DefUsageScope {
 
   contains(codeLocation: CodeLocation): boolean {
     // It's only null for the global scope, in which case all code locations are contained
-    if (this.loc === null) return true;
+    if (this.loc === null) {
+      return true;
+    }
 
     const withinLines = codeLocation.line >= this.loc.start.line && codeLocation.line <= this.loc.end.line;
-    if (!withinLines) return false;
+    if (!withinLines) {
+      return false;
+    }
 
     // one-line scope
-    if (this.loc.start.line === this.loc.end.line)
+    if (this.loc.start.line === this.loc.end.line) {
       return codeLocation.column >= this.loc.start.column && codeLocation.column <= this.loc.end.column;
+    }
 
     // First line
-    if (codeLocation.line === this.loc.start.line)
+    if (codeLocation.line === this.loc.start.line) {
       return codeLocation.column >= this.loc.start.column;
+    }
 
     // last line
-    if (codeLocation.line === this.loc.end.line)
+    if (codeLocation.line === this.loc.end.line) {
       return codeLocation.column <= this.loc.end.column;
+    }
 
     // it's on a middle line, columns don't matter
     return true;
@@ -172,8 +184,9 @@ export class DefUsageScope {
     for (const childScope of this.children) {
       // If any of the children match, recurse into that child.
       // This way we find the narrowest scope that matches a given code location.
-      if (childScope.contains(codeLocation))
+      if (childScope.contains(codeLocation)) {
         return childScope.lookupScopeFor(codeLocation);
+      }
     }
 
     // If we've gotten this far, there are no children, or none of the children
@@ -233,10 +246,12 @@ class DefinitionsUsagesFinder extends ASTVisitor<DefUsageScope> {
     const predefinedGlobals = new Map<string, DefinitionsUsages>();
 
     if (!this.dontAddGlobalSymbols) {
-      for (const fnName in Builtins)
+      for (const fnName in Builtins) {
         predefinedGlobals.set(fnName, emptyDefinitionsUsages(fnName));
-      for (const fnName of BuiltinConstants)
+      }
+      for (const fnName of BuiltinConstants) {
         predefinedGlobals.set(fnName, emptyDefinitionsUsages(fnName));
+      }
     }
 
     return new DefUsageScope(DefUsagesScopeType.Global, null, { symbols: predefinedGlobals });
@@ -263,8 +278,9 @@ class DefinitionsUsagesFinder extends ASTVisitor<DefUsageScope> {
         // If it's a member expression, try chopping off the first part of the member expression
         // until it's just one long. e.g. `a.b.c` => try `a.b.c`, then `b.c`, then just `c`.
 
-        if (symbolName.indexOf('.') === -1)
+        if (symbolName.indexOf('.') === -1) {
           break;
+        }
 
         const parts = symbolName.split('.');
         symbolName = parts.slice(1).join('.');
@@ -279,11 +295,14 @@ class DefinitionsUsagesFinder extends ASTVisitor<DefUsageScope> {
         }
 
         // if it's still undefined, create a new symbol without a definition
-        if (!this.globalScope().has(symbolName))
+        if (!this.globalScope().has(symbolName)) {
           this.globalScope().set(symbolName, { symbolName, definitions: [], usages: [] });
+        }
       }
 
-      usages.forEach(loc => { this.addUsage(symbolName, loc); });
+      usages.forEach(loc => {
+        this.addUsage(symbolName, loc);
+      });
     }
   }
 
@@ -295,7 +314,9 @@ class DefinitionsUsagesFinder extends ASTVisitor<DefUsageScope> {
 
   override onExitScope(scope: DefUsageScope): void {
     // Don't bother checking for locals if it's a table "scope" (not a real scope)
-    if (scope.type === DefUsagesScopeType.Table) return;
+    if (scope.type === DefUsagesScopeType.Table) {
+      return;
+    }
 
     // TODO re-enable this when bugs are fixed
     // // check for unused locals
@@ -314,16 +335,22 @@ class DefinitionsUsagesFinder extends ASTVisitor<DefUsageScope> {
   private isSymbolLocal(symbolName: string): boolean {
     // Note we stop *before* i gets to 0, so the global scope (i=0) is not
     // considered
-    for (let i = this.scopeStack.length - 1; i > 0; i--)
-      if (this.scopeStack[i].has(symbolName)) return true;
+    for (let i = this.scopeStack.length - 1; i > 0; i--) {
+      if (this.scopeStack[i].has(symbolName)) {
+        return true;
+      }
+    }
 
     return false;
   }
 
   private isSymbolDefined(symbolName: string): boolean {
     // Note global scope (i=0) *is* considered.
-    for (let i = this.scopeStack.length - 1; i >= 0; i--)
-      if (this.scopeStack[i].has(symbolName)) return true;
+    for (let i = this.scopeStack.length - 1; i >= 0; i--) {
+      if (this.scopeStack[i].has(symbolName)) {
+        return true;
+      }
+    }
 
     return false;
   }
@@ -335,15 +362,20 @@ class DefinitionsUsagesFinder extends ASTVisitor<DefUsageScope> {
     // Note the global scope (i=0) *is* considered.
     for (let i = this.scopeStack.length - 1; i >= 0; i--) {
       const ret = this.scopeStack[i].get(symbolName);
-      if (ret) return ret;
+      if (ret) {
+        return ret;
+      }
     }
     return undefined;
   }
 
   private getScopeOf(symbolName: string): DefUsageScope | undefined {
     // Note global scope (i=0) *is* considered.
-    for (let i = this.scopeStack.length - 1; i >= 0; i--)
-      if (this.scopeStack[i].has(symbolName)) return this.scopeStack[i];
+    for (let i = this.scopeStack.length - 1; i >= 0; i--) {
+      if (this.scopeStack[i].has(symbolName)) {
+        return this.scopeStack[i];
+      }
+    }
 
     return undefined;
   }
@@ -366,8 +398,8 @@ class DefinitionsUsagesFinder extends ASTVisitor<DefUsageScope> {
       // Definition/usages lists don't already exist. Create them and add to scope.
       defUs = {
         symbolName,
-        definitions: [loc],
-        usages: [loc],
+        definitions: [ loc ],
+        usages: [ loc ],
       };
       scopeToAddTo.set(symbolName, defUs);
     }
@@ -387,14 +419,16 @@ class DefinitionsUsagesFinder extends ASTVisitor<DefUsageScope> {
     }
 
     // Don't add the usage if it's the exact same as the most recent one added
-    if (!boundsEqual(loc, defUs.usages[defUs.usages.length - 1]))
+    if (!boundsEqual(loc, defUs.usages[defUs.usages.length - 1])) {
       defUs.usages.push(loc);
+    }
 
     // if it's a global variable getting reassigned, add it to the definitions list as well
     if (!this.isSymbolLocal(symbolName) && this.isInAssignment() && !this.isInAssignmentTarget()) {
       // Don't add the usage if it's the exact same as the most recent one added
-      if (!boundsEqual(loc, defUs.definitions[defUs.definitions.length - 1]))
+      if (!boundsEqual(loc, defUs.definitions[defUs.definitions.length - 1])) {
         defUs.definitions.push(loc);
+      }
     }
 
     // Add another reference to the definitions/usages from the current usage location
@@ -423,8 +457,7 @@ class DefinitionsUsagesFinder extends ASTVisitor<DefUsageScope> {
       // It's something like `function blah:fun() ...`
       // So self should be `blah`
       self = getMemberExpressionParentName(node.identifier);
-    }
-    else if (!node.identifier && this.isInAssignment()) {
+    } else if (!node.identifier && this.isInAssignment()) {
       // If the function does NOT have an identifier, but we're in an assignment
       // or in a table constructor, use the variable name that we're being
       // assigned to. We also can get the value from `self` based on the
@@ -479,8 +512,9 @@ class DefinitionsUsagesFinder extends ASTVisitor<DefUsageScope> {
     }
     // Special case: member expression. This is handled in visitMemberExpression
     // so don't re-process it again here. (Unless we're in an assignment target.)
-    if (topNode?.type === 'MemberExpression' && !this.isInAssignmentTarget())
+    if (topNode?.type === 'MemberExpression' && !this.isInAssignmentTarget()) {
       return;
+    }
 
     this.addUsage(node.name, node.loc!);
   }
@@ -497,10 +531,11 @@ class DefinitionsUsagesFinder extends ASTVisitor<DefUsageScope> {
     for (let i = 0; i < statement.variables.length; i++) {
       const variable = statement.variables[i];
 
-      if (variable.type === 'Identifier')
+      if (variable.type === 'Identifier') {
         this.defsForSimpleAssignment(variable, statement);
-      else if (variable.type === 'MemberExpression')
+      } else if (variable.type === 'MemberExpression') {
         this.defsForMemberExpressionAssignment(variable);
+      }
 
       // Else, no-op. Don't create defs/usages for stuff like:
       //   a[b] = c
@@ -511,10 +546,11 @@ class DefinitionsUsagesFinder extends ASTVisitor<DefUsageScope> {
 
   private defsForSimpleAssignment(variable: Identifier, statement: AssignmentStatement | LocalStatement) {
     const name = variable.name;
-    if (statement.type === 'LocalStatement' || !this.isSymbolDefined(name))
+    if (statement.type === 'LocalStatement' || !this.isSymbolDefined(name)) {
       this.addDefinition(name, variable.loc!, statement.type === 'LocalStatement' ? undefined : this.globalScope());
-    else
+    } else {
       this.addUsage(name, variable.loc!);
+    }
   }
 
   private defsForMemberExpressionAssignment(memberExpression: MemberExpression) {
@@ -533,7 +569,9 @@ class DefinitionsUsagesFinder extends ASTVisitor<DefUsageScope> {
     }
 
     // Add usage of the base name since it's getting referenced
-    if (base && baseName) this.addUsage(baseName, base.loc!);
+    if (base && baseName) {
+      this.addUsage(baseName, base.loc!);
+    }
 
     // Note we add the definition to the global scope.
     // Some examples:
@@ -555,8 +593,9 @@ class DefinitionsUsagesFinder extends ASTVisitor<DefUsageScope> {
 
   override visitForGenericStatement(node: ForGenericStatement): DefUsageScope {
     // Add symbols for variables created in the for statement
-    for (const variable of node.variables)
+    for (const variable of node.variables) {
       this.addDefinition(variable.name, variable.loc!);
+    }
 
     return this.createDefaultScope(node);
   }
@@ -586,7 +625,9 @@ class DefinitionsUsagesFinder extends ASTVisitor<DefUsageScope> {
       case 'TableKeyString': name = topNode.key.name; break;
       case 'MemberExpression':
         const membExprName = getMemberExpressionName(topNode);
-        if (membExprName) name = membExprName;
+        if (membExprName) {
+          name = membExprName;
+        }
         break;
       }
       return new DefUsageScope(DefUsagesScopeType.Table, node.loc!, { name, self });
@@ -603,7 +644,9 @@ class DefinitionsUsagesFinder extends ASTVisitor<DefUsageScope> {
   override visitMemberExpression(membExpr: MemberExpression): void {
     // If we're in an assignment statement, the member expression has already
     // been taken care of. So we don't worry about it.
-    if (this.isInAssignment()) return;
+    if (this.isInAssignment()) {
+      return;
+    }
 
     // Add usage(s) of base(s)
     this.addUsagesOfBases(membExpr);

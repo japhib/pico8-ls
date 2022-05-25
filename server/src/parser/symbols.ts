@@ -66,17 +66,21 @@ class SymbolFinder extends ASTVisitor<SymbolScope> {
 
   createDefaultScope(): SymbolScope {
     // carry forward the current parent & self, if there is one
-    if (this.topScope())
+    if (this.topScope()) {
       return new SymbolScope(this.topScope().parent, this.topScope().self);
-    else
+    } else {
       return new SymbolScope(undefined, undefined);
+    }
   }
 
   // some helper functions
 
   private isSymbolInLocalScope(symbolName: string) {
-    for (let i = this.scopeStack.length - 1; i > 0; i--)
-      if (this.scopeStack[i].symbols.has(symbolName)) return true;
+    for (let i = this.scopeStack.length - 1; i > 0; i--) {
+      if (this.scopeStack[i].symbols.has(symbolName)) {
+        return true;
+      }
+    }
 
     return false;
   }
@@ -97,12 +101,15 @@ class SymbolFinder extends ASTVisitor<SymbolScope> {
     const symbol: CodeSymbol = { name, detail, type, loc, selectionLoc, children: [] };
 
     const parent = parentOverride || this.getCurrentParent();
-    if (parent && addToLocalScope)
+    if (parent && addToLocalScope) {
       parent.children.push(symbol);
-    else
+    } else {
       this.symbols.push(symbol);
+    }
 
-    if (addToLocalScope) this.topScope().symbols.add(name);
+    if (addToLocalScope) {
+      this.topScope().symbols.add(name);
+    }
 
     // Save for later just in case
     this.lastAddedSymbol = symbol;
@@ -115,10 +122,11 @@ class SymbolFinder extends ASTVisitor<SymbolScope> {
   }
 
   override visitFunctionDeclaration(statement: FunctionDeclaration): SymbolScope {
-    if (!statement.identifier && this.isInAssignment())
+    if (!statement.identifier && this.isInAssignment()) {
       return this.visitFunctionDeclarationWithoutIdentifier(statement);
-    else
+    } else {
       return this.visitFunctionDeclarationWithIdentifier(statement);
+    }
   }
 
   private visitFunctionDeclarationWithIdentifier(statement: FunctionDeclaration): SymbolScope {
@@ -126,9 +134,13 @@ class SymbolFinder extends ASTVisitor<SymbolScope> {
     let self = undefined;
     if (statement.identifier?.type === 'MemberExpression' && statement.identifier.indexer === ':') {
       const base = statement.identifier.base;
-      if (base.type === 'Identifier') self = base.name;
-      else if (base.type === 'MemberExpression') self = getMemberExpressionName(base);
-      else throw new Error('Unreachable'); // sanity check
+      if (base.type === 'Identifier') {
+        self = base.name;
+      } else if (base.type === 'MemberExpression') {
+        self = getMemberExpressionName(base);
+      } else {
+        throw new Error('Unreachable');
+      } // sanity check
     }
 
     const sym = this.addSymbol(
@@ -153,18 +165,22 @@ class SymbolFinder extends ASTVisitor<SymbolScope> {
 
     let self = undefined;
     const symNameParts = sym.name.split(/[.:]/);
-    if (symNameParts.length > 1)
+    if (symNameParts.length > 1) {
       self = symNameParts.slice(0, symNameParts.length - 1).join('.');
-    else
+    } else {
       self = this.topScope().parent?.name;
+    }
 
     return new SymbolScope(sym, self);
   }
 
   private getFunctionSignature(statement: FunctionDeclaration): string {
     let functionSignature = statement.parameters.map(param => {
-      if (param.type === 'Identifier') return param.name;
-      else return '...';
+      if (param.type === 'Identifier') {
+        return param.name;
+      } else {
+        return '...';
+      }
     }).join(',');
     functionSignature = '(' + functionSignature + ')';
     return functionSignature;
@@ -198,10 +214,11 @@ class SymbolFinder extends ASTVisitor<SymbolScope> {
       // check initializer to see if it's actually a function
       const isFunction = statement.init[i] && statement.init[i].type === 'FunctionDeclaration';
 
-      if (variable.type === 'Identifier')
+      if (variable.type === 'Identifier') {
         this.addSymbolForSimpleAssignment(variable, statement, isFunction);
-      else if (variable.type === 'MemberExpression')
+      } else if (variable.type === 'MemberExpression') {
         this.addSymbolForMemberExpressionAssignment(variable, statement as AssignmentStatement, isFunction);
+      }
 
       // Else, no-op. Don't create symbols for stuff like:
       //   a[b] = c
@@ -216,7 +233,9 @@ class SymbolFinder extends ASTVisitor<SymbolScope> {
     // Get variable type
     let varType = varLocal ? CodeSymbolType.LocalVariable : CodeSymbolType.GlobalVariable;
     // override variable type if it's a function
-    if (isFunction) varType = CodeSymbolType.Function;
+    if (isFunction) {
+      varType = CodeSymbolType.Function;
+    }
 
     this.addSymbol(
       name,
@@ -257,7 +276,9 @@ class SymbolFinder extends ASTVisitor<SymbolScope> {
     // Get variable type
     let varType = isLocal ? CodeSymbolType.LocalVariable : CodeSymbolType.GlobalVariable;
     // override variable type if it's a function
-    if (isFunction) varType = CodeSymbolType.Function;
+    if (isFunction) {
+      varType = CodeSymbolType.Function;
+    }
 
     this.addSymbol(
       symbolName,
@@ -274,8 +295,9 @@ class SymbolFinder extends ASTVisitor<SymbolScope> {
     //    tbl = {}
     // then add a new scope with the name of the variable the table
     // is getting assigned to (e.g. tbl).
-    if (this.isInAssignment())
+    if (this.isInAssignment()) {
       return new SymbolScope(this.lastAddedSymbol, undefined);
+    }
 
     // If not, then no new scope, just add the default parent
     return this.createDefaultScope();

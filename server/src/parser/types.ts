@@ -1,7 +1,10 @@
+import ResolvedFile from './file-resolver';
+
 export type CodeLocation = {
   line: number,
   column: number,
   index: number,
+  filename: ResolvedFile,
 };
 
 export function codeLocationsEqual(a: CodeLocation, b: CodeLocation): boolean {
@@ -30,11 +33,13 @@ export function boundsClone(bounds: Bounds): Bounds {
       line: bounds.start.line,
       column: bounds.start.column,
       index: bounds.start.index,
+      filename: bounds.start.filename,
     },
     end: {
       line: bounds.end.line,
       column: bounds.end.column,
       index: bounds.end.index,
+      filename: bounds.end.filename,
     },
   };
 }

@@ -7,8 +7,11 @@ import * as util from 'util';
 // with a matching property.
 
 export function indexOfObject(array: any[], property: string, element: any) {
-  for (let i = 0, length = array.length; i < length; ++i)
-    if (array[i][property] === element) return i;
+  for (let i = 0, length = array.length; i < length; ++i) {
+    if (array[i][property] === element) {
+      return i;
+    }
+  }
 
   return -1;
 }

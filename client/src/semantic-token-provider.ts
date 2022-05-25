@@ -9,7 +9,7 @@ import {
   SemanticTokens,
 } from 'vscode';
 
-const tokenTypes = ['comment'];
+const tokenTypes = [ 'comment' ];
 const tokenModifiers: string[] = [];
 export const legend = new SemanticTokensLegend(tokenTypes, tokenModifiers);
 
@@ -33,8 +33,9 @@ const provider: DocumentSemanticTokensProvider = {
       }
 
       // Skip providing more tokens if we're not in Lua
-      if (!inLua)
+      if (!inLua) {
         continue;
+      }
 
       // currently only support double-slash line comments
       // (since I can't figure out how to include those in syntaxes/pico-8-lua.tmLanguage.json)

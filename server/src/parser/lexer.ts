@@ -3,6 +3,7 @@ import { EncodingMode, encodingModes, EncodingModeType } from './encoding-modes'
 import * as errors from './errors';
 import { errMessages } from './errors';
 import { Comment_ } from './expressions';
+import ResolvedFile from './file-resolver';
 import { Token, TokenType, TokenValue } from './tokens';
 import { Bounds, CodeLocation } from './types';
 
@@ -57,9 +58,12 @@ export default class Lexer {
   // PICO-8 one-line if statement.
   newlineSignificant: boolean = false;
 
-  constructor(input: string) {
+  filename: ResolvedFile;
+
+  constructor(input: string, filename: ResolvedFile) {
     this.input = input;
     this.length = this.input.length;
+    this.filename = filename;
 
     // prime the pump
     this.skipHeader();
@@ -70,8 +74,9 @@ export default class Lexer {
       this.fullP8File = true;
 
       // skip lines until we get to __lua__
-      while (this.index < this.length && this.currentLine() !== '__lua__')
+      while (this.index < this.length && this.currentLine() !== '__lua__') {
         this.skipLine();
+      }
 
       // Skip the __lua__ line
       this.skipLine();
@@ -81,8 +86,9 @@ export default class Lexer {
   currentLine(): string {
     let i = this.lineStart;
     // look for \r and \n
-    while (i < this.length && this.input.charCodeAt(i) != 10 && this.input.charCodeAt(i) != 13)
+    while (i < this.length && this.input.charCodeAt(i) != 10 && this.input.charCodeAt(i) != 13) {
       i++;
+    }
 
     return this.input.substring(this.lineStart, i);
   }
@@ -104,14 +110,14 @@ export default class Lexer {
     this.newlineSignificant = true;
     try {
       func();
-    }
-    finally {
+    } finally {
       // This goes in 'finally' so it doesn't corrupt the state if there's
       // an error during parsing
 
       // Consume the significant newline
-      if (this.token!.type == TokenType.Newline)
+      if (this.token!.type == TokenType.Newline) {
         this.next();
+      }
 
       this.newlineSignificant = false;
     }
@@ -163,13 +169,28 @@ export default class Lexer {
   }
 
   getLocation(): CodeLocation {
-    return { index: this.index, line: this.line, column: this.index - this.lineStart + 1 };
+    return {
+      index: this.index,
+      line: this.line,
+      column: this.index - this.lineStart + 1,
+      filename: this.filename,
+    };
   }
 
   getCurrentBounds(): Bounds {
     return {
-      start: { index: this.tokenStart, line: this.tokenStartLine, column: this.tokenStart - this.tokenStartLineIdx },
-      end: { index: this.index, line: this.line, column: this.index - this.lineStart },
+      start: {
+        index: this.tokenStart,
+        line: this.tokenStartLine,
+        column: this.tokenStart - this.tokenStartLineIdx,
+        filename: this.filename,
+      },
+      end: {
+        index: this.index,
+        line: this.line,
+        column: this.index - this.lineStart,
+        filename: this.filename,
+      },
     };
   }
 
@@ -182,8 +203,9 @@ export default class Lexer {
   }
 
   lex(): Token {
-    if (this.reachedEnd)
+    if (this.reachedEnd) {
       return this.makeToken(TokenType.EOF, '<eof>');
+    }
 
     this.skipWhiteSpace();
 
@@ -198,7 +220,9 @@ export default class Lexer {
       this.skipWhiteSpace();
     }
 
-    if (this.index >= this.length) return this.makeToken(TokenType.EOF, '<eof>');
+    if (this.index >= this.length) {
+      return this.makeToken(TokenType.EOF, '<eof>');
+    }
 
     const charCode = this.input.charCodeAt(this.index);
     const next = this.input.charCodeAt(this.index + 1);
@@ -207,7 +231,9 @@ export default class Lexer {
     this.tokenStart = this.index;
     this.tokenStartLine = this.line;
     this.tokenStartLineIdx = this.lineStart;
-    if (isIdentifierStart(charCode)) return this.scanIdentifierOrKeyword();
+    if (isIdentifierStart(charCode)) {
+      return this.scanIdentifierOrKeyword();
+    }
 
     switch (charCode) {
     case 39: case 34: // '"
@@ -219,66 +245,100 @@ export default class Lexer {
 
     case 46: // .
       // If the dot is followed by a digit it's a float.
-      if (isDecDigit(next)) return this.scanNumericLiteral();
+      if (isDecDigit(next)) {
+        return this.scanNumericLiteral();
+      }
       if (46 === next) {
         const uberNext = this.input.charCodeAt(this.index + 2);
-        if (61 === uberNext) return this.scanPunctuator('..=');
-        if (46 === uberNext) return this.scanVarargLiteral();
+        if (61 === uberNext) {
+          return this.scanPunctuator('..=');
+        }
+        if (46 === uberNext) {
+          return this.scanVarargLiteral();
+        }
         return this.scanPunctuator('..');
       }
       return this.scanPunctuator('.');
 
     case 61: // =
-      if (61 === next) return this.scanPunctuator('==');
+      if (61 === next) {
+        return this.scanPunctuator('==');
+      }
       return this.scanPunctuator('=');
 
     case 62: // >, >=, >>, >>= (arithmetic right shift), >>>, >>>= (logical right shift), >><, >><= (rotate right)
       if (62 === next) { // it's one of >>, >>=, >>>, >>>=, >><, >><=
         const uberNext = this.input.charCodeAt(this.index + 2);
-        if (61 === uberNext) return this.scanPunctuator('>>=');
+        if (61 === uberNext) {
+          return this.scanPunctuator('>>=');
+        }
         if (62 === uberNext) { // it's >>> or >>>=
-          if (this.input.charCodeAt(this.index + 3) === 61) return this.scanPunctuator('>>>=');
+          if (this.input.charCodeAt(this.index + 3) === 61) {
+            return this.scanPunctuator('>>>=');
+          }
           return this.scanPunctuator('>>>');
         }
         if (60 === uberNext) { // it's >>< or >><=
-          if (this.input.charCodeAt(this.index + 3) === 61) return this.scanPunctuator('>><=');
+          if (this.input.charCodeAt(this.index + 3) === 61) {
+            return this.scanPunctuator('>><=');
+          }
           return this.scanPunctuator('>><');
         }
-        if (62 === next) return this.scanPunctuator('>>');
+        if (62 === next) {
+          return this.scanPunctuator('>>');
+        }
       }
-      if (61 === next) return this.scanPunctuator('>=');
+      if (61 === next) {
+        return this.scanPunctuator('>=');
+      }
       return this.scanPunctuator('>');
 
     case 60: // <, <=, <<, <<= (left shift), <<>, <<>= (rotate left)
       if (60 === next) { // it's <<, <<=, <<>, or <<>=
         const uberNext = this.input.charCodeAt(this.index + 2);
-        if (61 === uberNext) return this.scanPunctuator('<<=');
+        if (61 === uberNext) {
+          return this.scanPunctuator('<<=');
+        }
         if (62 === uberNext) { // 62 is >
-          if (this.input.charCodeAt(this.index + 3) === 61) return this.scanPunctuator('<<>=');
+          if (this.input.charCodeAt(this.index + 3) === 61) {
+            return this.scanPunctuator('<<>=');
+          }
           return this.scanPunctuator('<<>');
         }
         return this.scanPunctuator('<<');
       }
-      if (61 === next) return this.scanPunctuator('<=');
+      if (61 === next) {
+        return this.scanPunctuator('<=');
+      }
       return this.scanPunctuator('<');
 
     case 126: // ~
-      if (61 === next) return this.scanPunctuator('~=');
+      if (61 === next) {
+        return this.scanPunctuator('~=');
+      }
       return this.scanPunctuator('~');
 
     case 58: // :
-      if (58 === next) return this.scanPunctuator('::');
+      if (58 === next) {
+        return this.scanPunctuator('::');
+      }
       return this.scanPunctuator(':');
 
     case 91: // [
       // Check for a multiline string, they begin with [= or [[
-      if (91 === next || 61 === next) return this.scanLongStringLiteral();
+      if (91 === next || 61 === next) {
+        return this.scanLongStringLiteral();
+      }
       return this.scanPunctuator('[');
 
     case 94: // ^, ^= (exponentiation), ^^, ^^= (xor)
-      if (61 === next) return this.scanPunctuator('^=');
+      if (61 === next) {
+        return this.scanPunctuator('^=');
+      }
       if (94 === next) {
-        if (61 === this.input.charCodeAt(this.index + 2)) return this.scanPunctuator('^^=');
+        if (61 === this.input.charCodeAt(this.index + 2)) {
+          return this.scanPunctuator('^^=');
+        }
         return this.scanPunctuator('^^');
       }
       return this.scanPunctuator('^');
@@ -295,7 +355,9 @@ export default class Lexer {
     case 47: // /
     case 92: // \
     case 124: // |
-      if (61 === next) return this.scanPunctuator(this.input.charAt(this.index) + '=');
+      if (61 === next) {
+        return this.scanPunctuator(this.input.charAt(this.index) + '=');
+      }
       return this.scanPunctuator(this.input.charAt(this.index));
 
     case 35: // #
@@ -325,8 +387,12 @@ export default class Lexer {
     if (isLineTerminator(charCode)) {
       // Count \n\r and \r\n as one newline.
       let forward = 1;
-      if (10 === charCode && 13 === peekCharCode) { this.peekCharCodeindex++; forward = 2; }
-      if (13 === charCode && 10 === peekCharCode) { this.peekCharCodeindex++; forward = 2; }
+      if (10 === charCode && 13 === peekCharCode) {
+        this.peekCharCodeindex++; forward = 2;
+      }
+      if (13 === charCode && 10 === peekCharCode) {
+        this.peekCharCodeindex++; forward = 2;
+      }
       this.index += forward;
 
       this.line++;
@@ -339,10 +405,11 @@ export default class Lexer {
   skipWhiteSpace() {
     while (this.index < this.length) {
       const charCode = this.input.charCodeAt(this.index);
-      if (isWhiteSpace(charCode))
+      if (isWhiteSpace(charCode)) {
         this.index++;
-      else if (!this.consumeEOL())
+      } else if (!this.consumeEOL()) {
         break;
+      }
     }
   }
 
@@ -355,8 +422,9 @@ export default class Lexer {
 
     // Slicing the input string is prefered before string concatenation in a
     // loop for performance reasons.
-    while (isIdentifierPart(this.input.charCodeAt(this.index)))
+    while (isIdentifierPart(this.input.charCodeAt(this.index))) {
       this.index++;
+    }
     value = this.encodingMode.fixup(this.getLocation(), this.input.slice(this.tokenStart, this.index));
 
     // Decide on the token type and possibly cast the value.
@@ -404,15 +472,18 @@ export default class Lexer {
 
     for (;;) {
       this.charCode = this.input.charCodeAt(this.index++);
-      if (delimiter === this.charCode) break;
+      if (delimiter === this.charCode) {
+        break;
+      }
       // EOF or `\n` terminates a string literal. If we haven't found the
       // ending delimiter by now, raise an exception.
       if (this.index > this.length || isLineTerminator(this.charCode)) {
         string += this.input.slice(stringStart, this.index - 1);
 
         // Get ready for next time lex() is called
-        if (isLineTerminator(this.charCode))
+        if (isLineTerminator(this.charCode)) {
           this.consumeEOL();
+        }
 
         this.raiseErr(errMessages.unfinishedString, this.input.slice(this.tokenStart, this.index - 1));
       }
@@ -422,8 +493,9 @@ export default class Lexer {
           string += this.encodingMode.fixup(this.getLocation(), beforeEscape);
         }
         const escapeValue = this.readEscapeSequence();
-        if (!this.encodingMode.discardStrings)
+        if (!this.encodingMode.discardStrings) {
           string += escapeValue;
+        }
         stringStart = this.index;
       }
     }
@@ -442,7 +514,9 @@ export default class Lexer {
   scanLongStringLiteral(): Token {
     const string = this.readLongString(false);
     // Fail if it's not a multiline literal.
-    if (false === string) errors.raiseErrForToken(this.token!, errMessages.expected, '[', this.token!.value);
+    if (false === string) {
+      errors.raiseErrForToken(this.token!, errMessages.expected, '[', this.token!.value);
+    }
 
     return this.makeToken(
       TokenType.StringLiteral,
@@ -460,7 +534,7 @@ export default class Lexer {
     const character = this.input.charAt(this.index);
     const next = this.input.charAt(this.index + 1);
 
-    const literal = ('0' === character && ['x', 'X'].includes(next)) ?
+    const literal = ('0' === character && [ 'x', 'X' ].includes(next)) ?
       this.readHexLiteral() : this.readDecLiteral();
 
     return this.makeToken(TokenType.NumericLiteral, literal.value);
@@ -485,10 +559,13 @@ export default class Lexer {
     const digitStart = this.index += 2; // Skip 0x part
 
     // A minimum of one hex digit is required.
-    if (!isHexDigit(this.input.charCodeAt(this.index)))
+    if (!isHexDigit(this.input.charCodeAt(this.index))) {
       this.raiseErr(errMessages.malformedNumber, this.input.slice(this.tokenStart, this.index));
+    }
 
-    while (isHexDigit(this.input.charCodeAt(this.index))) ++this.index;
+    while (isHexDigit(this.input.charCodeAt(this.index))) {
+      ++this.index;
+    }
     // Convert the hexadecimal digit to base 10.
     const digit = parseInt(this.input.slice(digitStart, this.index), 16);
 
@@ -498,7 +575,9 @@ export default class Lexer {
       foundFraction = true;
       fractionStart = ++this.index;
 
-      while (isHexDigit(this.input.charCodeAt(this.index))) ++this.index;
+      while (isHexDigit(this.input.charCodeAt(this.index))) {
+        ++this.index;
+      }
       const fracStr = this.input.slice(fractionStart, this.index);
 
       // Empty fraction parts should default to 0, others should be converted
@@ -509,21 +588,25 @@ export default class Lexer {
 
     // Binary exponents are optional
     let foundBinaryExponent = false;
-    if (['p', 'P'].includes(this.input.charAt(this.index))) {
+    if ([ 'p', 'P' ].includes(this.input.charAt(this.index))) {
       foundBinaryExponent = true;
       ++this.index;
 
       // Sign part is optional and defaults to 1 (positive).
-      if (['+', '-'].includes(this.input.charAt(this.index)))
+      if ([ '+', '-' ].includes(this.input.charAt(this.index))) {
         binarySign = ('+' === this.input.charAt(this.index++)) ? 1 : -1;
+      }
 
       exponentStart = this.index;
 
       // The binary exponent sign requires a decimal digit.
-      if (!isDecDigit(this.input.charCodeAt(this.index)))
+      if (!isDecDigit(this.input.charCodeAt(this.index))) {
         this.raiseErr(errMessages.malformedNumber, this.input.slice(this.tokenStart, this.index));
+      }
 
-      while (isDecDigit(this.input.charCodeAt(this.index))) ++this.index;
+      while (isDecDigit(this.input.charCodeAt(this.index))) {
+        ++this.index;
+      }
       binaryExponent = +this.input.slice(exponentStart, this.index);
 
       // Calculate the binary exponent of the number.
@@ -541,7 +624,9 @@ export default class Lexer {
   // functions.
 
   readDecLiteral() {
-    while (isDecDigit(this.input.charCodeAt(this.index))) ++this.index;
+    while (isDecDigit(this.input.charCodeAt(this.index))) {
+      ++this.index;
+    }
 
     // Fraction part is optional
     let foundFraction = false;
@@ -549,24 +634,30 @@ export default class Lexer {
       foundFraction = true;
       ++this.index;
       // Fraction part defaults to 0
-      while (isDecDigit(this.input.charCodeAt(this.index))) ++this.index;
+      while (isDecDigit(this.input.charCodeAt(this.index))) {
+        ++this.index;
+      }
     }
 
     // Exponent part is optional.
     let foundExponent = false;
-    if (['e', 'E'].includes(this.input.charAt(this.index))) {
+    if ([ 'e', 'E' ].includes(this.input.charAt(this.index))) {
       foundExponent = true;
       ++this.index;
 
       // Sign part is optional.
-      if (['+', '-'].includes(this.input.charAt(this.index)))
+      if ([ '+', '-' ].includes(this.input.charAt(this.index))) {
         ++this.index;
+      }
 
       // An exponent is required to contain at least one decimal digit.
-      if (!isDecDigit(this.input.charCodeAt(this.index)))
+      if (!isDecDigit(this.input.charCodeAt(this.index))) {
         this.raiseErr(errMessages.malformedNumber, this.input.slice(this.tokenStart, this.index));
+      }
 
-      while (isDecDigit(this.input.charCodeAt(this.index))) ++this.index;
+      while (isDecDigit(this.input.charCodeAt(this.index))) {
+        ++this.index;
+      }
     }
 
     return {
@@ -651,13 +742,18 @@ export default class Lexer {
     if (canBeLongComment && character === '[') {
       content = this.readLongString(true);
       // This wasn't a multiline comment after all.
-      if (content === false) content = character;
-      else isLong = true;
+      if (content === false) {
+        content = character;
+      } else {
+        isLong = true;
+      }
     }
     // Scan until next line as long as it's not a multiline comment.
     if (!isLong) {
       while (this.index < this.length) {
-        if (isLineTerminator(this.input.charCodeAt(this.index))) break;
+        if (isLineTerminator(this.input.charCodeAt(this.index))) {
+          break;
+        }
         ++this.index;
       }
       content = this.input.slice(commentStart, this.index);
@@ -668,8 +764,18 @@ export default class Lexer {
     // `Marker`s depend on tokens available in the parser and as comments are
     // intercepted in the lexer all location data is set manually.
     node.loc = {
-      start: { index: this.tokenStart, line: lineComment, column: this.tokenStart - lineStartComment },
-      end: { index: this.index, line: this.line, column: this.index - this.lineStart },
+      start: {
+        index: this.tokenStart,
+        line: lineComment,
+        column: this.tokenStart - lineStartComment,
+        filename: this.filename,
+      },
+      end: {
+        index: this.index,
+        line: this.line,
+        column: this.index - this.lineStart,
+        filename: this.filename,
+      },
     };
     this.comments.push(node);
   }
@@ -687,20 +793,28 @@ export default class Lexer {
     ++this.index; // [
 
     // Calculate the depth of the comment.
-    while ('=' === this.input.charAt(this.index + level)) ++level;
+    while ('=' === this.input.charAt(this.index + level)) {
+      ++level;
+    }
     // Exit, this is not a long string afterall.
-    if ('[' !== this.input.charAt(this.index + level)) return false;
+    if ('[' !== this.input.charAt(this.index + level)) {
+      return false;
+    }
 
     this.index += level + 1;
 
     // If the first character is a newline, ignore it and begin on next line.
-    if (isLineTerminator(this.input.charCodeAt(this.index))) this.consumeEOL();
+    if (isLineTerminator(this.input.charCodeAt(this.index))) {
+      this.consumeEOL();
+    }
 
     const stringStart = this.index;
     while (this.index < this.length) {
       // To keep track of line numbers run the `consumeEOL()` which increments
       // its counter.
-      while (isLineTerminator(this.input.charCodeAt(this.index))) this.consumeEOL();
+      while (isLineTerminator(this.input.charCodeAt(this.index))) {
+        this.consumeEOL();
+      }
 
       character = this.input.charAt(this.index++);
 
@@ -708,10 +822,15 @@ export default class Lexer {
       // if it matches.
       if (']' === character) {
         terminator = true;
-        for (let i = 0; i < level; ++i)
-          if ('=' !== this.input.charAt(this.index + i)) terminator = false;
+        for (let i = 0; i < level; ++i) {
+          if ('=' !== this.input.charAt(this.index + i)) {
+            terminator = false;
+          }
+        }
 
-        if (']' !== this.input.charAt(this.index + level)) terminator = false;
+        if (']' !== this.input.charAt(this.index + level)) {
+          terminator = false;
+        }
       }
 
       // We reached the end of the multiline string. Get out now.
@@ -755,8 +874,11 @@ export default class Lexer {
     this.previousToken = this.token;
 
     // Reset index to the number if provided, in case lookahead already ran forward
-    if (fromIdx === undefined) fromIdx = this.index;
-    else this.index = fromIdx;
+    if (fromIdx === undefined) {
+      fromIdx = this.index;
+    } else {
+      this.index = fromIdx;
+    }
 
     let charCode = this.input.charCodeAt(this.index);
     while (this.index < this.length && !isLineTerminator(charCode)) {
@@ -783,8 +905,11 @@ export default class Lexer {
   // Expect the next token value to match. If not, throw an exception.
 
   expect(value: TokenValue) {
-    if (value === this.token?.value) this.next();
-    else errors.raiseErrForToken(this.token!, errMessages.expected, value, this.token!.value);
+    if (value === this.token?.value) {
+      this.next();
+    } else {
+      errors.raiseErrForToken(this.token!, errMessages.expected, value, this.token!.value);
+    }
   }
 }
 
@@ -815,8 +940,9 @@ function isIdentifierStart(charCode: number): boolean {
     (charCode >= 65 && charCode <= 90) // A-Z
     || (charCode >= 97 && charCode <= 122) // a-z
     || 95 === charCode // _
-    || charCode >= 128) // other Unicode characters
+    || charCode >= 128) { // other Unicode characters
     return true;
+  }
 
   return false;
 }
@@ -826,8 +952,9 @@ export function isIdentifierPart(charCode: number): boolean {
     || (charCode >= 97 && charCode <= 122) // a-z
     || 95 === charCode // _
     || (charCode >= 48 && charCode <= 57) // 0-9
-    || charCode >= 128) // other Unicode characters
+    || charCode >= 128) { // other Unicode characters
     return true;
+  }
 
   return false;
 }

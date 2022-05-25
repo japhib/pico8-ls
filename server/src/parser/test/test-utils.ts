@@ -36,34 +36,51 @@ export function deepEqualsAST(code: string, expected: any) {
 }
 
 export function deepEquals(actual: any, expected: any) {
-  if (!_deepEquals(actual, expected))
+  if (!_deepEquals(actual, expected)) {
     fail(`Objects are not equal!\n\nexpected:\n${util.inspect(expected, { depth: 90 })}\n\nactual:\n${util.inspect(actual, { depth: 90 })}`);
+  }
 }
 
 function _deepEquals(actual: any, expected: any): boolean {
-  if (typeof actual !== typeof expected) return false;
+  if (typeof actual !== typeof expected) {
+    return false;
+  }
 
   if (typeof expected === 'object') {
-    if (Array.isArray(expected)) return _deepEqualsArray(actual, expected);
-    else return _deepEqualsObject(actual, expected);
+    if (Array.isArray(expected)) {
+      return _deepEqualsArray(actual, expected);
+    } else {
+      return _deepEqualsObject(actual, expected);
+    }
   } else {
-    if (actual !== expected) return false;
-    else return true;
+    if (actual !== expected) {
+      return false;
+    } else {
+      return true;
+    }
   }
 }
 
 function _deepEqualsArray(actual: any[], expected: any[]): boolean {
-  if (actual.length !== expected.length) return false;
+  if (actual.length !== expected.length) {
+    return false;
+  }
 
-  for (let i = 0; i < expected.length; i++)
-    if (!_deepEquals(actual[i], expected[i])) return false;
+  for (let i = 0; i < expected.length; i++) {
+    if (!_deepEquals(actual[i], expected[i])) {
+      return false;
+    }
+  }
 
   return true;
 }
 
 function _deepEqualsObject(actual: any, expected: any): boolean {
-  for (const key of Object.keys(expected))
-    if (!_deepEquals(actual[key], expected[key])) return false;
+  for (const key of Object.keys(expected)) {
+    if (!_deepEquals(actual[key], expected[key])) {
+      return false;
+    }
+  }
 
   return true;
 }
@@ -71,8 +88,9 @@ function _deepEqualsObject(actual: any, expected: any): boolean {
 export function locationOfToken(code: string, tokenValue: TokenValue): Bounds {
   const tokens = getLexedTokens(code);
   for (const token of tokens) {
-    if (token.value === tokenValue)
+    if (token.value === tokenValue) {
       return token.bounds;
+    }
   }
   throw new Error(`can't find instance of ${tokenValue} in code!`);
 }
@@ -80,8 +98,9 @@ export function locationOfToken(code: string, tokenValue: TokenValue): Bounds {
 export function tokenAt(code: string, index: number): Token | undefined {
   const tokens = getLexedTokens(code);
   for (const token of tokens) {
-    if (index >= token.bounds.start.index && index <= token.bounds.end.index)
+    if (index >= token.bounds.start.index && index <= token.bounds.end.index) {
       return token;
+    }
   }
   return undefined;
 }

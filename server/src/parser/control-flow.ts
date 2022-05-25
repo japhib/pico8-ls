@@ -44,8 +44,9 @@ export class FlowContext {
   isInLoop(): boolean {
     let i = this.scopes.length;
     while (i --> 0) {
-      if (this.scopes[i].isLoop)
+      if (this.scopes[i].isLoop) {
         return true;
+      }
     }
     return false;
   }
@@ -67,9 +68,11 @@ export class FlowContext {
   popScope() {
     for (let i = 0; i < this.pendingGotos.length; ++i) {
       const theGoto = this.pendingGotos[i];
-      if (theGoto.maxDepth >= this.scopes.length)
-      {if (--theGoto.maxDepth <= 0)
-        errors.raiseErrForToken(theGoto.token, errMessages.labelNotVisible, theGoto.target);}
+      if (theGoto.maxDepth >= this.scopes.length) {
+        if (--theGoto.maxDepth <= 0) {
+          errors.raiseErrForToken(theGoto.token, errMessages.labelNotVisible, theGoto.target);
+        }
+      }
     }
 
     this.scopes.pop();
@@ -81,8 +84,9 @@ export class FlowContext {
     for (let i = 0; i < this.scopes.length; ++i) {
       const scope = this.scopes[i];
       localCounts.push(scope.locals.length);
-      if (Object.prototype.hasOwnProperty.call(scope.labels, target))
+      if (Object.prototype.hasOwnProperty.call(scope.labels, target)) {
         return;
+      }
     }
 
     this.pendingGotos.push({
@@ -105,8 +109,9 @@ export class FlowContext {
         const theGoto = this.pendingGotos[i];
 
         if (theGoto.maxDepth >= this.scopes.length && theGoto.target === name) {
-          if (theGoto.localCounts[this.scopes.length - 1] < scope.locals.length)
+          if (theGoto.localCounts[this.scopes.length - 1] < scope.locals.length) {
             scope.deferredGotos.push(theGoto);
+          }
 
           continue;
         }

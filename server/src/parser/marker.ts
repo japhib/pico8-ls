@@ -5,10 +5,11 @@ export default class Marker {
   loc: Bounds;
 
   constructor(tokenOrBounds: Token | Bounds) {
-    if ((tokenOrBounds as Token).type)
+    if ((tokenOrBounds as Token).type) {
       this.loc = (tokenOrBounds as Token).bounds;
-    else
+    } else {
       this.loc = (tokenOrBounds as Bounds);
+    }
   }
 
   // Complete the location data stored in the `Marker` by adding the location
