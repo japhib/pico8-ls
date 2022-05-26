@@ -24,12 +24,12 @@ such as NeoVim, Atom, etc.
 - Hover support for built-in functions
 - Auto-completion
 - Signature help
+- support for `#include`ing other files
 
 ## Planned features
 
 - Snippets for common idioms (functions, loops, #include, etc.)
 - Hover support/signature help for user-defined functions/variables
-- support for `#include`ing other files
 
 # Changelog
 
