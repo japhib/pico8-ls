@@ -33,6 +33,7 @@ import { ParseError, Warning } from './parser/errors';
 import { Builtins, BuiltinFunctionInfo } from './parser/builtins';
 import { isIdentifierPart } from './parser/lexer';
 import ResolvedFile from './parser/file-resolver';
+import { Include } from './parser/statements';
 
 console.log('PICO-8 Language Server starting.');
 
@@ -83,7 +84,7 @@ connection.onInitialized(() => {
   if (hasWorkspaceFolderCapability) {
     // Register for workspace change folders event -- just logging it out for now
     connection.workspace.onDidChangeWorkspaceFolders(event => {
-      connection.console.log('Workspace folder chagne event received: ' + JSON.stringify(event));
+      connection.console.log('Workspace folder change event received: ' + JSON.stringify(event));
     });
   }
 });
@@ -114,6 +115,8 @@ const documentSymbols: Map<string, DocumentSymbol[]> = new Map<string, DocumentS
 const documentDefUsage: Map<string, DefinitionsUsagesLookup> = new Map<string, DefinitionsUsagesLookup>();
 // Scopes, for lookup up symbols for auto-completion
 const documentScopes: Map<string, DefUsageScope> = new Map<string, DefUsageScope>();
+// Includes, for looking up go-to-definition on the include statements themselves
+const documentIncludes: Map<string, Include[]> = new Map<string, Include[]>();
 
 connection.onDidChangeConfiguration(change => {
   if (hasConfigurationCapability) {
@@ -169,12 +172,22 @@ function toDocumentSymbol(textDocument: TextDocument, symbol: CodeSymbol): Docum
   };
 }
 
+function inThisFile(textDocument: TextDocument, err: ParseError | Warning): boolean {
+  const fileURI = err.bounds.start.filename.fileURL;
+  if (textDocument.uri === fileURI) {
+    return true;
+  } else {
+    console.error(`Filtering warning (ideally this shouldn't happen) because it's for file ${fileURI} instead of file ${textDocument.uri}:`, err);
+    return false;
+  }
+}
+
 function toDiagnostic(textDocument: TextDocument, err: ParseError | Warning): Diagnostic {
   return {
     message: err.message,
     range: {
-      start: textDocument.positionAt(err.bounds.start.index),
-      end: textDocument.positionAt(err.bounds.end.index),
+      start: { line: err.bounds.start.line - 1, character: err.bounds.start.column },
+      end: { line: err.bounds.end.line - 1, character: err.bounds.end.column },
     },
     severity: err.type === 'ParseError' ? DiagnosticSeverity.Error : DiagnosticSeverity.Warning,
     source: 'PICO-8 LS',
@@ -187,19 +200,23 @@ async function validateTextDocument(textDocument: TextDocument) {
     const text = textDocument.getText();
     documentTextCache.set(textDocument.uri, textDocument);
     const parser = new Parser(ResolvedFile.fromFileURL(textDocument.uri), text);
-    const { errors, warnings, symbols, definitionsUsages, scopes } = parser.parse();
+    const { errors, warnings, symbols, definitionsUsages, scopes, includes } = parser.parse();
 
     // Set document info in caches
     const symbolInfo: DocumentSymbol[] = symbols.map(sym => toDocumentSymbol(textDocument, sym));
     documentSymbols.set(textDocument.uri, symbolInfo);
     documentDefUsage.set(textDocument.uri, definitionsUsages);
     documentScopes.set(textDocument.uri, scopes!);
+    documentIncludes.set(textDocument.uri, includes!);
 
     // send errors back to client immediately
     const diagnostics: Diagnostic[] = [];
-    const toDiagnosticBound = toDiagnostic.bind(null, textDocument);
-    diagnostics.push(...errors.map(toDiagnosticBound));
-    diagnostics.push(...warnings.map(toDiagnosticBound));
+    const addDiagnostics = (errs: (ParseError | Warning)[]) => {
+      diagnostics.push(...errs.filter(e => inThisFile(textDocument, e)).map(e => toDiagnostic(textDocument, e)));
+    }
+    addDiagnostics(errors);
+    addDiagnostics(warnings);
+
     connection.sendDiagnostics({ uri: textDocument.uri, diagnostics });
   } catch(e) {
     console.log(e);
@@ -223,9 +240,9 @@ function getDefinitionsUsagesForPosition(params: TextDocumentPositionParams): De
     params.position.character);
 }
 
-function boundsToLocation(uri: DocumentUri, bounds: Bounds): Location {
+function boundsToLocation(bounds: Bounds): Location {
   return {
-    uri,
+    uri: bounds.start.filename.fileURL,
     range: {
       start: { line: bounds.start.line - 1, character: bounds.start.column },
       end: { line: bounds.end.line - 1, character: bounds.end.column },
@@ -234,12 +251,34 @@ function boundsToLocation(uri: DocumentUri, bounds: Bounds): Location {
 }
 
 connection.onDefinition((params: DefinitionParams) => {
+  const includes = documentIncludes.get(params.textDocument.uri);
+  if (includes) {
+    // They use 0-index line numbers, we use 1-index
+    const line = params.position.line + 1;
+    const column = params.position.character;
+
+    for (const include of includes) {
+      const loc = include.stmt.loc!;
+      if (line === loc.start.line && column >= loc.start.column && column <= loc.end.column) {
+        const ret: Location = {
+          uri: include.resolvedFile.fileURL,
+          // We're just linking to the entire included file, so the range is the whole thing
+          range: {
+            start: { line: 0, character: 0 },
+            end: { line: Number.MAX_SAFE_INTEGER, character: 0 },
+          }
+        };
+        return [ ret ];
+      }
+    }
+  }
+
   const result = getDefinitionsUsagesForPosition(params);
   if (!result) {
     return [];
   }
 
-  return result.definitions.map(bounds => boundsToLocation(params.textDocument.uri, bounds));
+  return result.definitions.map(bounds => boundsToLocation(bounds));
 });
 
 connection.onReferences((params: ReferenceParams) => {
@@ -248,7 +287,7 @@ connection.onReferences((params: ReferenceParams) => {
     return [];
   }
 
-  return result.usages.map(bounds => boundsToLocation(params.textDocument.uri, bounds));
+  return result.usages.map(bounds => boundsToLocation(bounds));
 });
 
 connection.onDidChangeWatchedFiles(_change => {
@@ -269,7 +308,8 @@ connection.onCompletion((params: TextDocumentPositionParams): CompletionItem[] =
     line: params.position.line + 1,
     column: params.position.character,
     // index is 0 because it is unused in the lookup (TODO fixme)
-    index: 0 })
+    index: 0,
+    filename: ResolvedFile.fromFileURL(params.textDocument.uri) })
     .allSymbols()
     .map(sym => {
       return { label: sym };

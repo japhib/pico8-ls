@@ -1,6 +1,7 @@
 import { DefinitionsUsagesLookup, DefUsageScope } from './definitions-usages';
 import { ParseError, Warning } from './errors';
 import { Comment_, Expression, Identifier, VarargLiteral, Variable, MemberExpression, getMemberExpressionName } from './expressions';
+import ResolvedFile from './file-resolver';
 import { CodeSymbol } from './symbols';
 import { ASTNode } from './types';
 
@@ -144,6 +145,8 @@ export type Statement = LabelStatement | BreakStatement | GotoStatement | Return
   | WhileStatement | DoStatement | RepeatStatement | LocalStatement | AssignmentStatement | CallStatement
   | FunctionDeclaration | ForNumericStatement | ForGenericStatement | IncludeStatement;
 
+export type Include = { stmt: IncludeStatement, resolvedFile: ResolvedFile };
+
 export type Chunk = {
   type: 'Chunk',
   body: Statement[],
@@ -154,4 +157,5 @@ export type Chunk = {
   definitionsUsages: DefinitionsUsagesLookup,
   comments?: Comment_[],
   globals?: Identifier[],
+  includes?: Include[],
 };

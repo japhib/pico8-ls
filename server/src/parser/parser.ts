@@ -31,6 +31,7 @@ import {
   GeneralIfClause,
   GotoStatement,
   IfStatement,
+  Include,
   IncludeStatement,
   LabelStatement,
   LocalStatement,
@@ -42,6 +43,7 @@ import {
 import { findSymbols } from './symbols';
 import { Token, TokenType } from './tokens';
 import { indexOfObject } from './util';
+import * as path from 'path';
 
 export type Scope = string[];
 
@@ -53,7 +55,11 @@ export default class Parser {
   //
   // The lexer at position 0 (bottom of the stack) is the lexer for the "main"
   // file that we're working with.
-  lexerStack: Lexer[];
+  lexerStack: {
+    lexer: Lexer,
+    includedFrom: ResolvedFile,
+    includeStatement: IncludeStatement | null,
+  }[];
 
   // Locations are stored in a stack as a `Marker` object consisting of both
   // `loc` and `range` data. Once a `Marker` is popped off the stack an end
@@ -75,17 +81,27 @@ export default class Parser {
   // predefined functions. Used for testing, just to make output a bit clearer.
   dontAddGlobalSymbols: boolean;
 
+  includes: Include[] = [];
+
   // eslint-disable-next-line @typescript-eslint/ban-types
   constructor(filename: ResolvedFile, input: string, includeFileResolver?: FileResolver, dontAddGlobalSymbols?: boolean) {
     this.includeFileResolver = includeFileResolver || new RealFileResolver();
     this.dontAddGlobalSymbols = !!dontAddGlobalSymbols;
 
-    this.lexerStack = [ new Lexer(input, filename) ];
+    this.lexerStack = [ {
+      lexer: new Lexer(input, filename),
+      includedFrom: filename,
+      includeStatement: null,
+    } ];
+  }
+
+  isInIncludedFile(): boolean {
+    return this.lexerStack.length > 1;
   }
 
   // Returns the top lexer on the stack
   get lexer(): Lexer {
-    return this.lexerStack[this.lexerStack.length - 1];
+    return this.lexerStack[this.lexerStack.length - 1].lexer;
   }
 
   // Returns the filename of the current lexer
@@ -243,6 +259,7 @@ export default class Parser {
     chunk.definitionsUsages = defUs;
     chunk.warnings = warnings;
     chunk.scopes = scopes;
+    chunk.includes = this.includes;
 
     return chunk;
   }
@@ -266,7 +283,7 @@ export default class Parser {
           const resolvedInclude = resolveIncludeFile(this.filename, statement.filename);
 
           // Check for circular dependencies
-          if (this.lexerStack.some(l => l.filename.equals(resolvedInclude))) {
+          if (this.lexerStack.some(l => l.lexer.filename.equals(resolvedInclude))) {
             this.errors.push(this.getIncludeStatementError(statement, 'Circular #includes detected!'));
           } else {
             // Load the file
@@ -298,6 +315,8 @@ export default class Parser {
           if (this.token.type === TokenType.Newline) {
             // If we got to a newline, consume the newline token and continue parsing.
             this.lexer.next();
+          } else if (isEndOfFile(this.token) && this.isInIncludedFile()) {
+            this.lexerStack.pop();
           } else {
           // Otherwise we got to the end of the block so we should stop.
             break;
@@ -309,7 +328,7 @@ export default class Parser {
         }
       }
 
-      if (isEndOfFile(this.token) && this.lexerStack.length > 1) {
+      if (isEndOfFile(this.token) && this.isInIncludedFile()) {
         this.lexerStack.pop();
       }
     }
@@ -319,18 +338,25 @@ export default class Parser {
   }
 
   includeFile(statement: IncludeStatement, resolvedInclude: ResolvedFile) {
-    console.log(JSON.stringify(resolvedInclude));
     if (!this.includeFileResolver.doesFileExist(resolvedInclude.path)) {
       this.errors.push(this.getIncludeStatementError(statement, 'File does not exist'));
       return;
     }
 
+    if (!this.isInIncludedFile()) {
+      this.includes.push({ stmt: statement, resolvedFile: resolvedInclude });
+    }
+
     const fileContents = this.includeFileResolver.loadFileContents(resolvedInclude.path);
-    console.log(fileContents);
     const newLexer = new Lexer(fileContents, resolvedInclude);
     newLexer.next();
 
-    this.lexerStack.push(newLexer);
+    console.log('pushing this.lexerStack', 'newLexer.filename', newLexer.filename, 'this.filename', this.filename);
+    this.lexerStack.push({
+      lexer: newLexer,
+      includedFrom: this.filename,
+      includeStatement: statement,
+    });
   }
 
   // There are two types of statements, simple and compound.
@@ -838,7 +864,11 @@ export default class Parser {
   }
 
   getIncludeStatementError(statement: IncludeStatement, errorMessage: string) {
-    return new errors.ParseError(`Can't #include ${statement.filename} from ${this.filename.path}: ${errorMessage}`, statement.loc!);
+    const baseIncludeStatement = this.lexerStack.length >= 2 ? this.lexerStack[1].includeStatement! : statement;
+
+    const fromPath: string = this.lexerStack.reverse().map(l => path.basename(l.lexer.filename.path)).join(', which is #included from ');
+
+    return new errors.ParseError(`Can't #include ${statement.filename} from ${fromPath}: ${errorMessage}`, baseIncludeStatement.loc!);
   }
 
   // ### Non-statements
