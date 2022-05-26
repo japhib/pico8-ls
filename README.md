@@ -33,19 +33,24 @@ such as NeoVim, Atom, etc.
 
 # Changelog
 
+## 0.4.0 (5/26/2022)
+
+- Add support for `#include`ing files ([#3](https://github.com/japhib/pico8-ls/issues/3), [#8](https://github.com/japhib/pico8-ls/issues/8))
+- Add support for built-in global symbols like ❎, 🅾️, and ░ ([#9](https://github.com/japhib/pico8-ls/issues/9))
+
 ## 0.3.3 (4/6/2022)
 
-- Add support for [P8SCII](https://pico-8.fandom.com/wiki/P8SCII) control codes in string literals
-- Added built-in t() and time() functions
+- Add support for [P8SCII](https://pico-8.fandom.com/wiki/P8SCII) control codes in string literals ([#7](https://github.com/japhib/pico8-ls/issues/7))
+- Added built-in t() and time() functions ([#2](https://github.com/japhib/pico8-ls/issues/2))
 
 ## 0.3.2 (4/1/2022)
 
-- Fixed plugin not working on Windows because of problem parsing CRLF line endings
+- Fixed plugin not working on Windows because of problem parsing CRLF line endings ([#5](https://github.com/japhib/pico8-ls/issues/5))
 
 ## 0.3.1 (2/22/2022)
 
 - Removed one of the leading 0's from the versioning scheme
-- Added `stat` with docs to the builtins
+- Added `stat` with docs to the builtins ([#1](https://github.com/japhib/pico8-ls/issues/1))
 
 ## 0.0.3 (2/7/2022)
 
