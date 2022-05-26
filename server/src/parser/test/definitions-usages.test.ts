@@ -75,7 +75,7 @@ function do_the_thing() print('hi') end`;
     const { definitionsUsages } = parse(code);
     const { definitions, usages } = definitionsUsages.lookup(2, 1)!;
 
-    deepEquals(definitions, [ { start: { line: 3, column: 9 } } ]);
+    deepEquals(definitions, [{ start: { line: 3, column: 9 } }]);
     deepEquals(usages, [
       // the definition
       { start: { line: 3, column: 9 } },
@@ -101,28 +101,28 @@ function do_the_thing() print('hi') end`;
   describe('warnings', () => {
     it('adds warning for an undefined variable in function call', () => {
       const { warnings } = parse('do_the_thing()');
-      deepEquals(warnings, [ { type: 'Warning', message: 'undefined variable: do_the_thing' } ]);
+      deepEquals(warnings, [{ type: 'Warning', message: 'undefined variable: do_the_thing' }]);
     });
 
     it('adds warning for an undefined variable in assignment', () => {
       const { warnings } = parse('a = b');
-      deepEquals(warnings, [ { type: 'Warning', message: 'undefined variable: b' } ]);
+      deepEquals(warnings, [{ type: 'Warning', message: 'undefined variable: b' }]);
     });
 
     it('adds warning for an undefined variable in assignment to member expression', () => {
       const { warnings } = parse('a = {} a.member = b');
-      deepEquals(warnings, [ { type: 'Warning', message: 'undefined variable: b' } ]);
+      deepEquals(warnings, [{ type: 'Warning', message: 'undefined variable: b' }]);
     });
 
     // TODO add these back in when bugs are fixed and unused-local warning is re-enabled
     it.skip('adds warning for an unused parameter', () => {
       const { warnings } = parse('function somefn(a) print("hi") end');
-      deepEquals(warnings, [ { type: 'Warning', message: 'a is defined but not used' } ]);
+      deepEquals(warnings, [{ type: 'Warning', message: 'a is defined but not used' }]);
     });
 
     it.skip('adds warning for an unused local', () => {
       const { warnings } = parse('function somefn() local a = 1 end');
-      deepEquals(warnings, [ { type: 'Warning', message: 'a is defined but not used' } ]);
+      deepEquals(warnings, [{ type: 'Warning', message: 'a is defined but not used' }]);
     });
 
     it('adds warning for an undefined variable in assignment', () => {

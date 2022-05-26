@@ -9,17 +9,17 @@ describe('Parser', () => {
       {
         type: 'AssignmentStatement',
         operator: '=',
-        variables: [ {
+        variables: [{
           type: 'Identifier',
           name: 'i',
           isLocal: false,
           loc: bounds(1, 0, 1, 1),
-        } ],
-        init: [ {
+        }],
+        init: [{
           type: 'NumericLiteral',
           value: 1,
           loc: bounds(1, 4, 1, 5),
-        } ],
+        }],
         loc: bounds(1, 0, 1, 5),
       },
     ]);
@@ -27,7 +27,7 @@ describe('Parser', () => {
 
   it('parses basic function declaration', () => {
     const { body } = parse('function f(x)\nreturn x + 1\nend');
-    deepEquals(body, [ {
+    deepEquals(body, [{
       type: 'FunctionDeclaration',
       isLocal: false,
       identifier: {
@@ -35,27 +35,27 @@ describe('Parser', () => {
         name: 'f',
         loc: bounds(1, 9, 1, 10),
       },
-      parameters: [ {
+      parameters: [{
         type: 'Identifier',
         name: 'x',
         loc: bounds(1, 11, 1, 12),
-      } ],
-      body: [ {
+      }],
+      body: [{
         type: 'ReturnStatement',
-        arguments: [ {
+        arguments: [{
           type: 'BinaryExpression',
           operator: '+',
           left: { type: 'Identifier', name: 'x', loc: bounds(2, 7, 2, 8) },
           right: { type: 'NumericLiteral', value: 1, loc: bounds(2, 11, 2, 12) },
           loc: bounds(2, 7, 2, 12),
-        } ],
+        }],
         loc: bounds(2, 0, 2, 12),
-      } ],
-    } ]);
+      }],
+    }]);
   });
 
   it('parses function declaration with multiple args', () => {
-    deepEqualsAST('function fn(x, y, z) return end', [ {
+    deepEqualsAST('function fn(x, y, z) return end', [{
       type: 'FunctionDeclaration',
       isLocal: false,
       identifier: { name: 'fn' },
@@ -64,35 +64,35 @@ describe('Parser', () => {
         { type: 'Identifier', name: 'y' },
         { type: 'Identifier', name: 'z' },
       ],
-      body: [ {
+      body: [{
         type: 'ReturnStatement',
         arguments: [],
-      } ],
-    } ]);
+      }],
+    }]);
   });
 
   it('parses call statement', () => {
-    deepEqualsAST('print("hi")', [ {
+    deepEqualsAST('print("hi")', [{
       type: 'CallStatement',
       expression: {
         type: 'CallExpression',
         base: { type: 'Identifier', name: 'print' },
-        arguments: [ { type: 'StringLiteral', value: 'hi' } ],
+        arguments: [{ type: 'StringLiteral', value: 'hi' }],
       },
-    } ]);
+    }]);
   });
 
   it('parses if statement', () => {
-    const printHi = [ {
+    const printHi = [{
       type: 'CallStatement',
       expression: {
         type: 'CallExpression',
         base: { type: 'Identifier', name: 'print' },
-        arguments: [ { type: 'StringLiteral', value: 'hi' } ],
+        arguments: [{ type: 'StringLiteral', value: 'hi' }],
       },
-    } ];
+    }];
 
-    deepEqualsAST('if false then print("hi") elseif false then print("hi") else print("hi") end', [ {
+    deepEqualsAST('if false then print("hi") elseif false then print("hi") else print("hi") end', [{
       type: 'IfStatement',
       clauses: [
         {
@@ -110,39 +110,39 @@ describe('Parser', () => {
           body: printHi,
         },
       ],
-    } ]);
+    }]);
   });
 
   it('parses PICO-8 if statement', () => {
     deepEqualsAST('if (false) print("hi")\ni = 1', [
       {
         type: 'IfStatement',
-        clauses: [ {
+        clauses: [{
           type: 'IfClause',
           condition: { type: 'BooleanLiteral', value: false },
-          body: [ {
+          body: [{
             type: 'CallStatement',
             expression: {
               type: 'CallExpression',
               base: { type: 'Identifier', name: 'print' },
-              arguments: [ { type: 'StringLiteral', value: 'hi' } ],
+              arguments: [{ type: 'StringLiteral', value: 'hi' }],
             },
-          } ],
+          }],
         },
         ],
       },
       {
         type: 'AssignmentStatement',
         operator: '=',
-        variables: [ {
+        variables: [{
           type: 'Identifier',
           name: 'i',
           isLocal: false,
-        } ],
-        init: [ {
+        }],
+        init: [{
           type: 'NumericLiteral',
           value: 1,
-        } ],
+        }],
       },
     ]);
   });
@@ -152,24 +152,24 @@ describe('Parser', () => {
     deepEqualsAST('if (false) return\ni += 1', [
       {
         type: 'IfStatement',
-        clauses: [ {
+        clauses: [{
           type: 'IfClause',
           condition: { type: 'BooleanLiteral', value: false },
-          body: [ { type: 'ReturnStatement', arguments: [] } ],
-        } ],
+          body: [{ type: 'ReturnStatement', arguments: [] }],
+        }],
       },
       {
         type: 'AssignmentStatement',
         operator: '+=',
-        variables: [ {
+        variables: [{
           type: 'Identifier',
           name: 'i',
           isLocal: false,
-        } ],
-        init: [ {
+        }],
+        init: [{
           type: 'NumericLiteral',
           value: 1,
-        } ],
+        }],
       },
     ]);
   });
@@ -183,7 +183,7 @@ describe('Parser', () => {
       { type: 'CallStatement', expression: {
         type: 'CallExpression',
         base: { type: 'Identifier', name: '?' },
-        arguments: [ { type: 'StringLiteral', value: 'hi' } ],
+        arguments: [{ type: 'StringLiteral', value: 'hi' }],
       } },
     ]);
   });
@@ -200,14 +200,14 @@ a = a ^ b  -- exponentiation`;
     const { body, errors } = parse(code);
     deepEquals(errors, []);
     deepEquals(body, [
-      { type: 'AssignmentStatement', init: [ { type: 'UnaryExpression', operator: '-' } ] },
-      { type: 'AssignmentStatement', init: [ { type: 'BinaryExpression', operator: '+' } ] },
-      { type: 'AssignmentStatement', init: [ { type: 'BinaryExpression', operator: '-' } ] },
-      { type: 'AssignmentStatement', init: [ { type: 'BinaryExpression', operator: '*' } ] },
-      { type: 'AssignmentStatement', init: [ { type: 'BinaryExpression', operator: '/' } ] },
-      { type: 'AssignmentStatement', init: [ { type: 'BinaryExpression', operator: '\\' } ] },
-      { type: 'AssignmentStatement', init: [ { type: 'BinaryExpression', operator: '%' } ] },
-      { type: 'AssignmentStatement', init: [ { type: 'BinaryExpression', operator: '^' } ] },
+      { type: 'AssignmentStatement', init: [{ type: 'UnaryExpression', operator: '-' }] },
+      { type: 'AssignmentStatement', init: [{ type: 'BinaryExpression', operator: '+' }] },
+      { type: 'AssignmentStatement', init: [{ type: 'BinaryExpression', operator: '-' }] },
+      { type: 'AssignmentStatement', init: [{ type: 'BinaryExpression', operator: '*' }] },
+      { type: 'AssignmentStatement', init: [{ type: 'BinaryExpression', operator: '/' }] },
+      { type: 'AssignmentStatement', init: [{ type: 'BinaryExpression', operator: '\\' }] },
+      { type: 'AssignmentStatement', init: [{ type: 'BinaryExpression', operator: '%' }] },
+      { type: 'AssignmentStatement', init: [{ type: 'BinaryExpression', operator: '^' }] },
     ]);
   });
 
@@ -225,15 +225,15 @@ a = a >>< b -- rotate right`;
     const { body, errors } = parse(code);
     deepEquals(errors, []);
     deepEquals(body, [
-      { type: 'AssignmentStatement', init: [ { type: 'UnaryExpression', operator: '~' } ] },
-      { type: 'AssignmentStatement', init: [ { type: 'BinaryExpression', operator: '|' } ] },
-      { type: 'AssignmentStatement', init: [ { type: 'BinaryExpression', operator: '&' } ] },
-      { type: 'AssignmentStatement', init: [ { type: 'BinaryExpression', operator: '^^' } ] },
-      { type: 'AssignmentStatement', init: [ { type: 'BinaryExpression', operator: '<<' } ] },
-      { type: 'AssignmentStatement', init: [ { type: 'BinaryExpression', operator: '>>' } ] },
-      { type: 'AssignmentStatement', init: [ { type: 'BinaryExpression', operator: '>>>' } ] },
-      { type: 'AssignmentStatement', init: [ { type: 'BinaryExpression', operator: '<<>' } ] },
-      { type: 'AssignmentStatement', init: [ { type: 'BinaryExpression', operator: '>><' } ] },
+      { type: 'AssignmentStatement', init: [{ type: 'UnaryExpression', operator: '~' }] },
+      { type: 'AssignmentStatement', init: [{ type: 'BinaryExpression', operator: '|' }] },
+      { type: 'AssignmentStatement', init: [{ type: 'BinaryExpression', operator: '&' }] },
+      { type: 'AssignmentStatement', init: [{ type: 'BinaryExpression', operator: '^^' }] },
+      { type: 'AssignmentStatement', init: [{ type: 'BinaryExpression', operator: '<<' }] },
+      { type: 'AssignmentStatement', init: [{ type: 'BinaryExpression', operator: '>>' }] },
+      { type: 'AssignmentStatement', init: [{ type: 'BinaryExpression', operator: '>>>' }] },
+      { type: 'AssignmentStatement', init: [{ type: 'BinaryExpression', operator: '<<>' }] },
+      { type: 'AssignmentStatement', init: [{ type: 'BinaryExpression', operator: '>><' }] },
     ]);
   });
 
@@ -245,9 +245,9 @@ a = $a -- peek4()`;
     const { body, errors } = parse(code);
     deepEquals(errors, []);
     deepEquals(body, [
-      { type: 'AssignmentStatement', init: [ { type: 'UnaryExpression', operator: '@' } ] },
-      { type: 'AssignmentStatement', init: [ { type: 'UnaryExpression', operator: '%' } ] },
-      { type: 'AssignmentStatement', init: [ { type: 'UnaryExpression', operator: '$' } ] },
+      { type: 'AssignmentStatement', init: [{ type: 'UnaryExpression', operator: '@' }] },
+      { type: 'AssignmentStatement', init: [{ type: 'UnaryExpression', operator: '%' }] },
+      { type: 'AssignmentStatement', init: [{ type: 'UnaryExpression', operator: '$' }] },
     ]);
   });
 
@@ -267,17 +267,17 @@ a = a .. b`;
     const { body, errors } = parse(code);
     deepEquals(errors, []);
     deepEquals(body, [
-      { type: 'AssignmentStatement', init: [ { type: 'BinaryExpression', operator: '<' } ] },
-      { type: 'AssignmentStatement', init: [ { type: 'BinaryExpression', operator: '>' } ] },
-      { type: 'AssignmentStatement', init: [ { type: 'BinaryExpression', operator: '<=' } ] },
-      { type: 'AssignmentStatement', init: [ { type: 'BinaryExpression', operator: '>=' } ] },
-      { type: 'AssignmentStatement', init: [ { type: 'BinaryExpression', operator: '==' } ] },
-      { type: 'AssignmentStatement', init: [ { type: 'BinaryExpression', operator: '~=' } ] },
-      { type: 'AssignmentStatement', init: [ { type: 'BinaryExpression', operator: '!=' } ] },
-      { type: 'AssignmentStatement', init: [ { type: 'LogicalExpression', operator: 'and' } ] },
-      { type: 'AssignmentStatement', init: [ { type: 'LogicalExpression', operator: 'or' } ] },
-      { type: 'AssignmentStatement', init: [ { type: 'UnaryExpression', operator: 'not' } ] },
-      { type: 'AssignmentStatement', init: [ { type: 'BinaryExpression', operator: '..' } ] },
+      { type: 'AssignmentStatement', init: [{ type: 'BinaryExpression', operator: '<' }] },
+      { type: 'AssignmentStatement', init: [{ type: 'BinaryExpression', operator: '>' }] },
+      { type: 'AssignmentStatement', init: [{ type: 'BinaryExpression', operator: '<=' }] },
+      { type: 'AssignmentStatement', init: [{ type: 'BinaryExpression', operator: '>=' }] },
+      { type: 'AssignmentStatement', init: [{ type: 'BinaryExpression', operator: '==' }] },
+      { type: 'AssignmentStatement', init: [{ type: 'BinaryExpression', operator: '~=' }] },
+      { type: 'AssignmentStatement', init: [{ type: 'BinaryExpression', operator: '!=' }] },
+      { type: 'AssignmentStatement', init: [{ type: 'LogicalExpression', operator: 'and' }] },
+      { type: 'AssignmentStatement', init: [{ type: 'LogicalExpression', operator: 'or' }] },
+      { type: 'AssignmentStatement', init: [{ type: 'UnaryExpression', operator: 'not' }] },
+      { type: 'AssignmentStatement', init: [{ type: 'BinaryExpression', operator: '..' }] },
     ]);
   });
 
@@ -335,7 +335,7 @@ a >><= b`;
           indexer: '.',
           identifier: { type: 'Identifier', name: 'field' },
         },
-      ], init: [ { type: 'StringLiteral', value: 'blah' } ] },
+      ], init: [{ type: 'StringLiteral', value: 'blah' }] },
     ]);
   });
 
@@ -357,7 +357,7 @@ __gfx__
   describe('error handling', () => {
     it('handles malformed function definition', () => {
       const { errors } = parse('function[] end');
-      deepEquals(errors, [ { message: '<name> expected near \'[\'' } ]);
+      deepEquals(errors, [{ message: '<name> expected near \'[\'' }]);
     });
 
     it('if an error occurs inside a block, it breaks out of the block and continues parsing', () => {
@@ -369,8 +369,8 @@ __gfx__
       i = 2
       `);
 
-      deepEquals(errors, [ { message: 'assignment operator expected near \'blah\'' } ]);
-      deepEquals(body, [ { type: 'AssignmentStatement' }, { type: 'FunctionDeclaration' }, { type: 'AssignmentStatement' } ]);
+      deepEquals(errors, [{ message: 'assignment operator expected near \'blah\'' }]);
+      deepEquals(body, [{ type: 'AssignmentStatement' }, { type: 'FunctionDeclaration' }, { type: 'AssignmentStatement' }]);
     });
 
     it('finds multiple errors on different lines in a block', () => {
@@ -404,13 +404,13 @@ __gfx__
     it('parses correct include statement', () => {
       const { body, errors } = parse('#include other_file.lua');
       deepEquals(errors, []);
-      deepEquals(body, [ { type: 'IncludeStatement', filename: 'other_file.lua' } ]);
+      deepEquals(body, [{ type: 'IncludeStatement', filename: 'other_file.lua' }]);
     });
 
     it('parses correct include statement', () => {
       const { body, errors } = parse('#include other_file.lua');
       deepEquals(errors, []);
-      deepEquals(body, [ { type: 'IncludeStatement', filename: 'other_file.lua' } ]);
+      deepEquals(body, [{ type: 'IncludeStatement', filename: 'other_file.lua' }]);
     });
   });
 });

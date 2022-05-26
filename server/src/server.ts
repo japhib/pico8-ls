@@ -213,7 +213,7 @@ async function validateTextDocument(textDocument: TextDocument) {
     const diagnostics: Diagnostic[] = [];
     const addDiagnostics = (errs: (ParseError | Warning)[]) => {
       diagnostics.push(...errs.filter(e => inThisFile(textDocument, e)).map(e => toDiagnostic(textDocument, e)));
-    }
+    };
     addDiagnostics(errors);
     addDiagnostics(warnings);
 
@@ -266,7 +266,7 @@ connection.onDefinition((params: DefinitionParams) => {
           range: {
             start: { line: 0, character: 0 },
             end: { line: Number.MAX_SAFE_INTEGER, character: 0 },
-          }
+          },
         };
         return [ ret ];
       }

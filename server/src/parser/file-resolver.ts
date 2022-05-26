@@ -46,12 +46,17 @@ export function resolveIncludeFile(currFile: ResolvedFile, includeFilename: stri
 
 export interface FileResolver {
   doesFileExist: (filepath: string) => boolean;
+  isFile: (filepath: string) => boolean;
   loadFileContents: (filepath: string) => string;
 }
 
 export class RealFileResolver implements FileResolver {
   doesFileExist(filepath: string): boolean {
     return fs.existsSync(filepath);
+  }
+
+  isFile(filepath: string): boolean {
+    return fs.lstatSync(filepath).isFile();
   }
 
   loadFileContents(filepath: string): string {

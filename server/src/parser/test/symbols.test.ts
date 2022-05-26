@@ -53,7 +53,7 @@ describe('SymbolFinder', () => {
           { name: 'x', type: CodeSymbolType.LocalVariable },
           {
             name: 'nested', type: CodeSymbolType.Function,
-            children: [ { name: 'y', type: CodeSymbolType.LocalVariable } ],
+            children: [{ name: 'y', type: CodeSymbolType.LocalVariable }],
           },
         ],
       },
@@ -62,11 +62,11 @@ describe('SymbolFinder', () => {
 
   it('defines a symbol for a top-level global variable', () => {
     const { symbols } = parse('i = 1');
-    deepEquals(symbols, [ {
+    deepEquals(symbols, [{
       name: 'i',
       type: CodeSymbolType.GlobalVariable,
       parentName: undefined,
-    } ]);
+    }]);
   });
 
   it('repeats symbol for global variable re-assigned later', () => {
@@ -82,7 +82,7 @@ describe('SymbolFinder', () => {
 
   it('defines a symbol for a top-level local variable', () => {
     const { symbols } = parse('local i = 1');
-    deepEquals(symbols, [ { name: 'i', type: CodeSymbolType.LocalVariable, children: [] } ]);
+    deepEquals(symbols, [{ name: 'i', type: CodeSymbolType.LocalVariable, children: [] }]);
   });
 
   it('repeats symbol for local variable re-assigned later', () => {
@@ -224,7 +224,7 @@ describe('SymbolFinder', () => {
       return x
     end`);
 
-    deepEquals(symbols, [ { name: 'somefn', type: CodeSymbolType.Function } ]);
+    deepEquals(symbols, [{ name: 'somefn', type: CodeSymbolType.Function }]);
   });
 
   it('provides a symbol for a table member', () => {
@@ -272,9 +272,9 @@ describe('SymbolFinder', () => {
     end
     `);
     deepEquals(symbols,
-      [ { name: 'particles.spawn', type: CodeSymbolType.Function, children: [
+      [{ name: 'particles.spawn', type: CodeSymbolType.Function, children: [
         { name: 'props', type: CodeSymbolType.LocalVariable },
-      ] } ]);
+      ] }]);
   });
 
   it('handles member expressions appropriately', () => {

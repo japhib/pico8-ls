@@ -57,7 +57,8 @@ export default class Parser {
   // file that we're working with.
   lexerStack: {
     lexer: Lexer,
-    includedFrom: ResolvedFile,
+    // The IncludeStatement #including the file that prompted the creation of
+    // this lexer.
     includeStatement: IncludeStatement | null,
   }[];
 
@@ -68,7 +69,7 @@ export default class Parser {
 
   // Store each block scope as a an array of identifier names. Each scope is
   // stored in an FILO-array.
-  scopes: Scope[] = [ [] ];
+  scopes: Scope[] = [[]];
   // The current scope index
   scopeDepth = 0;
   // A list of all global identifier nodes.
@@ -88,11 +89,10 @@ export default class Parser {
     this.includeFileResolver = includeFileResolver || new RealFileResolver();
     this.dontAddGlobalSymbols = !!dontAddGlobalSymbols;
 
-    this.lexerStack = [ {
+    this.lexerStack = [{
       lexer: new Lexer(input, filename),
-      includedFrom: filename,
       includeStatement: null,
-    } ];
+    }];
   }
 
   isInIncludedFile(): boolean {
@@ -343,6 +343,11 @@ export default class Parser {
       return;
     }
 
+    if (!this.includeFileResolver.isFile(resolvedInclude.path)) {
+      this.errors.push(this.getIncludeStatementError(statement, 'File cannot be read (is it a directory?)'));
+      return;
+    }
+
     if (!this.isInIncludedFile()) {
       this.includes.push({ stmt: statement, resolvedFile: resolvedInclude });
     }
@@ -351,10 +356,8 @@ export default class Parser {
     const newLexer = new Lexer(fileContents, resolvedInclude);
     newLexer.next();
 
-    console.log('pushing this.lexerStack', 'newLexer.filename', newLexer.filename, 'this.filename', this.filename);
     this.lexerStack.push({
       lexer: newLexer,
-      includedFrom: this.filename,
       includeStatement: statement,
     });
   }

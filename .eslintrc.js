@@ -78,9 +78,9 @@ module.exports = {
     'no-constant-condition': 'off',
     'no-case-declarations': 'off',
     'object-curly-spacing': [ 'error', 'always' ],
-    'array-bracket-spacing': [ 'error', 'always' ],
-    'no-multiple-empty-lines': [ 'error', { max: 1 } ],
+    'array-bracket-spacing': [ 'error', 'always', { 'objectsInArrays': false, 'arraysInArrays': false }],
+    'no-multiple-empty-lines': [ 'error', { max: 1 }],
     'eol-last': [ 'error', 'always' ],
-    'comma-spacing': [ 'error', { 'before': false, 'after': true } ],
+    'comma-spacing': [ 'error', { 'before': false, 'after': true }],
   },
 };
