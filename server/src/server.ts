@@ -1,28 +1,8 @@
 import {
-  CompletionItem,
-  CompletionItemTag,
-  createConnection,
-  DefinitionParams,
-  Diagnostic,
-  DiagnosticSeverity,
-  DidChangeConfigurationNotification,
-  DocumentSymbol,
-  DocumentSymbolParams,
-  DocumentUri,
-  HoverParams,
-  InitializeParams,
-  InitializeResult,
-  Location,
-  Position,
-  ProposedFeatures,
-  Range,
-  ReferenceParams,
-  SignatureHelpParams,
-  SignatureInformation,
-  SymbolKind,
-  TextDocumentPositionParams,
-  TextDocuments,
-  TextDocumentSyncKind,
+  CompletionItem, CompletionItemTag, createConnection, DefinitionParams, Diagnostic, DiagnosticSeverity, DidChangeConfigurationNotification,
+  DocumentSymbol, DocumentSymbolParams, DocumentUri, HoverParams, InitializeParams, InitializeResult, Location, Position, ProposedFeatures,
+  Range, ReferenceParams, SignatureHelpParams, SignatureInformation, SymbolKind, TextDocumentPositionParams, TextDocuments, TextDocumentSyncKind,
+  WorkspaceFolder,
 } from 'vscode-languageserver/node';
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import Parser from './parser/parser';
@@ -34,6 +14,9 @@ import { Builtins, BuiltinFunctionInfo } from './parser/builtins';
 import { isIdentifierPart } from './parser/lexer';
 import ResolvedFile from './parser/file-resolver';
 import { Include } from './parser/statements';
+import * as url from 'url';
+import * as fs from 'fs';
+import * as path from 'path';
 
 console.log('PICO-8 Language Server starting.');
 
@@ -87,7 +70,65 @@ connection.onInitialized(() => {
       connection.console.log('Workspace folder change event received: ' + JSON.stringify(event));
     });
   }
+
+  connection.workspace.getWorkspaceFolders().then((workspaceFolders: WorkspaceFolder[] | null) => {
+    if (!workspaceFolders) {
+      return;
+    }
+
+    Promise.all(workspaceFolders.map(scanWorkspaceFolder)).catch(e => {
+      console.log("Error scanning workspace folders", e);
+    });
+  }).catch(reason => {
+    console.log('Failed to get workspace folder(s):', reason);
+  })
 });
+
+async function scanWorkspaceFolder(workspaceFolder: WorkspaceFolder) {
+  const folderPath = url.fileURLToPath(workspaceFolder.uri);
+
+  // List all files in directory & subdirs
+  const allFiles = await getFilesRecursive(folderPath);
+
+  // Load contents of each file & transform to TextDocument type
+  const textDocuments = await Promise.all(allFiles.map(createTextDocument));
+
+  // Parse each file
+  await Promise.all(textDocuments.map(validateTextDocument));
+
+  // Build include tree
+}
+
+async function getFilesRecursive(folderPath: string): Promise<string[]> {
+  const p8andLuaFiles: string[] = [];
+  try {
+    const files = await fs.promises.readdir(folderPath);
+
+    await Promise.all(files.map(file => new Promise(async resolve => {
+      const filePath = path.join(folderPath, file);
+
+      const stat = await fs.promises.lstat(filePath);
+      if (stat.isDirectory() && !file.startsWith('.')) {
+        p8andLuaFiles.push(...(await getFilesRecursive(filePath)));
+      } else if (stat.isFile() && filePath.match(/\.(p8|lua)$/i)) {
+        p8andLuaFiles.push(filePath);
+      }
+      resolve(undefined);
+    })));
+
+  } catch (e) {
+    console.error('Error when scanning workspace folder ' + folderPath, e);
+  }
+
+  return p8andLuaFiles;
+}
+
+async function createTextDocument(filePath: string) {
+  const uri = url.pathToFileURL(filePath).toString();
+  const languageId = filePath.endsWith('p8') ? 'pico-8' : 'pico-8-lua';
+  const content = (await fs.promises.readFile(filePath)).toString();
+  return TextDocument.create(uri, languageId, 0, content);
+}
 
 interface DocumentSettings {
   maxNumberOfProblems: number;
@@ -177,7 +218,7 @@ function inThisFile(textDocument: TextDocument, err: ParseError | Warning): bool
   if (textDocument.uri === fileURI) {
     return true;
   } else {
-    console.error(`Filtering warning (ideally this shouldn't happen) because it's for file ${fileURI} instead of file ${textDocument.uri}:`, err);
+    // console.error(`Filtering warning (ideally this shouldn't happen) because it's for file ${fileURI} instead of file ${textDocument.uri}:`, err);
     return false;
   }
 }

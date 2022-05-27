@@ -803,6 +803,8 @@ export const Builtins: { [key: string]: BuiltinFunctionInfo } = {
     desc: 'Returns the amount of time since PICO-8 was last started, as a (fractional) number of seconds.',
   },
 };
+// Add 'mapdraw' alias for older version of 'map' function
+Builtins.mapdraw = Builtins.map;
 
 // The symbols you get by typing shift+A, etc all the way to shift+Z
 export const BuiltinConstants: Set<string> = new Set<string>([
