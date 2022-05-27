@@ -36,7 +36,7 @@ export abstract class ASTVisitor<T> {
 
   constructor() {}
 
-  topScope(idx?: number) {
+  topScope(idx?: number): T {
     let offset = 1;
     if (idx) {
       offset += idx;

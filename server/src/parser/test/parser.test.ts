@@ -1,6 +1,6 @@
 import { fail, strictEqual as eq } from 'assert';
 import { logObj } from '../util';
-import { bounds, deepEquals, deepEqualsAST, getTestFileContents, parse } from './test-utils';
+import { bounds, deepEquals, deepEqualsAST, getTestFileContents, MockFileResolver, parse } from './test-utils';
 
 describe('Parser', () => {
   it('parses basic assignment statement', () => {
@@ -402,15 +402,46 @@ __gfx__
 
   describe('include statement', () => {
     it('parses correct include statement', () => {
-      const { body, errors } = parse('#include other_file.lua');
+      const fileResolver = new MockFileResolver();
+      fileResolver.loadFileContents = () => 'local a = 1';
+
+      const { body, errors } = parse('#include other_file.lua', false, fileResolver);
       deepEquals(errors, []);
-      deepEquals(body, [{ type: 'IncludeStatement', filename: 'other_file.lua' }]);
+      deepEquals(body, [{ type: 'LocalStatement' }]);
     });
 
-    it('parses correct include statement', () => {
-      const { body, errors } = parse('#include other_file.lua');
+    it('returns error when include statement refers to a file that doesn\'t exist', () => {
+      const fileResolver = new MockFileResolver();
+      fileResolver.doesFileExist = () => false;
+
+      const { errors } = parse('#include other_file.lua', false, fileResolver);
+      deepEquals(errors, [{ type: 'ParseError' }]);
+    });
+
+    it('returns error when include statement refers to a directory', () => {
+      const fileResolver = new MockFileResolver();
+      fileResolver.isFile = () => false;
+
+      const { errors } = parse('#include other_file.lua', false, fileResolver);
+      deepEquals(errors, [{ type: 'ParseError' }]);
+    });
+
+    it('handles an include file that contains a partial statement', () => {
+      const fileResolver = new MockFileResolver();
+      fileResolver.loadFileContents = () => 'a';
+
+      const { body, errors } = parse('#include other_file.lua\n= 1', false, fileResolver);
       deepEquals(errors, []);
-      deepEquals(body, [{ type: 'IncludeStatement', filename: 'other_file.lua' }]);
+      deepEquals(body, [{ type: 'AssignmentStatement' }]);
+    });
+
+    it('contains no warnings for symbols defined in included files', () => {
+      const fileResolver = new MockFileResolver();
+      fileResolver.loadFileContents = () => 'local a = 5';
+
+      const { errors, warnings } = parse('#include other_file.lua \n print(a)', false, fileResolver);
+      deepEquals(errors, []);
+      deepEquals(warnings, []);
     });
   });
 });

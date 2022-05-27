@@ -99,7 +99,7 @@
 		]
 	},
 	"scripts": {
-		"vscode:prepublish": "npm run compile",
+		"vscode:prepublish": "npm run compile && cd server && npm test && cd ..",
 		"clean": "rm -rf client/out client/out-min server/out server/out-min",
 		"clean-deps": "rm -rf node_modules client/node_modules server/node_modules && npm install",
 		"compile": "npm run esbuild-client && npm run esbuild-server",

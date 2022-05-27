@@ -68,7 +68,7 @@ export default class Parser {
   locations: Marker[] = [];
 
   // Store each block scope as a an array of identifier names. Each scope is
-  // stored in an FILO-array.
+  // stored in an stack.
   scopes: Scope[] = [[]];
   // The current scope index
   scopeDepth = 0;
@@ -115,6 +115,14 @@ export default class Parser {
 
   get previousToken(): Token {
     return this.lexer.previousToken!;
+  }
+
+  lexerNext(): void {
+    this.lexer.next();
+
+    if (isEndOfFile(this.token) && this.isInIncludedFile()) {
+      this.lexerStack.pop();
+    }
   }
 
   parse(): Chunk {
@@ -237,7 +245,7 @@ export default class Parser {
   //     chunk ::= block
 
   parseChunk(): Chunk {
-    this.lexer.next();
+    this.lexerNext();
     this.markLocation();
     this.createScope();
     const flowContext = new FlowContext();
@@ -307,14 +315,14 @@ export default class Parser {
           // Discard tokens until we get to the end of the line or end of the block
           this.lexer.newlineSignificant = true;
           while (this.token.type !== TokenType.Newline && !endingFunction(this.token)) {
-            this.lexer.next();
+            this.lexerNext();
           }
 
           this.lexer.newlineSignificant = false;
 
           if (this.token.type === TokenType.Newline) {
             // If we got to a newline, consume the newline token and continue parsing.
-            this.lexer.next();
+            this.lexerNext();
           } else if (isEndOfFile(this.token) && this.isInIncludedFile()) {
             this.lexerStack.pop();
           } else {
@@ -387,22 +395,22 @@ export default class Parser {
 
     if (this.token.type === TokenType.Keyword) {
       switch (this.token.value) {
-      case 'local':    this.lexer.next(); return this.parseLocalStatement(flowContext);
-      case 'if':       this.lexer.next(); return this.parseIfStatement(flowContext);
-      case 'return':   this.lexer.next(); return this.parseReturnStatement(flowContext);
-      case 'function': this.lexer.next();
+      case 'local':    this.lexerNext(); return this.parseLocalStatement(flowContext);
+      case 'if':       this.lexerNext(); return this.parseIfStatement(flowContext);
+      case 'return':   this.lexerNext(); return this.parseReturnStatement(flowContext);
+      case 'function': this.lexerNext();
         const name = this.parseFunctionName();
         return this.parseFunctionDeclaration(name, false);
-      case 'while':    this.lexer.next(); return this.parseWhileStatement(flowContext);
-      case 'for':      this.lexer.next(); return this.parseForStatement(flowContext);
-      case 'repeat':   this.lexer.next(); return this.parseRepeatStatement(flowContext);
-      case 'break':    this.lexer.next();
+      case 'while':    this.lexerNext(); return this.parseWhileStatement(flowContext);
+      case 'for':      this.lexerNext(); return this.parseForStatement(flowContext);
+      case 'repeat':   this.lexerNext(); return this.parseRepeatStatement(flowContext);
+      case 'break':    this.lexerNext();
         if (!flowContext.isInLoop()) {
           raiseErrForToken(this.token, errMessages.noLoopToBreak, this.token.value);
         }
         return this.parseBreakStatement();
-      case 'do':       this.lexer.next(); return this.parseDoStatement(flowContext);
-      case 'goto':     this.lexer.next(); return this.parseGotoStatement(flowContext);
+      case 'do':       this.lexerNext(); return this.parseDoStatement(flowContext);
+      case 'goto':     this.lexerNext(); return this.parseGotoStatement(flowContext);
       }
     }
 
@@ -410,7 +418,7 @@ export default class Parser {
       switch (this.token.value) {
       // special ? print function
       case '?':
-        this.lexer.next();
+        this.lexerNext();
         return this.parseSpecialPrint(flowContext);
 
         // #include filename.lua
@@ -709,7 +717,7 @@ export default class Parser {
       let operator: string | undefined = undefined;
       if (isAssignmentOperator(this.token)) {
         operator = this.token.value as string;
-        this.lexer.next();
+        this.lexerNext();
 
         do {
           const expression = this.parseExpectedExpression(flowContext);
@@ -772,7 +780,7 @@ export default class Parser {
         this.attachScope(base, this.scopeHasName(name as string));
         lvalue = true;
       } else if ('(' === this.token.value) {
-        this.lexer.next();
+        this.lexerNext();
         base = this.parseExpectedExpression(flowContext);
         this.lexer.expect(')');
         lvalue = false;
@@ -809,7 +817,7 @@ export default class Parser {
         this.unexpectedToken(this.token);
       }
 
-      this.lexer.next();
+      this.lexerNext();
     } while (true);
 
     if (targets.length === 1 && lvalue === null) {
@@ -823,7 +831,7 @@ export default class Parser {
       errors.raiseUnexpectedToken('assignment operator', this.token);
     }
     const operator = this.token.value as string;
-    this.lexer.next();
+    this.lexerNext();
 
     const values = [];
     do {
@@ -858,7 +866,7 @@ export default class Parser {
     }
 
     // skip over the rest of the line for the next statement to be parsed
-    this.lexer.next();
+    this.lexerNext();
 
     return this.finishNode({
       type: 'IncludeStatement',
@@ -884,7 +892,7 @@ export default class Parser {
     if (this.token.type !== TokenType.Identifier) {
       errors.raiseUnexpectedToken('<name>', this.token);
     }
-    this.lexer.next();
+    this.lexerNext();
     return this.finishNode(AST.identifier(identifier));
   }
 
@@ -925,7 +933,7 @@ export default class Parser {
 
           // Discard tokens until we get a ')' or ','
           while (this.token.value !== ')' && this.token.value !== ',') {
-            this.lexer.next();
+            this.lexerNext();
           }
 
         }
@@ -936,10 +944,10 @@ export default class Parser {
 
         // Discard tokens until we get a ')'
         while (this.token.value !== ')') {
-          this.lexer.next();
+          this.lexerNext();
         }
         // consume the ')'
-        this.lexer.next();
+        this.lexerNext();
       }
     }
 
@@ -1002,7 +1010,7 @@ export default class Parser {
       } else if (this.token.type === TokenType.Identifier) {
         if ('=' === this.lexer.lookahead!.value) {
           key = this.parseIdentifier();
-          this.lexer.next();
+          this.lexerNext();
           value = this.parseExpectedExpression(flowContext);
           fields.push(this.finishNode(AST.tableKeyString(key, value)));
         } else {
@@ -1017,7 +1025,7 @@ export default class Parser {
         fields.push(this.finishNode(AST.tableValue(value)));
       }
       if (',;'.indexOf(this.token.value as string) >= 0) {
-        this.lexer.next();
+        this.lexerNext();
         continue;
       }
       break;
@@ -1117,7 +1125,7 @@ export default class Parser {
     // UnaryExpression
     if (isUnary(this.token)) {
       this.markLocation();
-      this.lexer.next();
+      this.lexerNext();
       const argument = this.parseSubExpression(10, flowContext);
       if (argument == null) {
         errors.raiseUnexpectedToken('<expression>', this.token);
@@ -1154,7 +1162,7 @@ export default class Parser {
       if ('^' === operator || '..' === operator) {
         --precedence;
       }
-      this.lexer.next();
+      this.lexerNext();
       const right = this.parseSubExpression(precedence, flowContext);
       if (null == right) {
         errors.raiseUnexpectedToken('<expression>', this.token);
@@ -1179,18 +1187,18 @@ export default class Parser {
       switch (this.token.value) {
       case '[':
         this.pushLocation(marker);
-        this.lexer.next();
+        this.lexerNext();
         expression = this.parseExpectedExpression(flowContext);
         this.lexer.expect(']');
         return this.finishNode(AST.indexExpression(base, expression));
       case '.':
         this.pushLocation(marker);
-        this.lexer.next();
+        this.lexerNext();
         identifier = this.parseIdentifier();
         return this.finishNode(AST.memberExpression(base, '.', identifier));
       case ':':
         this.pushLocation(marker);
-        this.lexer.next();
+        this.lexerNext();
         identifier = this.parseIdentifier();
         base = this.finishNode(AST.memberExpression(base, ':', identifier));
         // Once a : is found, this has to be a CallExpression, otherwise
@@ -1246,7 +1254,7 @@ export default class Parser {
     if (TokenType.Punctuator === this.token.type) {
       switch (this.token.value) {
       case '(':
-        this.lexer.next();
+        this.lexerNext();
 
         // List of expressions
         const expressions = [];
@@ -1264,7 +1272,7 @@ export default class Parser {
 
       case '{':
         this.markLocation();
-        this.lexer.next();
+        this.lexerNext();
         const table = this.parseTableConstructor(flowContext);
         return this.finishNode(AST.tableCallExpression(base, table));
       }
@@ -1292,11 +1300,11 @@ export default class Parser {
     if (literals.includes(type)) {
       this.pushLocation(marker);
       const raw = this.lexer.input.slice(this.token.bounds.start.index, this.token.bounds.end.index);
-      this.lexer.next();
+      this.lexerNext();
       return this.finishNode(AST.literal(type, value, raw));
     } else if (type === TokenType.Keyword && 'function' === value) {
       this.pushLocation(marker);
-      this.lexer.next();
+      this.lexerNext();
       this.createScope();
       return this.parseFunctionDeclaration(null, false);
     } else if (this.lexer.consume('{')) {

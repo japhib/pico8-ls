@@ -1,4 +1,5 @@
 import { DefUsagesScopeType } from '../definitions-usages';
+import ResolvedFile from '../file-resolver';
 import { CodeLocation } from '../types';
 import { bounds, deepEquals, parse } from './test-utils';
 
@@ -8,6 +9,7 @@ function codeLoc(line: number, column: number): CodeLocation {
     column,
     // (note index is 0 since it's unused in these test scenarios)
     index: 0,
+    filename: new ResolvedFile('test', 'test'),
   };
 }
 

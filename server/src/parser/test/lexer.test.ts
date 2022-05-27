@@ -1,5 +1,6 @@
 import * as assert from 'assert';
 import { ParseError } from '../errors';
+import ResolvedFile from '../file-resolver';
 import Lexer from '../lexer';
 import { Token, TokenType, TokenValue } from '../tokens';
 import { deepEquals, getLexedTokens } from './test-utils';
@@ -279,7 +280,7 @@ __gfx__
     });
 
     it('doesn\'t return an error the second time next() is called', () => {
-      const lexer = new Lexer('"asdf');
+      const lexer = new Lexer('"asdf', new ResolvedFile('test', 'test'));
 
       assert.throws(() => {
         lexer.next();
@@ -303,12 +304,6 @@ __gfx__
     it('errors on hex number literal with malformed binary exponent', () => {
       assert.throws(() => {
         getLexedTokens('0x3pQ');
-      }, ParseError);
-    });
-
-    it('errors on malformed string escape sequence', () => {
-      assert.throws(() => {
-        getLexedTokens('\'\\^\'');
       }, ParseError);
     });
   });

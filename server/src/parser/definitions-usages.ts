@@ -225,10 +225,15 @@ class DefinitionsUsagesFinder extends ASTVisitor<DefUsageScope> {
   // Used for testing, to make the output more clear.
   dontAddGlobalSymbols: boolean;
 
-  constructor(chunk: Chunk, dontAddGlobalSymbols?: boolean) {
+  // If the global DefUsageScope is injected from another file (i.e. this file
+  // is #include'd by another file)
+  injectedGlobalScope: DefUsageScope | undefined;
+
+  constructor(chunk: Chunk, dontAddGlobalSymbols?: boolean, injectedGlobalScope?: DefUsageScope) {
     super();
     this.chunk = chunk;
     this.dontAddGlobalSymbols = !!dontAddGlobalSymbols;
+    this.injectedGlobalScope = injectedGlobalScope;
   }
 
   // External entry point
@@ -238,11 +243,15 @@ class DefinitionsUsagesFinder extends ASTVisitor<DefUsageScope> {
     return {
       defUs: this.lookup,
       warnings: this.warnings,
-      scopes: this.topScope(),
+      scopes: this.scopeStack[0],
     };
   }
 
   override startingScope(): DefUsageScope {
+    if (this.injectedGlobalScope) {
+      return this.injectedGlobalScope;
+    }
+
     const predefinedGlobals = new Map<string, DefinitionsUsages>();
 
     if (!this.dontAddGlobalSymbols) {

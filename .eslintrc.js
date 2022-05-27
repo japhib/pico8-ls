@@ -31,7 +31,12 @@ const TS_OVERRIDE = {
       'error',
       'always',
     ],
-    '@typescript-eslint/no-unused-vars': 'warn',
+    '@typescript-eslint/no-unused-vars': [ 'warn', {
+      // Unused variables/args/caught errors that start with an underscore are fine
+      argsIgnorePattern: '^_',
+      varsIgnorePattern: '^_',
+      caughtErrorsIgnorePattern: '^_',
+    }],
   },
 };
 
