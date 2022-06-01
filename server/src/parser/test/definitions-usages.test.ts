@@ -1,8 +1,9 @@
 import { strictEqual as eq } from 'assert';
+import { toReadableObj } from '../ast';
 import { DefinitionsUsagesLookup } from '../definitions-usages';
 import { TokenValue } from '../tokens';
 import { Bounds } from '../types';
-import { bounds, deepEquals, parse, tokenAt } from './test-utils';
+import { bounds, deepEquals, MockFileResolver, parse, tokenAt } from './test-utils';
 
 // Simulates a Go To Definition request where we hand in a line
 // and column number for where the user's cursor is currently,
@@ -452,11 +453,56 @@ a.b.c.mem()
       }
     });
   });
+
+  describe.only('#include statements (in including file)', () => {
+    it('finds the definition of a global defined in an include statement', () => {
+      const fileResolver = new MockFileResolver();
+      fileResolver.loadFileContents = () => 'local a = 5';
+
+      const { warnings, definitionsUsages } = parse('#include other_file.lua\nprint(a)', false, fileResolver);
+      deepEquals(warnings, []);
+
+      const { symbolName, definitions, usages } = definitionsUsages.lookup(2, 6)!;
+      eq(symbolName, 'a');
+
+      // The definition in 'other_file.lua'
+      deepEquals(definitions, [ bounds(1, 6, 1, 7) ] );
+      eq(definitions[0].start.filename.path, 'other_file.lua');
+
+      // Usages:
+      // #1: the definition in 'other_file.lua'
+      eq(usages.length, 2);
+      deepEquals(usages[0], bounds(1, 6, 1, 7));
+      eq(usages[0].start.filename.path, 'other_file.lua');
+      // #2: the usage in the main file ("main_test_file" is passed in as the
+      // main filename by the "parse" utility function above)
+      deepEquals(usages[1], bounds(2, 6, 2, 7));
+      eq(usages[1].start.filename.path, 'main_test_file');
+    });
+
+    it('finds the usage of a global used in an include statement', () => {
+      const fileResolver = new MockFileResolver();
+      fileResolver.loadFileContents = () => 'print(a)';
+
+      const { warnings, definitionsUsages } = parse('local a = 5\n#include other_file.lua', false, fileResolver);
+      deepEquals(warnings, []);
+
+      const { symbolName, definitions, usages } = definitionsUsages.lookup(1, 6)!;
+      eq(symbolName, 'a');
+
+      // The main definition
+      deepEquals(definitions, [ bounds(1, 6, 1, 7) ] );
+      eq(definitions[0].start.filename.path, 'main_test_file');
+
+      // Usages:
+      // #1: the main definition
+      eq(usages.length, 2);
+      deepEquals(usages[0], bounds(1, 6, 1, 7));
+      eq(usages[0].start.filename.path, 'main_test_file');
+      // #2: the usage in the included file
+      deepEquals(usages[1], bounds(1, 6, 1, 7));
+      eq(usages[1].start.filename.path, 'other_file.lua');
+    });
+  });
 });
 
-/*
-function object:extend() end
--- usage of object
-function a.b.c:d() end
--- usage of a, a.b, a.b.c
-*/

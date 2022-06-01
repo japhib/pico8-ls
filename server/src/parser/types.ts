@@ -1,4 +1,5 @@
 import ResolvedFile from './file-resolver';
+import * as path from 'path';
 
 export type CodeLocation = {
   line: number,
@@ -8,7 +9,11 @@ export type CodeLocation = {
 };
 
 export function codeLocationsEqual(a: CodeLocation, b: CodeLocation): boolean {
-  return a.line === b.line && a.column === b.column && a.index === b.index;
+  return a.line === b.line && a.column === b.column && a.index === b.index && a.filename.equals(b.filename);
+}
+
+export function codeLocationToString(cl: CodeLocation) {
+  return `${path.basename(cl.filename.path)} ${cl.line}:${cl.column}`;
 }
 
 export type Bounds = {
@@ -18,6 +23,20 @@ export type Bounds = {
 
 export function boundsEqual(a: Bounds, b: Bounds): boolean {
   return a && b && codeLocationsEqual(a.start, b.start) && codeLocationsEqual(a.end, b.end);
+}
+
+export function boundsToString(bounds: Bounds): string {
+  if (!bounds.start.filename.equals(bounds.end.filename)) {
+    return `${codeLocationToString(bounds.start)} to ${codeLocationToString(bounds.end)}`;
+  }
+
+  const filenameStr = path.basename(bounds.start.filename.path);
+
+  if (bounds.start.line !== bounds.end.line) {
+    return `${filenameStr} ${bounds.start.line}:${bounds.start.column} to ${bounds.end.line}:${bounds.end.column}`;
+  }
+
+  return `${filenameStr} ${bounds.start.line}:${bounds.start.column}-${bounds.end.column}`;
 }
 
 export function boundsSize(b: Bounds): number {

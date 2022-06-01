@@ -7,6 +7,8 @@ import { AssignmentStatement, BreakStatement, CallStatement, Chunk, DoStatement,
   ForGenericStatement, ForNumericStatement, FunctionDeclaration, FunctionParameter, GeneralIfClause,
   GotoStatement, IfClause, IfStatement, LabelStatement, LocalStatement, RepeatStatement, ReturnStatement,
   Statement, WhileStatement } from './statements';
+import { Bounds, boundsToString, codeLocationToString } from './types';
+import * as path from 'path';
 
 // ### Abstract Syntax Tree
 //
@@ -313,4 +315,23 @@ export default class AST {
       raw: raw,
     };
   }
+}
+
+// Converts all "Bounds" objects in the AST into more concise, human-readable strings
+// Note: this is destructive on `body`
+export function toReadableObj(body: Statement[]) {
+  for (const stmt of body) {
+    toReadableObjRecursive(stmt);
+  }
+  return body;
+}
+
+function toReadableObjRecursive(obj: any) {
+  Object.keys(obj).forEach(key => {
+    if (key === 'loc') {
+      obj[key] = boundsToString(obj[key] as Bounds);
+    } else if (typeof obj[key] === 'object') {
+      toReadableObjRecursive(obj[key]);
+    }
+  });
 }

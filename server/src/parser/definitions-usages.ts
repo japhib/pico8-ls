@@ -344,7 +344,7 @@ class DefinitionsUsagesFinder extends ASTVisitor<DefUsageScope> {
   // some helpers
 
   private isSymbolLocal(symbolName: string): boolean {
-    // Note we stop *before* i gets to 0, so the global scope (i=0) is not
+    // Note we stop *before* i gets to 0, so the global scope (i=0) is NOT
     // considered
     for (let i = this.scopeStack.length - 1; i > 0; i--) {
       if (this.scopeStack[i].has(symbolName)) {
@@ -377,17 +377,6 @@ class DefinitionsUsagesFinder extends ASTVisitor<DefUsageScope> {
         return ret;
       }
     }
-    return undefined;
-  }
-
-  private getScopeOf(symbolName: string): DefUsageScope | undefined {
-    // Note global scope (i=0) *is* considered.
-    for (let i = this.scopeStack.length - 1; i >= 0; i--) {
-      if (this.scopeStack[i].has(symbolName)) {
-        return this.scopeStack[i];
-      }
-    }
-
     return undefined;
   }
 

@@ -13,7 +13,7 @@ import { ParseError, Warning } from './parser/errors';
 import { Builtins, BuiltinFunctionInfo } from './parser/builtins';
 import { isIdentifierPart } from './parser/lexer';
 import ResolvedFile from './parser/file-resolver';
-import { Include } from './parser/statements';
+import { Chunk, Include } from './parser/statements';
 import * as url from 'url';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -94,9 +94,16 @@ async function scanWorkspaceFolder(workspaceFolder: WorkspaceFolder) {
   const textDocuments = await Promise.all(allFiles.map(createTextDocument));
 
   // Parse each file
-  await Promise.all(textDocuments.map(validateTextDocument));
+  const parsedFiles = (await Promise.all(textDocuments.map(parseTextDocument)))
+    .filter(chunk => !!chunk)
+    // Put the result into a map for lookup by text document
+    .reduce((dict, curr) => {
+      const { textDocument, chunk } = curr!;
+      dict.set(textDocument, { chunk });
+      return dict;
+    }, new Map<TextDocument, {chunk: Chunk}>());
 
-  // Build include tree
+  // Now figure out which 
 }
 
 async function getFilesRecursive(folderPath: string): Promise<string[]> {
@@ -233,6 +240,36 @@ function toDiagnostic(textDocument: TextDocument, err: ParseError | Warning): Di
     severity: err.type === 'ParseError' ? DiagnosticSeverity.Error : DiagnosticSeverity.Warning,
     source: 'PICO-8 LS',
   };
+}
+
+async function parseTextDocument(textDocument: TextDocument) {
+  try {
+    // parse document
+    const text = textDocument.getText();
+    documentTextCache.set(textDocument.uri, textDocument);
+    const parser = new Parser(ResolvedFile.fromFileURL(textDocument.uri), text);
+    const chunk = parser.parse();
+    const { errors, symbols, includes } = chunk;
+
+    // Set document info in caches
+    const symbolInfo: DocumentSymbol[] = symbols.map(sym => toDocumentSymbol(textDocument, sym));
+    documentSymbols.set(textDocument.uri, symbolInfo);
+    documentIncludes.set(textDocument.uri, includes!);
+
+    // send errors back to client immediately
+    const diagnostics: Diagnostic[] = [];
+    const addDiagnostics = (errs: (ParseError | Warning)[]) => {
+      diagnostics.push(...errs.filter(e => inThisFile(textDocument, e)).map(e => toDiagnostic(textDocument, e)));
+    };
+    addDiagnostics(errors);
+
+    connection.sendDiagnostics({ uri: textDocument.uri, diagnostics });
+
+    return { textDocument, chunk };
+  } catch(e) {
+    console.log(e);
+    return undefined;
+  }
 }
 
 async function validateTextDocument(textDocument: TextDocument) {

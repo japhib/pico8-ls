@@ -28,6 +28,10 @@ export default class ResolvedFile {
   equals(other: ResolvedFile): boolean {
     return this.path === other.path && this.fileURL === other.fileURL;
   }
+
+  toString(): string {
+    return `ResolvedFile(path=${this.path},fileURL=${this.fileURL})`;
+  }
 }
 
 export function fileURLToPath(fileUrl: string): string {
