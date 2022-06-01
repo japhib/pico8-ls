@@ -1,4 +1,3 @@
-import { DefinitionsUsagesLookup } from './definitions-usages';
 import { ParseError } from './errors';
 import { BinaryExpression, CallExpression, Comment_, Expression, GeneralTableField, Identifier, Indexer,
   IndexExpression, Variable, Literal, LogicalExpression, MemberExpression, StringCallExpression, StringLiteral,
@@ -167,9 +166,7 @@ export default class AST {
       errors,
 
       // This stuff is added later
-      warnings: [],
       symbols: [],
-      definitionsUsages: new DefinitionsUsagesLookup(),
     };
   }
 

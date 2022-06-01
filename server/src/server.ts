@@ -8,7 +8,7 @@ import { TextDocument } from 'vscode-languageserver-textdocument';
 import Parser from './parser/parser';
 import { Bounds } from './parser/types';
 import { CodeSymbolType, CodeSymbol } from './parser/symbols';
-import { DefinitionsUsages, DefinitionsUsagesLookup, DefUsageScope } from './parser/definitions-usages';
+import { DefinitionsUsages, DefinitionsUsagesLookup, DefUsageScope, findDefinitionsUsages } from './parser/definitions-usages';
 import { ParseError, Warning } from './parser/errors';
 import { Builtins, BuiltinFunctionInfo } from './parser/builtins';
 import { isIdentifierPart } from './parser/lexer';
@@ -241,7 +241,9 @@ async function validateTextDocument(textDocument: TextDocument) {
     const text = textDocument.getText();
     documentTextCache.set(textDocument.uri, textDocument);
     const parser = new Parser(ResolvedFile.fromFileURL(textDocument.uri), text);
-    const { errors, warnings, symbols, definitionsUsages, scopes, includes } = parser.parse();
+    const chunk = parser.parse();
+    const { errors, symbols, includes } = chunk;
+    const { warnings, definitionsUsages, scopes } = findDefinitionsUsages(chunk);
 
     // Set document info in caches
     const symbolInfo: DocumentSymbol[] = symbols.map(sym => toDocumentSymbol(textDocument, sym));

@@ -4,10 +4,10 @@ import * as util from 'util';
 import { fail } from 'assert';
 import Lexer from '../lexer';
 import Parser from '../parser';
-import { Chunk } from '../statements';
 import { Token, TokenType, TokenValue } from '../tokens';
 import { Bounds } from '../types';
 import ResolvedFile, { FileResolver } from '../file-resolver';
+import { findDefinitionsUsages } from '../definitions-usages';
 
 export function getTestFileContents(filename: string): string {
   const filepath = path.join(__dirname, '../../../../testfiles/', filename);
@@ -27,8 +27,13 @@ export function getLexedTokens(input: string): Token[] {
   return tokens;
 }
 
-export function parse(input: string, dontAddGlobalSymbols?: boolean, includeFileResolver?: FileResolver): Chunk {
-  return new Parser(new ResolvedFile('test', 'test'), input, includeFileResolver, dontAddGlobalSymbols).parseChunk();
+export function parse(input: string, dontAddGlobalSymbols?: boolean, includeFileResolver?: FileResolver) {
+  const chunk = new Parser(new ResolvedFile('test', 'test'), input, includeFileResolver, dontAddGlobalSymbols).parseChunk();
+  const defUsResult = findDefinitionsUsages(chunk, dontAddGlobalSymbols);
+  return {
+    ...chunk,
+    ...defUsResult,
+  };
 }
 
 export function deepEqualsAST(code: string, expected: any) {

@@ -426,6 +426,16 @@ __gfx__
       deepEquals(errors, [{ type: 'ParseError' }]);
     });
 
+    // I'm not sure we really care to support #includes that only have a partial
+    // statement -- seems like it'll get messy real fast and could easily
+    // disrupt some of the other analysis that happens. For example, finding the
+    // starts/ends of scopes and its interaction with files that are #included
+    // seems like it could get complicated very fast.
+    //
+    // So, although this currently works, it may break in the future. And I feel
+    // that it'll be better for the health of this plugin if we just say that
+    // #includes only put declarations, etc. into the global scope, and can't
+    // affect anything more narrow than that.
     it('handles an include file that contains a partial statement', () => {
       const fileResolver = new MockFileResolver();
       fileResolver.loadFileContents = () => 'a';

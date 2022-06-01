@@ -1,6 +1,5 @@
 import AST from './ast';
 import { FlowContext } from './control-flow';
-import { findDefinitionsUsages } from './definitions-usages';
 import * as errors from './errors';
 import { errMessages, raiseErrForToken } from './errors';
 import {
@@ -260,14 +259,9 @@ export default class Parser {
     }
 
     const chunk = this.finishNode(AST.chunk(body, this.errors));
+    chunk.includes = this.includes;
 
     chunk.symbols = findSymbols(chunk);
-
-    const { defUs, warnings, scopes } = findDefinitionsUsages(chunk, this.dontAddGlobalSymbols);
-    chunk.definitionsUsages = defUs;
-    chunk.warnings = warnings;
-    chunk.scopes = scopes;
-    chunk.includes = this.includes;
 
     return chunk;
   }

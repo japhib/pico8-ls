@@ -1,5 +1,4 @@
-import { DefinitionsUsagesLookup, DefUsageScope } from './definitions-usages';
-import { ParseError, Warning } from './errors';
+import { ParseError } from './errors';
 import { Comment_, Expression, Identifier, VarargLiteral, Variable, MemberExpression, getMemberExpressionName } from './expressions';
 import ResolvedFile from './file-resolver';
 import { CodeSymbol } from './symbols';
@@ -151,10 +150,7 @@ export type Chunk = {
   type: 'Chunk',
   body: Statement[],
   errors: ParseError[],
-  warnings: Warning[],
-  scopes?: DefUsageScope,
   symbols: CodeSymbol[],
-  definitionsUsages: DefinitionsUsagesLookup,
   comments?: Comment_[],
   globals?: Identifier[],
   includes?: Include[],

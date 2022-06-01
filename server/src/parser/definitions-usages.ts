@@ -7,6 +7,12 @@ import { Bounds, boundsEqual, boundsSize, CodeLocation } from './types';
 import { ASTVisitor, VisitableASTNode } from './visitor';
 import { BuiltinConstants, Builtins } from './builtins';
 
+export type DefinitionsUsagesResult = {
+  definitionsUsages: DefinitionsUsagesLookup,
+  warnings: Warning[],
+  scopes: DefUsageScope,
+};
+
 export type DefinitionsUsages = {
   symbolName: string,
   definitions: Bounds[],
@@ -102,11 +108,7 @@ export class DefinitionsUsagesLookup {
   }
 }
 
-export function findDefinitionsUsages(chunk: Chunk, dontAddGlobalSymbols: boolean): {
-  defUs: DefinitionsUsagesLookup,
-  warnings: Warning[],
-  scopes: DefUsageScope,
-} {
+export function findDefinitionsUsages(chunk: Chunk, dontAddGlobalSymbols?: boolean): DefinitionsUsagesResult {
   return new DefinitionsUsagesFinder(chunk, dontAddGlobalSymbols).findDefinitionsUsages();
 }
 
@@ -237,11 +239,11 @@ class DefinitionsUsagesFinder extends ASTVisitor<DefUsageScope> {
   }
 
   // External entry point
-  findDefinitionsUsages(): { defUs: DefinitionsUsagesLookup, warnings: Warning[], scopes: DefUsageScope } {
+  findDefinitionsUsages(): DefinitionsUsagesResult {
     this.visit(this.chunk);
     this.resolveEarlyRefs();
     return {
-      defUs: this.lookup,
+      definitionsUsages: this.lookup,
       warnings: this.warnings,
       scopes: this.scopeStack[0],
     };
