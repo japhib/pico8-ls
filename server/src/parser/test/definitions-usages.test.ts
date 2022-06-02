@@ -1,5 +1,4 @@
 import { strictEqual as eq } from 'assert';
-import { toReadableObj } from '../ast';
 import { DefinitionsUsagesLookup } from '../definitions-usages';
 import { TokenValue } from '../tokens';
 import { Bounds } from '../types';
@@ -503,6 +502,72 @@ a.b.c.mem()
       // #2: the usage in the included file
       deepEquals(usages[1], bounds(1, 6, 1, 7));
       eq(usages[1].start.filename.path, 'other_file.lua');
+    });
+  });
+
+  describe('#include statements (in included file)', () => {
+    it('finds the definition of a global defined in a file that includes this one', () => {
+      const includedFileContents = `
+function doit()
+  print(a)
+end`;
+
+      const fileResolver = new MockFileResolver();
+      fileResolver.loadFileContents = () => includedFileContents;
+
+      const { scopes } = parse('#include other_file.lua\nlocal a = 5', false, fileResolver, undefined, 'main.p8');
+
+      const { warnings, definitionsUsages } = parse(includedFileContents, false, fileResolver, scopes, 'other_file.lua');
+      deepEquals(warnings, []);
+
+      const { symbolName, definitions, usages } = definitionsUsages.lookup(3, 9)!;
+      eq(symbolName, 'a');
+
+      // The definition in the including file
+      deepEquals(definitions, [ bounds(2, 6, 2, 7) ] );
+      eq(definitions[0].start.filename.path, 'main.p8');
+
+      // Usages:
+      // #1: The definition in the including file
+
+      // TODO fix duplicates
+      // eq(usages.length, 2);
+
+      deepEquals(usages[0], bounds(2, 6, 2, 7));
+      eq(usages[0].start.filename.path, 'main.p8');
+
+      // #2: the usage in other_file.lua
+      deepEquals(usages[1], bounds(3, 8, 3, 9));
+      eq(usages[1].start.filename.path, 'other_file.lua');
+    });
+
+    it('finds the usage of a global defined in a file that includes this one', () => {
+      const includedFileContents = 'local a = 5';
+
+      const fileResolver = new MockFileResolver();
+      fileResolver.loadFileContents = () => includedFileContents;
+
+      const { scopes } = parse('#include other_file.lua\nprint(a)', false, fileResolver, undefined, 'main.p8');
+
+      const { warnings, definitionsUsages } = parse(includedFileContents, false, fileResolver, scopes, 'other_file.lua');
+      deepEquals(warnings, []);
+
+      const { symbolName, definitions, usages } = definitionsUsages.lookup(1, 6)!;
+      eq(symbolName, 'a');
+
+      // The definition in other_file.lua
+      // TODO fix duplicates
+      deepEquals(definitions, [ bounds(1, 6, 1, 7), bounds(1, 6, 1, 7) ] );
+      eq(definitions[0].start.filename.path, 'other_file.lua');
+
+      // Usages:
+      // #1: The definition in other_file.lua
+      deepEquals(usages[0], bounds(1, 6, 1, 7));
+      eq(definitions[0].start.filename.path, 'other_file.lua');
+
+      // #2: the usage in main.p8
+      deepEquals(usages[1], bounds(2, 6, 2, 7));
+      eq(usages[1].start.filename.path, 'main.p8');
     });
   });
 });
