@@ -108,8 +108,8 @@ export class DefinitionsUsagesLookup {
   }
 }
 
-export function findDefinitionsUsages(chunk: Chunk, dontAddGlobalSymbols?: boolean): DefinitionsUsagesResult {
-  return new DefinitionsUsagesFinder(chunk, dontAddGlobalSymbols).findDefinitionsUsages();
+export function findDefinitionsUsages(chunk: Chunk, dontAddGlobalSymbols?: boolean, injectedGlobalScope?: DefUsageScope): DefinitionsUsagesResult {
+  return new DefinitionsUsagesFinder(chunk, dontAddGlobalSymbols, injectedGlobalScope).findDefinitionsUsages();
 }
 
 export enum DefUsagesScopeType {
@@ -156,6 +156,13 @@ export class DefUsageScope {
     // It's only null for the global scope, in which case all code locations are contained
     if (this.loc === null) {
       return true;
+    }
+
+    // If the filename doesn't match, it's not in the same file
+    if (!codeLocation.filename.equals(this.loc.start.filename)
+        // (probably not necessary to check both start and end but we do it anyway)
+        && !codeLocation.filename.equals(this.loc.end.filename)) {
+      return false;
     }
 
     const withinLines = codeLocation.line >= this.loc.start.line && codeLocation.line <= this.loc.end.line;

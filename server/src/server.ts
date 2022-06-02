@@ -17,6 +17,7 @@ import { Chunk, Include } from './parser/statements';
 import * as url from 'url';
 import * as fs from 'fs';
 import * as path from 'path';
+import { findProjects, ParsedDocumentsMap, Project, ProjectDocument, ProjectDocumentNode } from './projects';
 
 console.log('PICO-8 Language Server starting.');
 
@@ -26,6 +27,10 @@ const documents = new TextDocuments(TextDocument);
 
 let hasConfigurationCapability = false;
 let hasWorkspaceFolderCapability = false;
+
+let parsedDocuments: ParsedDocumentsMap = new Map();
+let projects: Project[] = [];
+let projectsByFilename: Map<string, Project> = new Map();
 
 // Set up some initial configs
 connection.onInitialize((params: InitializeParams) => {
@@ -71,6 +76,10 @@ connection.onInitialized(() => {
     });
   }
 
+  rescanEverything();
+});
+
+function rescanEverything() {
   connection.workspace.getWorkspaceFolders().then((workspaceFolders: WorkspaceFolder[] | null) => {
     if (!workspaceFolders) {
       return;
@@ -82,7 +91,7 @@ connection.onInitialized(() => {
   }).catch(reason => {
     console.log('Failed to get workspace folder(s):', reason);
   })
-});
+}
 
 async function scanWorkspaceFolder(workspaceFolder: WorkspaceFolder) {
   const folderPath = url.fileURLToPath(workspaceFolder.uri);
@@ -94,7 +103,8 @@ async function scanWorkspaceFolder(workspaceFolder: WorkspaceFolder) {
   const textDocuments = await Promise.all(allFiles.map(createTextDocument));
 
   // Parse each file
-  const parsedFiles = (await Promise.all(textDocuments.map(parseTextDocument)))
+  parsedDocuments =
+    (await Promise.all(textDocuments.map(parseTextDocument)))
     .filter(chunk => !!chunk)
     // Put the result into a map for lookup by file uri
     .reduce((dict, curr) => {
@@ -102,7 +112,10 @@ async function scanWorkspaceFolder(workspaceFolder: WorkspaceFolder) {
       return dict;
     }, new Map<string, {textDocument: TextDocument, chunk: Chunk}>());
 
-  // Now figure out which files belong together in a "project"
+  rebuildProjectTree();
+
+  // Now we have the project tree, we can FINALLY finish parsing all the files.
+  findDefUsagesForAllProjects();
 }
 
 async function getFilesRecursive(folderPath: string): Promise<string[]> {
@@ -136,6 +149,71 @@ async function createTextDocument(filePath: string) {
   return TextDocument.create(uri, languageId, 0, content);
 }
 
+function rebuildProjectTree() {
+  // Figure out which files belong together in a "project"
+  projects = findProjects(parsedDocuments);
+    
+  // Build the map of filenames -> projects
+  projectsByFilename = new Map();
+  const iterateNode = (projNode: ProjectDocumentNode, rootProject: Project) => {
+    projectsByFilename.set(projNode.document.textDocument.uri, rootProject);
+    for (const child of projNode.included) {
+      iterateNode(child, rootProject);
+    }
+  }
+  for (const project of projects) {
+    iterateNode(project.root, project);
+  }
+}
+
+function findDefUsagesForAllProjects() {
+  // How this works is that the root of the project #includes all the other
+  // files into itself, so its global scope has everything all the other files
+  // might want. So we just invoke DefinitionsUsagesFinder on every file,
+  // injecting the global scope of the root file into the other files.
+  projects.forEach(findDefUsagesForProject);
+}
+
+function findDefUsagesForProject(project: Project) {
+  // Find definitions/usages, and send diagnostics, etc
+  const rootScope = processDefUsages(project.root.document);
+  if (!rootScope) {
+    return;
+  }
+
+  // recursive stepping through includes in case the includes have includes
+  const iterateNode = (projNode: ProjectDocumentNode) => {
+    processDefUsages(projNode.document, rootScope);
+    // recurse into children
+    for (const child of projNode.included) {
+      iterateNode(child);
+    }
+  }
+
+  // actually iterate over the children of the root
+  for (const child of project.root.included) {
+    iterateNode(child);
+  }
+}
+
+function processDefUsages(document: ProjectDocument, injectedGlobalScope?: DefUsageScope) {
+  try {
+    const uri = document.textDocument.uri;
+
+    const { warnings, definitionsUsages, scopes } = findDefinitionsUsages(document.chunk, false, injectedGlobalScope);
+    
+    // set some stuff in lookup tables
+    documentDefUsage.set(uri, definitionsUsages);
+    documentScopes.set(uri, scopes!);
+
+    // send diagnostics
+    const diagnostics: Diagnostic[] = warnings.filter(e => inThisFile(uri, e)).map(e => toDiagnostic(e));
+    return scopes;
+  } catch (e) {
+    console.error(e);
+  }
+}
+
 interface DocumentSettings {
   maxNumberOfProblems: number;
 }
@@ -147,7 +225,39 @@ const defaultSettings: DocumentSettings = { maxNumberOfProblems: 1000 };
 let globalSettings: DocumentSettings = defaultSettings;
 
 // Set up validation handler for when document changes
-documents.onDidChangeContent(change => validateTextDocument(change.document));
+documents.onDidChangeContent(async change => {
+  const document = change.document;
+
+  // re-parse the AST
+  const parsed = await parseTextDocument(document);
+  if (!parsed) {
+    return;
+  }
+
+  // Check if includes have changed -- if they have, we need to rebuild project files
+  const includedUris = parsed.chunk.includes!.map(include => include.resolvedFile.fileURL).sort();
+  
+  // get the old includes to see what they were before
+  const oldIncludes = parsedDocuments.get(document.uri);
+  if (!oldIncludes) {
+    return;
+  }
+  const oldIncludedUris = oldIncludes.chunk.includes!.map(include => include.resolvedFile.fileURL).sort();
+
+  // compare the two
+  let foundAnyDifferences = includedUris.length !== oldIncludedUris.length;
+  for (let i = 0; i < includedUris.length; i++) {
+    if (includedUris[i] !== oldIncludedUris[i]) {
+      foundAnyDifferences = true;
+    }
+  }
+
+  if (foundAnyDifferences) {
+    console.log('Found differences in #include statements -- rebuilding project tree')
+    rebuildProjectTree();
+    findDefUsagesForAllProjects();
+  }
+});
 
 // Cache the settings of all open documents
 const documentSettings: Map<string, Thenable<DocumentSettings>> = new Map<string, Thenable<DocumentSettings>>();
@@ -173,9 +283,7 @@ connection.onDidChangeConfiguration(change => {
     globalSettings = change.settings['pico8-ls'] || defaultSettings;
   }
 
-  // Revalidate all open text documents
-  // eslint-disable-next-line @typescript-eslint/no-misused-promises
-  documents.all().forEach(validateTextDocument);
+  rescanEverything();
 });
 
 function getDocumentSettings(resource: string): Thenable<DocumentSettings> {
@@ -219,9 +327,9 @@ function toDocumentSymbol(textDocument: TextDocument, symbol: CodeSymbol): Docum
   };
 }
 
-function inThisFile(textDocument: TextDocument, err: ParseError | Warning): boolean {
+function inThisFile(documentUri: string, err: ParseError | Warning): boolean {
   const fileURI = err.bounds.start.filename.fileURL;
-  if (textDocument.uri === fileURI) {
+  if (documentUri === fileURI) {
     return true;
   } else {
     // console.error(`Filtering warning (ideally this shouldn't happen) because it's for file ${fileURI} instead of file ${textDocument.uri}:`, err);
@@ -229,7 +337,7 @@ function inThisFile(textDocument: TextDocument, err: ParseError | Warning): bool
   }
 }
 
-function toDiagnostic(textDocument: TextDocument, err: ParseError | Warning): Diagnostic {
+function toDiagnostic(err: ParseError | Warning): Diagnostic {
   return {
     message: err.message,
     range: {
@@ -256,49 +364,13 @@ async function parseTextDocument(textDocument: TextDocument) {
     documentIncludes.set(textDocument.uri, includes!);
 
     // send errors back to client immediately
-    const diagnostics: Diagnostic[] = [];
-    const addDiagnostics = (errs: (ParseError | Warning)[]) => {
-      diagnostics.push(...errs.filter(e => inThisFile(textDocument, e)).map(e => toDiagnostic(textDocument, e)));
-    };
-    addDiagnostics(errors);
-
+    const diagnostics = errors.filter(e => inThisFile(textDocument.uri, e)).map(e => toDiagnostic(e));
     connection.sendDiagnostics({ uri: textDocument.uri, diagnostics });
 
     return { textDocument, chunk };
   } catch(e) {
-    console.log(e);
+    console.error(e);
     return undefined;
-  }
-}
-
-async function validateTextDocument(textDocument: TextDocument) {
-  try {
-    // parse document
-    const text = textDocument.getText();
-    documentTextCache.set(textDocument.uri, textDocument);
-    const parser = new Parser(ResolvedFile.fromFileURL(textDocument.uri), text);
-    const chunk = parser.parse();
-    const { errors, symbols, includes } = chunk;
-    const { warnings, definitionsUsages, scopes } = findDefinitionsUsages(chunk);
-
-    // Set document info in caches
-    const symbolInfo: DocumentSymbol[] = symbols.map(sym => toDocumentSymbol(textDocument, sym));
-    documentSymbols.set(textDocument.uri, symbolInfo);
-    documentDefUsage.set(textDocument.uri, definitionsUsages);
-    documentScopes.set(textDocument.uri, scopes!);
-    documentIncludes.set(textDocument.uri, includes!);
-
-    // send errors back to client immediately
-    const diagnostics: Diagnostic[] = [];
-    const addDiagnostics = (errs: (ParseError | Warning)[]) => {
-      diagnostics.push(...errs.filter(e => inThisFile(textDocument, e)).map(e => toDiagnostic(textDocument, e)));
-    };
-    addDiagnostics(errors);
-    addDiagnostics(warnings);
-
-    connection.sendDiagnostics({ uri: textDocument.uri, diagnostics });
-  } catch(e) {
-    console.log(e);
   }
 }
 
