@@ -96,14 +96,13 @@ async function scanWorkspaceFolder(workspaceFolder: WorkspaceFolder) {
   // Parse each file
   const parsedFiles = (await Promise.all(textDocuments.map(parseTextDocument)))
     .filter(chunk => !!chunk)
-    // Put the result into a map for lookup by text document
+    // Put the result into a map for lookup by file uri
     .reduce((dict, curr) => {
-      const { textDocument, chunk } = curr!;
-      dict.set(textDocument, { chunk });
+      dict.set(curr!.textDocument.uri, curr!);
       return dict;
-    }, new Map<TextDocument, {chunk: Chunk}>());
+    }, new Map<string, {textDocument: TextDocument, chunk: Chunk}>());
 
-  // Now figure out which 
+  // Now figure out which files belong together in a "project"
 }
 
 async function getFilesRecursive(folderPath: string): Promise<string[]> {
