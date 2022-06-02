@@ -14,11 +14,10 @@ import { Builtins, BuiltinFunctionInfo } from './parser/builtins';
 import { isIdentifierPart } from './parser/lexer';
 import ResolvedFile, { FileResolver } from './parser/file-resolver';
 import { Chunk, Include } from './parser/statements';
+import { findProjects, getProjectFiles, iterateProject, ParsedDocumentsMap, Project, ProjectDocument, ProjectDocumentNode, projectToString } from './projects';
 import * as url from 'url';
 import * as fs from 'fs';
 import * as path from 'path';
-import { findProjects, getProjectFiles, iterateProject, ParsedDocumentsMap, Project, ProjectDocument, ProjectDocumentNode, projectToString } from './projects';
-import { toReadableObj } from './parser/ast';
 
 console.log('PICO-8 Language Server starting.');
 
@@ -116,7 +115,7 @@ async function scanWorkspaceFolder(workspaceFolder: WorkspaceFolder) {
   rebuildProjectTree();
 
   // Now we have the project tree, we can FINALLY finish parsing all the files.
-  findDefUsagesForAllProjects();
+  projects.forEach(findDefUsagesForProject);
 }
 
 async function getFilesRecursive(folderPath: string): Promise<string[]> {
@@ -173,15 +172,12 @@ function rebuildProjectTree() {
   }
 }
 
-function findDefUsagesForAllProjects() {
+function findDefUsagesForProject(project: Project) {
   // How this works is that the root of the project #includes all the other
   // files into itself, so its global scope has everything all the other files
-  // might want. So we just invoke DefinitionsUsagesFinder on every file,
+  // might want. So we just invoke findDefinitionsUsages on every file,
   // injecting the global scope of the root file into the other files.
-  projects.forEach(findDefUsagesForProject);
-}
-
-function findDefUsagesForProject(project: Project) {
+  
   // Before we start, make sure we're using the most up-to-date version of the files
   refreshProject(project);
 
@@ -280,18 +276,24 @@ documents.onDidChangeContent(change => {
     }
   }
 
+  const alreadyParsed = { [document.uri]: parsed };
+
   if (foundProjectDifferences) {
     console.log('Found differences in #include statements -- rebuilding project tree');
     rebuildProjectTree();
-    findDefUsagesForAllProjects();
+    parseAllProjects(alreadyParsed);
   } else {
     // Otherwise, only re-scan the project that has changed
     const projectOfChangedFile = projectsByFilename.get(document.uri);
-    projectOfChangedFile && reparseProjectFiles(projectOfChangedFile, { [document.uri]: parsed }).catch(e => {
+    projectOfChangedFile && reparseProjectFiles(projectOfChangedFile, alreadyParsed).catch(e => {
       console.error('error reparsing project files: ', e);
     });
   }
 });
+
+function parseAllProjects(alreadyParsed: { [filename: string]: ProjectDocument }) {
+  projects.forEach(p => reparseProjectFiles(p, alreadyParsed));
+}
 
 async function reparseProjectFiles(project: Project, alreadyParsed: { [filename: string]: ProjectDocument }) {
   const projFiles = getProjectFiles(project);
