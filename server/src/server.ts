@@ -12,12 +12,13 @@ import { DefinitionsUsages, DefinitionsUsagesLookup, DefUsageScope, findDefiniti
 import { ParseError, Warning } from './parser/errors';
 import { Builtins, BuiltinFunctionInfo } from './parser/builtins';
 import { isIdentifierPart } from './parser/lexer';
-import ResolvedFile from './parser/file-resolver';
+import ResolvedFile, { FileResolver } from './parser/file-resolver';
 import { Chunk, Include } from './parser/statements';
 import * as url from 'url';
 import * as fs from 'fs';
 import * as path from 'path';
-import { findProjects, ParsedDocumentsMap, Project, ProjectDocument, ProjectDocumentNode } from './projects';
+import { findProjects, getProjectFiles, iterateProject, ParsedDocumentsMap, Project, ProjectDocument, ProjectDocumentNode, projectToString } from './projects';
+import { toReadableObj } from './parser/ast';
 
 console.log('PICO-8 Language Server starting.');
 
@@ -86,11 +87,11 @@ function rescanEverything() {
     }
 
     Promise.all(workspaceFolders.map(scanWorkspaceFolder)).catch(e => {
-      console.log("Error scanning workspace folders", e);
+      console.log('Error scanning workspace folders', e);
     });
   }).catch(reason => {
     console.log('Failed to get workspace folder(s):', reason);
-  })
+  });
 }
 
 async function scanWorkspaceFolder(workspaceFolder: WorkspaceFolder) {
@@ -104,13 +105,13 @@ async function scanWorkspaceFolder(workspaceFolder: WorkspaceFolder) {
 
   // Parse each file
   parsedDocuments =
-    (await Promise.all(textDocuments.map(parseTextDocument)))
-    .filter(chunk => !!chunk)
+    textDocuments.map(parseTextDocument)
+      .filter(chunk => !!chunk)
     // Put the result into a map for lookup by file uri
-    .reduce((dict, curr) => {
-      dict.set(curr!.textDocument.uri, curr!);
-      return dict;
-    }, new Map<string, {textDocument: TextDocument, chunk: Chunk}>());
+      .reduce((dict, curr) => {
+        dict.set(curr!.textDocument.uri, curr!);
+        return dict;
+      }, new Map<string, { textDocument: TextDocument, chunk: Chunk }>());
 
   rebuildProjectTree();
 
@@ -123,17 +124,16 @@ async function getFilesRecursive(folderPath: string): Promise<string[]> {
   try {
     const files = await fs.promises.readdir(folderPath);
 
-    await Promise.all(files.map(file => new Promise(async resolve => {
+    await Promise.all(files.map(async file => {
       const filePath = path.join(folderPath, file);
 
       const stat = await fs.promises.lstat(filePath);
       if (stat.isDirectory() && !file.startsWith('.')) {
         p8andLuaFiles.push(...(await getFilesRecursive(filePath)));
-      } else if (stat.isFile() && filePath.match(/\.(p8|lua)$/i)) {
+      } else if (stat.isFile() && (/\.(p8|lua)$/i.exec(filePath))) {
         p8andLuaFiles.push(filePath);
       }
-      resolve(undefined);
-    })));
+    }));
 
   } catch (e) {
     console.error('Error when scanning workspace folder ' + folderPath, e);
@@ -144,15 +144,22 @@ async function getFilesRecursive(folderPath: string): Promise<string[]> {
 
 async function createTextDocument(filePath: string) {
   const uri = url.pathToFileURL(filePath).toString();
+
+  const cached = documents.get(uri);
+  if (cached) {
+    return cached;
+  }
+
   const languageId = filePath.endsWith('p8') ? 'pico-8' : 'pico-8-lua';
   const content = (await fs.promises.readFile(filePath)).toString();
-  return TextDocument.create(uri, languageId, 0, content);
+  const result = TextDocument.create(uri, languageId, 0, content);
+  return result;
 }
 
 function rebuildProjectTree() {
   // Figure out which files belong together in a "project"
   projects = findProjects(parsedDocuments);
-    
+
   // Build the map of filenames -> projects
   projectsByFilename = new Map();
   const iterateNode = (projNode: ProjectDocumentNode, rootProject: Project) => {
@@ -160,7 +167,7 @@ function rebuildProjectTree() {
     for (const child of projNode.included) {
       iterateNode(child, rootProject);
     }
-  }
+  };
   for (const project of projects) {
     iterateNode(project.root, project);
   }
@@ -175,7 +182,9 @@ function findDefUsagesForAllProjects() {
 }
 
 function findDefUsagesForProject(project: Project) {
-  // Find definitions/usages, and send diagnostics, etc
+  // Before we start, make sure we're using the most up-to-date version of the files
+  refreshProject(project);
+
   const rootScope = processDefUsages(project.root.document);
   if (!rootScope) {
     return;
@@ -188,7 +197,7 @@ function findDefUsagesForProject(project: Project) {
     for (const child of projNode.included) {
       iterateNode(child);
     }
-  }
+  };
 
   // actually iterate over the children of the root
   for (const child of project.root.included) {
@@ -196,18 +205,35 @@ function findDefUsagesForProject(project: Project) {
   }
 }
 
+// Refresh the contents of each parsed file in the project tree
+// by fetching the document & parsed AST from parsedDocuments.
+function refreshProject(project: Project) {
+  iterateProject(project, refreshNodeContents);
+}
+
+function refreshNodeContents(node: ProjectDocumentNode) {
+  const parsed = parsedDocuments.get(node.document.textDocument.uri);
+  if (!parsed) {
+    console.log('refreshNodeContents: cannot find contents of file ' + node.document.textDocument.uri);
+    return;
+  }
+
+  node.document = parsed;
+}
+
 function processDefUsages(document: ProjectDocument, injectedGlobalScope?: DefUsageScope) {
   try {
     const uri = document.textDocument.uri;
-
     const { warnings, definitionsUsages, scopes } = findDefinitionsUsages(document.chunk, false, injectedGlobalScope);
-    
+
     // set some stuff in lookup tables
     documentDefUsage.set(uri, definitionsUsages);
-    documentScopes.set(uri, scopes!);
+    documentScopes.set(uri, scopes);
 
     // send diagnostics
-    const diagnostics: Diagnostic[] = warnings.filter(e => inThisFile(uri, e)).map(e => toDiagnostic(e));
+    const diagnostics: Diagnostic[] = warnings.filter(w => inThisFile(uri, w)).map(w => toDiagnostic(w));
+    connection.sendDiagnostics({ uri: uri, diagnostics });
+
     return scopes;
   } catch (e) {
     console.error(e);
@@ -225,39 +251,67 @@ const defaultSettings: DocumentSettings = { maxNumberOfProblems: 1000 };
 let globalSettings: DocumentSettings = defaultSettings;
 
 // Set up validation handler for when document changes
-documents.onDidChangeContent(async change => {
+documents.onDidChangeContent(change => {
   const document = change.document;
 
   // re-parse the AST
-  const parsed = await parseTextDocument(document);
+  const parsed = parseTextDocument(document);
   if (!parsed) {
+    console.log('Failed to parse ' + document.uri);
     return;
   }
 
   // Check if includes have changed -- if they have, we need to rebuild project files
   const includedUris = parsed.chunk.includes!.map(include => include.resolvedFile.fileURL).sort();
-  
+
   // get the old includes to see what they were before
   const oldIncludes = parsedDocuments.get(document.uri);
-  if (!oldIncludes) {
-    return;
-  }
-  const oldIncludedUris = oldIncludes.chunk.includes!.map(include => include.resolvedFile.fileURL).sort();
+  let oldIncludedUris = oldIncludes?.chunk.includes!.map(include => include.resolvedFile.fileURL).sort();
+  oldIncludedUris = oldIncludedUris || [];
+
+  // Before we proceed, we need to make sure to store the newly parsed doc back in parsedDocuments
+  parsedDocuments.set(document.uri, parsed);
 
   // compare the two
-  let foundAnyDifferences = includedUris.length !== oldIncludedUris.length;
+  let foundProjectDifferences = includedUris.length !== oldIncludedUris.length;
   for (let i = 0; i < includedUris.length; i++) {
     if (includedUris[i] !== oldIncludedUris[i]) {
-      foundAnyDifferences = true;
+      foundProjectDifferences = true;
     }
   }
 
-  if (foundAnyDifferences) {
-    console.log('Found differences in #include statements -- rebuilding project tree')
+  if (foundProjectDifferences) {
+    console.log('Found differences in #include statements -- rebuilding project tree');
     rebuildProjectTree();
     findDefUsagesForAllProjects();
+  } else {
+    // Otherwise, only re-scan the project that has changed
+    const projectOfChangedFile = projectsByFilename.get(document.uri);
+    projectOfChangedFile && reparseProjectFiles(projectOfChangedFile, { [document.uri]: parsed }).catch(e => {
+      console.error('error reparsing project files: ', e);
+    });
   }
 });
+
+async function reparseProjectFiles(project: Project, alreadyParsed: { [filename: string]: ProjectDocument }) {
+  const projFiles = getProjectFiles(project);
+
+  await Promise.all(projFiles.map(async file => {
+    if (alreadyParsed[file]) {
+      return;
+    }
+
+    const textDocument = await createTextDocument(url.fileURLToPath(file));
+    const parsed = parseTextDocument(textDocument);
+    if (parsed) {
+      parsedDocuments.set(textDocument.uri, parsed);
+    } else {
+      console.error('error parsing', textDocument.uri);
+    }
+  }));
+
+  findDefUsagesForProject(project);
+}
 
 // Cache the settings of all open documents
 const documentSettings: Map<string, Thenable<DocumentSettings>> = new Map<string, Thenable<DocumentSettings>>();
@@ -349,12 +403,28 @@ function toDiagnostic(err: ParseError | Warning): Diagnostic {
   };
 }
 
-async function parseTextDocument(textDocument: TextDocument) {
+const fileResolver: FileResolver = {
+  doesFileExist: (filepath) => fs.existsSync(filepath),
+  isFile: (filepath) => fs.lstatSync(filepath).isFile(),
+  loadFileContents: (filepath) => {
+    const uri = url.pathToFileURL(filepath).toString();
+
+    const cached = documents.get(uri);
+    if (cached) {
+      return cached.getText();
+    }
+
+    // file isn't available in documents cache so read it the old-fashioned way
+    return fs.readFileSync(filepath).toString();
+  },
+};
+
+function parseTextDocument(textDocument: TextDocument) {
   try {
     // parse document
     const text = textDocument.getText();
     documentTextCache.set(textDocument.uri, textDocument);
-    const parser = new Parser(ResolvedFile.fromFileURL(textDocument.uri), text);
+    const parser = new Parser(ResolvedFile.fromFileURL(textDocument.uri), text, fileResolver);
     const chunk = parser.parse();
     const { errors, symbols, includes } = chunk;
 

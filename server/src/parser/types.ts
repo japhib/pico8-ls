@@ -26,7 +26,7 @@ export function boundsEqual(a: Bounds, b: Bounds): boolean {
 }
 
 export function boundsToString(bounds: Bounds): string {
-  if (!bounds.start.filename.equals(bounds.end.filename)) {
+  if (bounds.start.filename.path !== bounds.end.filename.path) {
     return `${codeLocationToString(bounds.start)} to ${codeLocationToString(bounds.end)}`;
   }
 

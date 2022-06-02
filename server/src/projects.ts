@@ -1,5 +1,7 @@
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import { Chunk } from './parser/statements';
+import * as url from 'url';
+import * as path from 'path';
 
 export type ProjectDocument = { textDocument: TextDocument, chunk: Chunk };
 
@@ -8,6 +10,29 @@ export type ParsedDocumentsMap = Map<string, ProjectDocument>;
 // Represents a whole "project" tree. Starts at one root .p8 file, and includes
 // all the files that may be included by it.
 export type Project = { root: ProjectDocumentNode };
+
+// Returns a human readable string listing all the files included in the project.
+export function projectToString(project: Project): string {
+  return getProjectFiles(project).map(f => path.basename(url.fileURLToPath(f))).join(', ');
+}
+
+export function getProjectFiles(project: Project) {
+  const allFiles: string[] = [];
+
+  iterateProject(project, node => allFiles.push(node.document.textDocument.uri));
+
+  return allFiles;
+}
+
+export function iterateProject(project: Project, fun: (arg0: ProjectDocumentNode) => void) {
+  const iterate = (node: ProjectDocumentNode) => {
+    fun(node);
+    for (const child of node.included) {
+      iterate(child);
+    }
+  };
+  iterate(project.root);
+}
 
 // A single node of the project tree, representing a single document and any
 // files it directly includes.
