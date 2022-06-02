@@ -33,6 +33,11 @@ such as NeoVim, Atom, etc.
 
 # Changelog
 
+## 0.4.1 (6/2/2022)
+
+- Better support for `#include`ing files -- files included by other files now have the same global scope. Go to definition and find usages works both from the including file, and from the included file. (Previously only worked from the including file.) ([#3](https://github.com/japhib/pico8-ls/issues/3)
+- Fix code folding ([#15](https://github.com/japhib/pico8-ls/issues/15))
+
 ## 0.4.0 (5/26/2022)
 
 - Add support for `#include`ing files ([#3](https://github.com/japhib/pico8-ls/issues/3), [#8](https://github.com/japhib/pico8-ls/issues/8))

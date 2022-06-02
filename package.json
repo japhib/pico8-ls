@@ -5,7 +5,7 @@
 	"author": "JanPaul Bergeson",
 	"publisher": "PollywogGames",
 	"license": "MIT",
-	"version": "0.4.0",
+	"version": "0.4.1",
 	"repository": {
 		"type": "git",
 		"url": "https://github.com/japhib/pico8-ls"
@@ -100,6 +100,7 @@
 	},
 	"scripts": {
 		"vscode:prepublish": "npm run compile && cd server && npm test && cd ..",
+		"vscode-publish": "vsce package && vsce publish",
 		"clean": "rm -rf client/out client/out-min server/out server/out-min",
 		"clean-deps": "rm -rf node_modules client/node_modules server/node_modules && npm install",
 		"compile": "npm run esbuild-client && npm run esbuild-server",

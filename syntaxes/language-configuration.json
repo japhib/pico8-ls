@@ -25,12 +25,6 @@
         ["\"", "\""],
         ["'", "'"]
     ],
-    "folding": {
-        "markers": {
-            "start": "({|\b(function|while|if|for)\b)",
-            "end": "(end|})"
-        }
-    },
     // This isn't working, idk why
     // "onEnterRules": [{
     //     "beforeText": "({|\b(function|while|if|for)\b)",
