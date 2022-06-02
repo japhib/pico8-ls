@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-call */
 import * as assert from 'assert';
 import { ParseError } from '../errors';
 import ResolvedFile from '../file-resolver';

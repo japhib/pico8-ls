@@ -16,6 +16,7 @@ function goToDefinition(lookup: DefinitionsUsagesLookup, code: string, line: num
   }
 
   const token = tokenAt(code, defUs.definitions[0].start.index);
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-return
   return token?.value;
 }
 
@@ -454,7 +455,7 @@ a.b.c.mem()
     });
   });
 
-  describe.only('#include statements (in including file)', () => {
+  describe('#include statements (in including file)', () => {
     it('finds the definition of a global defined in an include statement', () => {
       const fileResolver = new MockFileResolver();
       fileResolver.loadFileContents = () => 'local a = 5';

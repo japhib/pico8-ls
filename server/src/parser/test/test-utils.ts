@@ -15,7 +15,7 @@ export function getTestFileContents(filename: string): string {
 }
 
 export function getLexedTokens(input: string): Token[] {
-  const lexer = new Lexer(input, new ResolvedFile('test', 'test'));
+  const lexer = new Lexer(input, new ResolvedFile('main_test_file', 'main_test_file'));
 
   const tokens: Token[] = [];
 
