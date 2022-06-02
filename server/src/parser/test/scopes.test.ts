@@ -9,7 +9,7 @@ function codeLoc(line: number, column: number): CodeLocation {
     column,
     // (note index is 0 since it's unused in these test scenarios)
     index: 0,
-    filename: new ResolvedFile('test', 'test'),
+    filename: new ResolvedFile('main_test_file', 'main_test_file'),
   };
 }
 

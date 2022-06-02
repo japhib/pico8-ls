@@ -67,7 +67,7 @@ export default class Parser {
   locations: Marker[] = [];
 
   // Store each block scope as a an array of identifier names. Each scope is
-  // stored in an stack.
+  // stored in a stack.
   scopes: Scope[] = [[]];
   // The current scope index
   scopeDepth = 0;
@@ -197,6 +197,7 @@ export default class Parser {
 
   // Create a new scope inheriting all declarations from the previous scope.
   createScope() {
+    // copy current scope
     const scope = this.scopes[this.scopeDepth].slice();
     this.scopeDepth++;
     this.scopes.push(scope);
@@ -207,7 +208,7 @@ export default class Parser {
     --this.scopeDepth;
   }
 
-  // Add identifier name to the current scope if it doesnt already exist.
+  // Add identifier name to the current scope if it doesn't already exist.
   scopeIdentifierName(name: string) {
     if (-1 !== this.scopes[this.scopeDepth].indexOf(name)) {
       return;

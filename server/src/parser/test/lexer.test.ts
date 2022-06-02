@@ -281,7 +281,7 @@ __gfx__
     });
 
     it('doesn\'t return an error the second time next() is called', () => {
-      const lexer = new Lexer('"asdf', new ResolvedFile('test', 'test'));
+      const lexer = new Lexer('"asdf', new ResolvedFile('main_test_file', 'main_test_file'));
 
       assert.throws(() => {
         lexer.next();
