@@ -1,3 +1,5 @@
+![PICO-8 logo](https://github.com/japhib/pico8-ls/blob/master/img/icon.png?raw=true)
+
 # PICO-8 Language Server
 
 Full language support for the [PICO-8](https://www.lexaloffle.com/pico-8.php)
