@@ -11,7 +11,7 @@ but specifically tailored for a frictionless PICO-8 experience.
 
 Full support for `#include` statements:
 
-![include gif](https://github.com/japhib/pico8-ls/blob/master/img/icon.png?raw=true)
+![include gif](https://github.com/japhib/pico8-ls/blob/master/img/includes.gif?raw=true)
 
 ### Technical Note
 
