@@ -7,6 +7,12 @@ The goal is to have all the features you'd expect in a full-fledged language
 server, such as [the one for Lua](https://marketplace.visualstudio.com/items?itemName=sumneko.lua),
 but specifically tailored for a frictionless PICO-8 experience.
 
+# Feature highlights
+
+Full support for `#include` statements:
+
+![include gif](https://github.com/japhib/pico8-ls/blob/master/img/icon.png?raw=true)
+
 ### Technical Note
 
 This extension uses the [Language Server Protocol](https://microsoft.github.io/language-server-protocol/),
@@ -35,7 +41,7 @@ such as NeoVim, Atom, etc.
 
 ## 0.4.1 (6/2/2022)
 
-- Better support for `#include`ing files -- files included by other files now have the same global scope. Go to definition and find usages works both from the including file, and from the included file. (Previously only worked from the including file.) ([#3](https://github.com/japhib/pico8-ls/issues/3)
+- Better support for `#include`ing files -- files included by other files now have the same global scope. Go to definition and find usages works both from the including file, and from the included file. (Previously only worked from the including file.) ([#3](https://github.com/japhib/pico8-ls/issues/3))
 - Fix code folding ([#15](https://github.com/japhib/pico8-ls/issues/15))
 
 ## 0.4.0 (5/26/2022)
