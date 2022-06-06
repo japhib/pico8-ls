@@ -39,6 +39,12 @@ such as NeoVim, Atom, etc.
 
 # Changelog
 
+## 0.4.2 (6/6/2022)
+
+- Fix warning on shorthand ? print function ([#17](https://github.com/japhib/pico8-ls/issues/17))
+- Fix warning on labels and gotos ([#16](https://github.com/japhib/pico8-ls/issues/16))
+- Add support for `extcmd`, `yield`, and a few other missing built-in functions ([14](https://github.com/japhib/pico8-ls/issues/14))
+
 ## 0.4.1 (6/2/2022)
 
 - Better support for `#include`ing files -- files included by other files now have the same global scope. Go to definition and find usages works both from the including file, and from the included file. (Previously only worked from the including file.) ([#3](https://github.com/japhib/pico8-ls/issues/3))
