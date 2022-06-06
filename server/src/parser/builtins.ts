@@ -8,7 +8,7 @@ export type BuiltinFunctionInfo = {
 // A list of all the built-in functions of PICO-8
 export const Builtins: { [key: string]: BuiltinFunctionInfo } = {
   circ: {
-    sig: 'circ( x, y, [r,] [col]  )',
+    sig: 'circ( x, y, [r,] [col] )',
     desc: 'Draws a circle shape, without fill.',
     params: [
       'x: The x coordinate of the center of the circle.',
@@ -18,7 +18,7 @@ export const Builtins: { [key: string]: BuiltinFunctionInfo } = {
     ],
   },
   cursor: {
-    sig: 'cursor( [x,] [y,] [col]  )',
+    sig: 'cursor( [x,] [y,] [col] )',
     desc: 'Sets the left-margin cursor position for print().',
     params: [
       'x: The x coordinate of the upper left corner of the line. The default is 0.',
@@ -28,14 +28,14 @@ export const Builtins: { [key: string]: BuiltinFunctionInfo } = {
     ],
   },
   cls: {
-    sig: 'cls( [color]  )',
+    sig: 'cls( [color] )',
     desc: 'Clears the graphics buffer.',
     params: [
       'color: A color to use for the background. The default is 0 (black).',
     ],
   },
   ovalfill: {
-    sig: 'ovalfill( x0, y0, x1, y1, [col]  )',
+    sig: 'ovalfill( x0, y0, x1, y1, [col] )',
     desc: 'Draws a filled oval shape.',
     params: [
       'x0: The x coordinate of the upper left corner.',
@@ -46,7 +46,7 @@ export const Builtins: { [key: string]: BuiltinFunctionInfo } = {
     ],
   },
   circfill: {
-    sig: 'circfill( x, y, [r,] [col]  )',
+    sig: 'circfill( x, y, [r,] [col] )',
     desc: 'Draws a filled-in circle shape.',
     params: [
       'x: The x coordinate of the center of the circle.',
@@ -56,7 +56,7 @@ export const Builtins: { [key: string]: BuiltinFunctionInfo } = {
     ],
   },
   fget: {
-    sig: 'fget( n, [f]  )',
+    sig: 'fget( n, [f] )',
     desc: 'Gets the value of a flag of a sprite.',
     params: [
       'n: The sprite number.',
@@ -64,17 +64,17 @@ export const Builtins: { [key: string]: BuiltinFunctionInfo } = {
     ],
   },
   color: {
-    sig: 'color( [col]  )',
+    sig: 'color( [col] )',
     desc: 'Sets the draw color in the draw state.',
     params: [ 'col: The color number. Default is 6 (light gray).' ],
   },
   pget: {
-    sig: 'pget( x, y  )',
+    sig: 'pget( x, y )',
     desc: 'Gets the color value of a pixel at the given coordinates.',
     params: [ 'x: The x coordinate.', 'y: The y coordinate.' ],
   },
   line: {
-    sig: 'line( [x0,] [y0,] [x1,] [y1,] [color]  )',
+    sig: 'line( [x0,] [y0,] [x1,] [y1,] [color] )',
     desc: 'Draws a line between two points.',
     params: [
       'x0: The x coordinate of the start of the line. If omitted, the x coordinate of the end of the previous line is used, or 0 if no previous line has been drawn.',
@@ -85,7 +85,7 @@ export const Builtins: { [key: string]: BuiltinFunctionInfo } = {
     ],
   },
   rect: {
-    sig: 'rect( x0, y0, x1, y1, [col]  )',
+    sig: 'rect( x0, y0, x1, y1, [col] )',
     desc: 'Draws an empty rectangle shape.',
     params: [
       'x0: The x coordinate of the upper left corner.',
@@ -96,7 +96,7 @@ export const Builtins: { [key: string]: BuiltinFunctionInfo } = {
     ],
   },
   palt: {
-    sig: 'palt( [col,] [t]  )',
+    sig: 'palt( [col,] [t] )',
     desc: 'Change the transparency of a color in the draw state for subsequent draw calls.',
     params: [
       'col: The number of the color to modify.',
@@ -104,7 +104,7 @@ export const Builtins: { [key: string]: BuiltinFunctionInfo } = {
     ],
   },
   oval: {
-    sig: 'oval( x0, y0, x1, y1, [col]  )',
+    sig: 'oval( x0, y0, x1, y1, [col] )',
     desc: 'Draws an empty oval shape.',
     params: [
       'x0: The x coordinate of the upper left corner.',
@@ -115,7 +115,7 @@ export const Builtins: { [key: string]: BuiltinFunctionInfo } = {
     ],
   },
   pset: {
-    sig: 'pset( x, y, [c]  )',
+    sig: 'pset( x, y, [c] )',
     desc: 'Sets a pixel in the graphics buffer.',
     params: [
       'x: The x coordinate.',
@@ -124,17 +124,17 @@ export const Builtins: { [key: string]: BuiltinFunctionInfo } = {
     ],
   },
   fillp: {
-    sig: 'fillp( [pat]  )',
+    sig: 'fillp( [pat] )',
     desc: 'Sets the fill pattern.',
     params: [ 'pat: A bitfield representing the fill pattern to use.' ],
   },
   flip: {
-    sig: 'flip(  )',
+    sig: 'flip( )',
     desc: 'Copies the graphics buffer to the screen, then synchronizes to the next frame at 30 frames per second.',
     params: [],
   },
   spr: {
-    sig: 'spr( n, x, y, [w,] [h,] [flip_x,] [flip_y]  )',
+    sig: 'spr( n, x, y, [w,] [h,] [flip_x,] [flip_y] )',
     desc: 'Draws a sprite, or a range of sprites, on the screen.',
     params: [
       'n: The sprite number. When drawing a range of sprites, this is the upper-left corner.',
@@ -147,7 +147,7 @@ export const Builtins: { [key: string]: BuiltinFunctionInfo } = {
     ],
   },
   sget: {
-    sig: 'sget( x, y  )',
+    sig: 'sget( x, y )',
     desc: 'Gets the color value of a pixel on the sprite sheet.',
     params: [
       'x: The x coordinate on the sprite sheet.',
@@ -155,7 +155,7 @@ export const Builtins: { [key: string]: BuiltinFunctionInfo } = {
     ],
   },
   print: {
-    sig: 'print( text, [x,] [y,] [color]  )',
+    sig: 'print( text, [x,] [y,] [color] )',
     desc: 'Prints a string of characters to the screen.',
     params: [
       'text: The Lua string of characters to print.',
@@ -166,7 +166,7 @@ export const Builtins: { [key: string]: BuiltinFunctionInfo } = {
     ],
   },
   pal: {
-    sig: 'pal( c0, c1, [p]  )',
+    sig: 'pal( c0, c1, [p] )',
     desc: 'Changes the draw state so all instances of a given color are replaced with a new color.',
     params: [
       'c0: The number of the original color to replace.',
@@ -175,7 +175,7 @@ export const Builtins: { [key: string]: BuiltinFunctionInfo } = {
     ],
   },
   sset: {
-    sig: 'sset( x, y, [c]  )',
+    sig: 'sset( x, y, [c] )',
     desc: 'Sets the color value of a pixel on the sprite sheet.',
     params: [
       'x: The x coordinate on the sprite sheet.',
@@ -184,7 +184,7 @@ export const Builtins: { [key: string]: BuiltinFunctionInfo } = {
     ],
   },
   camera: {
-    sig: 'camera( [x,] [y]  )',
+    sig: 'camera( [x,] [y] )',
     desc: 'Sets the camera offset in the draw state.',
     params: [
       'x: The x offset, in pixels, to subtract from future draw coordinates. (default 0)',
@@ -194,7 +194,7 @@ export const Builtins: { [key: string]: BuiltinFunctionInfo } = {
   },
   ipairs: {},
   clip: {
-    sig: 'clip( x, y, w, h, [clip_previous]  )',
+    sig: 'clip( x, y, w, h, [clip_previous] )',
     desc: 'Sets the clipping region in the draw state.',
     params: [
       'x: The x coordinate of the upper left corner of the clipping rectangle.',
@@ -206,7 +206,7 @@ export const Builtins: { [key: string]: BuiltinFunctionInfo } = {
     ],
   },
   mset: {
-    sig: 'mset( celx, cely, snum  )',
+    sig: 'mset( celx, cely, snum )',
     desc: 'Sets a cell on the map to a new sprite number.',
     params: [
       'celx: The column (x) coordinate of the cell.',
@@ -215,7 +215,7 @@ export const Builtins: { [key: string]: BuiltinFunctionInfo } = {
     ],
   },
   mget: {
-    sig: 'mget( celx, cely  )',
+    sig: 'mget( celx, cely )',
     desc: 'Gets the sprite number assigned to a cell on the map.',
     params: [
       'celx: The column (x) coordinate of the cell.',
@@ -223,12 +223,12 @@ export const Builtins: { [key: string]: BuiltinFunctionInfo } = {
     ],
   },
   next: {
-    sig: 'next( tbl, [key]  )',
+    sig: 'next( tbl, [key] )',
     desc: 'A stateless iterator of key-value pairs for all elements in a table.',
     params: [ 'tbl: The table.', 'key: The current key.' ],
   },
   band: {
-    sig: 'band( first, second  )',
+    sig: 'band( first, second )',
     desc: 'Calculates the bitwise-and of two numbers.',
     params: [
       'first: The first number.',
@@ -238,7 +238,7 @@ export const Builtins: { [key: string]: BuiltinFunctionInfo } = {
     deprecated: true,
   },
   unpack: {
-    sig: 'unpack( tbl, [i,] [j]  )',
+    sig: 'unpack( tbl, [i,] [j] )',
     desc: 'Returns the elements from the given table.',
     params: [
       'tbl: The table to unpack.',
@@ -247,7 +247,7 @@ export const Builtins: { [key: string]: BuiltinFunctionInfo } = {
     ],
   },
   setmetatable: {
-    sig: 'setmetatable( tbl, metatbl  )',
+    sig: 'setmetatable( tbl, metatbl )',
     desc: 'Updates the metatable for a table.',
     params: [
       'tbl: The table whose metatable to modify.',
@@ -256,7 +256,7 @@ export const Builtins: { [key: string]: BuiltinFunctionInfo } = {
     ],
   },
   fset: {
-    sig: 'fset( n, [f,] v  )',
+    sig: 'fset( n, [f,] v )',
     desc: 'Sets the value of a flag of a sprite.',
     params: [
       'n: The sprite number.',
@@ -265,7 +265,7 @@ export const Builtins: { [key: string]: BuiltinFunctionInfo } = {
     ],
   },
   sub: {
-    sig: 'sub( str, start, [end]  )',
+    sig: 'sub( str, start, [end] )',
     desc: 'Gets the substring of a string.',
     params: [
       'str: The string.',
@@ -274,7 +274,7 @@ export const Builtins: { [key: string]: BuiltinFunctionInfo } = {
     ],
   },
   split: {
-    sig: 'split( str, [separator,] [convert_numbers]  )',
+    sig: 'split( str, [separator,] [convert_numbers] )',
     desc: 'Split a string into a table of elements delimited by the given separator (defaults to ",").',
     params: [
       'str: The string.',
@@ -283,7 +283,7 @@ export const Builtins: { [key: string]: BuiltinFunctionInfo } = {
     ],
   },
   rectfill: {
-    sig: 'rectfill( x0, y0, x1, y1, [col]  )',
+    sig: 'rectfill( x0, y0, x1, y1, [col] )',
     desc: 'Draws a filled-in rectangle shape.',
     params: [
       'x0: The x coordinate of the upper left corner.',
@@ -294,7 +294,7 @@ export const Builtins: { [key: string]: BuiltinFunctionInfo } = {
     ],
   },
   sfx: {
-    sig: 'sfx( n, [channel,] [offset,] [length]  )',
+    sig: 'sfx( n, [channel,] [offset,] [length] )',
     desc: 'Plays a sound effect.',
     params: [
       'n: The number of the sound effect to play (0-63), -1 to stop playing sound on the given channel, or -2 to release the sound of the given channel from looping.',
@@ -304,7 +304,7 @@ export const Builtins: { [key: string]: BuiltinFunctionInfo } = {
     ],
   },
   printh: {
-    sig: 'printh( str, [filename,] [overwrite]  )',
+    sig: 'printh( str, [filename,] [overwrite] )',
     desc: 'Prints a string to a console window that is running PICO-8, or to a file or the clipboard.',
     params: [
       'str: The string to print.',
@@ -313,24 +313,24 @@ export const Builtins: { [key: string]: BuiltinFunctionInfo } = {
     ],
   },
   getmetatable: {
-    sig: 'getmetatable( tbl  )',
+    sig: 'getmetatable( tbl )',
     desc: 'Gets the metatable for a table.',
     params: [ 'tbl: The table.' ],
   },
   pack: {
-    sig: 'pack( ...  )',
+    sig: 'pack( ... )',
     desc: 'Creates a table from the given parameters.',
     params: [ '...: parameters' ],
   },
   sin: {
-    sig: 'sin( angle  )',
+    sig: 'sin( angle )',
     desc: 'Calculates the sine of an angle.',
     params: [
       'angle: The angle, using a full circle range of 0.0-1.0 measured clockwise (0.0 to the right).',
     ],
   },
   memcpy: {
-    sig: 'memcpy( destaddr, sourceaddr, len  )',
+    sig: 'memcpy( destaddr, sourceaddr, len )',
     desc: 'Copies a region of memory to another location in memory.',
     params: [
       'destaddr: The address of the first byte of the destination.',
@@ -339,12 +339,12 @@ export const Builtins: { [key: string]: BuiltinFunctionInfo } = {
     ],
   },
   sqrt: {
-    sig: 'sqrt( num  )',
+    sig: 'sqrt( num )',
     desc: 'Calculates the square root of a number.',
     params: [ 'num: The number. Must be positive.' ],
   },
   memset: {
-    sig: 'memset( destaddr, val, len  )',
+    sig: 'memset( destaddr, val, len )',
     desc: 'Writes a byte value to every address in a region of memory.',
     params: [
       'destaddr: The address of the first memory location to write.',
@@ -353,7 +353,7 @@ export const Builtins: { [key: string]: BuiltinFunctionInfo } = {
     ],
   },
   all: {
-    sig: 'all( tbl  )',
+    sig: 'all( tbl )',
     desc: 'Returns an iterator for all non-nil items in a sequence in a table, for use with for...in.',
     params: [
       'tbl: The table to iterate.',
@@ -361,7 +361,7 @@ export const Builtins: { [key: string]: BuiltinFunctionInfo } = {
     ],
   },
   flr: {
-    sig: 'flr( num  )',
+    sig: 'flr( num )',
     desc: 'Returns the nearest integer at or below a number (its "floor").',
     params: [
       'num: The number.',
@@ -385,7 +385,7 @@ export const Builtins: { [key: string]: BuiltinFunctionInfo } = {
     ],
   },
   deli: {
-    sig: 'deli( table, [index]  )',
+    sig: 'deli( table, [index] )',
     desc: 'Removes the element at the given index of a sequence in a table.',
     params: [
       'table: The table.',
@@ -393,12 +393,12 @@ export const Builtins: { [key: string]: BuiltinFunctionInfo } = {
     ],
   },
   count: {
-    sig: 'count( tbl, [v]  )',
+    sig: 'count( tbl, [v] )',
     desc: 'Returns the length of a table, or the number of instances of a value within a table.',
     params: [ 'tbl: The table.', 'v: Value to count occurrences of.' ],
   },
   peek: {
-    sig: 'peek( addr, [n]  )',
+    sig: 'peek( addr, [n] )',
     desc: 'Reads one or more bytes from contiguous memory locations starting at addr.',
     params: [
       'addr: The address of the first memory location.',
@@ -406,12 +406,12 @@ export const Builtins: { [key: string]: BuiltinFunctionInfo } = {
     ],
   },
   abs: {
-    sig: 'abs( num  )',
+    sig: 'abs( num )',
     desc: 'Returns the absolute value of a number.',
     params: [ 'num: The number.', 'return-value: The absolute value of num.' ],
   },
   atan2: {
-    sig: 'atan2( dx, dy  )',
+    sig: 'atan2( dx, dy )',
     desc: 'Calculates the arctangent of dy/dx, the angle formed by the vector on the unit circle. The result is adjusted to represent the full circle.',
     params: [
       'dx: The horizontal component.',
@@ -420,7 +420,7 @@ export const Builtins: { [key: string]: BuiltinFunctionInfo } = {
     ],
   },
   min: {
-    sig: 'min( first, [second]  )',
+    sig: 'min( first, [second] )',
     desc: 'Returns the minimum of two numbers.',
     params: [
       'first: The first number.',
@@ -428,18 +428,18 @@ export const Builtins: { [key: string]: BuiltinFunctionInfo } = {
     ],
   },
   lshr: {
-    sig: 'lshr( num, bits  )',
+    sig: 'lshr( num, bits )',
     desc: 'Shifts the bits of a number to the right, using logical shift.',
     params: [ 'num: The number.', 'bits: The number of bits to shift.' ],
     deprecated: true,
   },
   cos: {
-    sig: 'cos( angle  )',
+    sig: 'cos( angle )',
     desc: 'Calculates the cosine of an angle.',
     params: [ 'angle: The angle, using a full circle range of 0.0-1.0.' ],
   },
   mid: {
-    sig: 'mid( first, second, third  )',
+    sig: 'mid( first, second, third )',
     desc: 'Returns the middle of three numbers. Also useful for clamping.',
     params: [
       'first: The first number.',
@@ -463,18 +463,18 @@ export const Builtins: { [key: string]: BuiltinFunctionInfo } = {
     ],
   },
   bnot: {
-    sig: 'bnot( num  )',
+    sig: 'bnot( num )',
     desc: 'Calculates the bitwise not of a number.',
     params: [ 'num: The number.', 'return-value: The bitwise-not of num.' ],
     deprecated: true,
   },
   pairs: {
-    sig: 'pairs( tbl  )',
+    sig: 'pairs( tbl )',
     desc: 'Returns an iterator of key-value pairs for all elements in a table, for use with for...in.',
     params: [ 'tbl: The table.' ],
   },
   ceil: {
-    sig: 'ceil( num  )',
+    sig: 'ceil( num )',
     desc: 'Returns the nearest integer at or above a number (its "ceiling").',
     params: [
       'num: The number.',
@@ -482,7 +482,7 @@ export const Builtins: { [key: string]: BuiltinFunctionInfo } = {
     ],
   },
   foreach: {
-    sig: 'foreach( tbl, func  )',
+    sig: 'foreach( tbl, func )',
     desc: 'Calls a function for each element in a sequence in a table.',
     params: [
       'tbl: The table.',
@@ -490,17 +490,17 @@ export const Builtins: { [key: string]: BuiltinFunctionInfo } = {
     ],
   },
   dget: {
-    sig: 'dget( index  )',
+    sig: 'dget( index )',
     desc: 'Gets a value from persistent cartridge data.',
     params: [ 'index: The index of the value, 0 to 63.' ],
   },
   rnd: {
-    sig: 'rnd( [max]  )',
+    sig: 'rnd( [max] )',
     desc: 'Generates a random number between 0 and the given maximum exclusive, or returns a random element from a 1-based table sequence.',
     params: [ 'max: The range, non-inclusive. Defaults to 1.' ],
   },
   btn: {
-    sig: 'btn( [i,] [p]  )',
+    sig: 'btn( [i,] [p] )',
     desc: 'Tests if a button is being pressed at this moment.',
     params: [
       'i: The button number.',
@@ -509,12 +509,12 @@ export const Builtins: { [key: string]: BuiltinFunctionInfo } = {
     ],
   },
   srand: {
-    sig: 'srand( val  )',
+    sig: 'srand( val )',
     desc: 'Initializes the random number generator with an explicit seed value.',
     params: [ 'val: The seed value.' ],
   },
   map: {
-    sig: 'map( celx, cely, sx, sy, celw, celh, [layer]  )',
+    sig: 'map( celx, cely, sx, sy, celw, celh, [layer] )',
     desc: 'Draws a portion of the map to the graphics buffer.',
     params: [
       'celx: The column location of the map cell in the upper left corner of the region to draw, where 0 is the leftmost column.',
@@ -527,7 +527,7 @@ export const Builtins: { [key: string]: BuiltinFunctionInfo } = {
     ],
   },
   poke: {
-    sig: 'poke( addr, [value,] [...]  )',
+    sig: 'poke( addr, [value,] [...] )',
     desc: 'Writes one or more bytes to contiguous memory locations.',
     params: [
       'addr: The address of the first memory location.',
@@ -537,7 +537,7 @@ export const Builtins: { [key: string]: BuiltinFunctionInfo } = {
   },
   self: {},
   cartdata: {
-    sig: 'cartdata( id  )',
+    sig: 'cartdata( id )',
     desc: 'Sets up cartridge data for the cart.',
     params: [
       'id: A string that is likely to be unique across all PICO-8 carts.',
@@ -554,12 +554,12 @@ export const Builtins: { [key: string]: BuiltinFunctionInfo } = {
   },
   coyield: {},
   costatus: {
-    sig: 'costatus( cor  )',
+    sig: 'costatus( cor )',
     desc: 'Tests a coroutine and returns a string representing its status.',
     params: [ 'cor: The coroutine to test.' ],
   },
   shl: {
-    sig: 'shl( num, bits  )',
+    sig: 'shl( num, bits )',
     desc: 'Shifts the bits of a number to the left.',
     params: [ 'num: The number.', 'bits: The number of bits to shift.' ],
     deprecated: true,
@@ -575,18 +575,18 @@ export const Builtins: { [key: string]: BuiltinFunctionInfo } = {
     ],
   },
   rotl: {
-    sig: 'rotl( num, bits  )',
+    sig: 'rotl( num, bits )',
     desc: 'Rotates the bits of a number to the left.',
     params: [ 'num: The number.', 'bits: The number of bits to rotate.' ],
     deprecated: true,
   },
   del: {
-    sig: 'del( table, value  )',
+    sig: 'del( table, value )',
     desc: 'Deletes the first occurrence of a value from a sequence in a table.',
     params: [ 'table: The table.', 'value: The value to match and remove.' ],
   },
   cocreate: {
-    sig: 'cocreate( func  )',
+    sig: 'cocreate( func )',
     desc: 'Creates a coroutine from a function.',
     params: [
       'func: The function for the coroutine to run.',
@@ -594,12 +594,12 @@ export const Builtins: { [key: string]: BuiltinFunctionInfo } = {
     ],
   },
   sgn: {
-    sig: 'sgn( [number]  )',
+    sig: 'sgn( [number] )',
     desc: 'Returns the sign of a number, 1 for positive, -1 for negative',
     params: [ 'number: The number to determine the sign of.' ],
   },
   max: {
-    sig: 'max( first, [second]  )',
+    sig: 'max( first, [second] )',
     desc: 'Returns the maximum of two numbers.',
     params: [
       'first: The first number.',
@@ -607,7 +607,7 @@ export const Builtins: { [key: string]: BuiltinFunctionInfo } = {
     ],
   },
   bor: {
-    sig: 'bor( first, second  )',
+    sig: 'bor( first, second )',
     desc: 'Calculates the bitwise-or of two numbers.',
     params: [
       'first: The first number.',
@@ -617,19 +617,19 @@ export const Builtins: { [key: string]: BuiltinFunctionInfo } = {
     deprecated: true,
   },
   rotr: {
-    sig: 'rotr( num, bits  )',
+    sig: 'rotr( num, bits )',
     desc: 'Rotates the bits of a number to the right.',
     params: [ 'num: The number.', 'bits: The number of bits to rotate.' ],
     deprecated: true,
   },
   shr: {
-    sig: 'shr( num, bits  )',
+    sig: 'shr( num, bits )',
     desc: 'Shifts the bits of a number to the right.',
     params: [ 'num: The number.', 'bits: The number of bits to shift.' ],
     deprecated: true,
   },
   assert: {
-    sig: 'assert( cond, [message]  )',
+    sig: 'assert( cond, [message] )',
     desc: 'Causes a runtime error if a conditional expression is false.',
     params: [
       'cond: The conditional expression to assert.',
@@ -638,7 +638,7 @@ export const Builtins: { [key: string]: BuiltinFunctionInfo } = {
     ],
   },
   rawget: {
-    sig: 'rawget( tbl, member  )',
+    sig: 'rawget( tbl, member )',
     desc: 'Read a table member, bypassing metamethods',
     params: [
       'tbl: The table whose member to read.',
@@ -646,7 +646,7 @@ export const Builtins: { [key: string]: BuiltinFunctionInfo } = {
     ],
   },
   reload: {
-    sig: 'reload( destaddr, sourceaddr, len, [filename]  )',
+    sig: 'reload( destaddr, sourceaddr, len, [filename] )',
     desc: 'Loads a region of data from the cartridge, or from another cartridge, into memory.',
     params: [
       'destaddr: The address of the first byte of the destination in memory.',
@@ -656,17 +656,17 @@ export const Builtins: { [key: string]: BuiltinFunctionInfo } = {
     ],
   },
   tonum: {
-    sig: 'tonum( str  )',
+    sig: 'tonum( str )',
     desc: 'Converts a string representation of a decimal, hexadecimal, or binary number to a number value.',
     params: [ 'str: The string.' ],
   },
   rawlen: {
-    sig: 'rawlen( tbl  )',
+    sig: 'rawlen( tbl )',
     desc: 'Get the length of a table, bypassing metamethods',
     params: [ 'tbl: The table whose length to retrieve.' ],
   },
   btnp: {
-    sig: 'btnp( [i,] [p]  )',
+    sig: 'btnp( [i,] [p] )',
     desc: 'Tests if a button has just been pressed, with keyboard-style repeating.',
     params: [
       'i: The button number.',
@@ -683,7 +683,7 @@ export const Builtins: { [key: string]: BuiltinFunctionInfo } = {
     ],
   },
   rawset: {
-    sig: 'rawset( tbl, member, value  )',
+    sig: 'rawset( tbl, member, value )',
     desc: 'Write to a table member, bypassing metamethods',
     params: [
       'tbl: The table whose member to modify.',
@@ -692,7 +692,7 @@ export const Builtins: { [key: string]: BuiltinFunctionInfo } = {
     ],
   },
   cstore: {
-    sig: 'cstore( destaddr, sourceaddr, len, [filename]  )',
+    sig: 'cstore( destaddr, sourceaddr, len, [filename] )',
     desc: 'Store a region of memory in the cartridge file, or another cartridge file.',
     params: [
       'destaddr: The address of the first byte of the destination in the cartridge.',
@@ -702,17 +702,17 @@ export const Builtins: { [key: string]: BuiltinFunctionInfo } = {
     ],
   },
   dset: {
-    sig: 'dset( index, value  )',
+    sig: 'dset( index, value )',
     desc: 'Sets a value in persistent cartridge data.',
     params: [ 'index: The index of the value.', 'value: The new value to set.' ],
   },
   type: {
-    sig: 'type( value  )',
+    sig: 'type( value )',
     desc: 'Returns the basic type of a given value as a string.',
     params: [ 'value: The value whose type to test.' ],
   },
   coresume: {
-    sig: 'coresume( cor, [...]  )',
+    sig: 'coresume( cor, [...] )',
     desc: 'Starts a coroutine, or resumes a suspended coroutine.',
     params: [
       'cor: The coroutine, as created by cocreate().',
@@ -721,7 +721,7 @@ export const Builtins: { [key: string]: BuiltinFunctionInfo } = {
     ],
   },
   bxor: {
-    sig: 'bxor( first, second  )',
+    sig: 'bxor( first, second )',
     desc: 'Calculates the bitwise-xor (exclusive or) of two numbers.',
     params: [
       'first: The first number.',
@@ -740,7 +740,7 @@ export const Builtins: { [key: string]: BuiltinFunctionInfo } = {
     ],
   },
   tostr: {
-    sig: 'tostr( val, [usehex]  )',
+    sig: 'tostr( val, [usehex] )',
     desc: 'Converts a non-string value to a string representation.',
     params: [
       'val: The value to convert.',
@@ -748,7 +748,7 @@ export const Builtins: { [key: string]: BuiltinFunctionInfo } = {
     ],
   },
   menuitem: {
-    sig: 'menuitem( index, [label,] [callback]  )',
+    sig: 'menuitem( index, [label,] [callback] )',
     desc: 'Adds a custom item to the PICO-8 menu.',
     params: [
       'index: The item index, a number between 1 and 5.',
@@ -757,7 +757,7 @@ export const Builtins: { [key: string]: BuiltinFunctionInfo } = {
     ],
   },
   poke4: {
-    sig: 'poke4( addr, [...]  )',
+    sig: 'poke4( addr, [...] )',
     desc: 'Writes one or more 32-bit fixed-point PICO-8 number values to contiguous groups of four consecutive memory locations.',
     params: [
       'addr: The address of the first memory location.',
@@ -765,7 +765,7 @@ export const Builtins: { [key: string]: BuiltinFunctionInfo } = {
     ],
   },
   poke2: {
-    sig: 'poke2( addr, [...]  )',
+    sig: 'poke2( addr, [...] )',
     desc: 'Writes one or more 16-bit values to contiguous groups of two consecutive memory locations.',
     params: [
       'addr: The address of the first memory location.',
@@ -773,7 +773,7 @@ export const Builtins: { [key: string]: BuiltinFunctionInfo } = {
     ],
   },
   peek2: {
-    sig: 'peek2( addr, [n]  )',
+    sig: 'peek2( addr, [n] )',
     desc: 'Reads one or more 16-bit values from contiguous groups of two consecutive memory locations.',
     params: [
       'addr: The address of the first memory location.',
@@ -781,7 +781,7 @@ export const Builtins: { [key: string]: BuiltinFunctionInfo } = {
     ],
   },
   peek4: {
-    sig: 'peek4( addr, [n]  )',
+    sig: 'peek4( addr, [n] )',
     desc: 'Reads one or more 32-bit fixed-point number values from contiguous groups of four consecutive memory locations.',
     params: [
       'addr: The address of the first memory location.',
@@ -804,7 +804,73 @@ export const Builtins: { [key: string]: BuiltinFunctionInfo } = {
     desc: 'Returns the amount of time since PICO-8 was last started, as a (fractional) number of seconds.',
   },
   extcmd: {
-    sig: '',
+    sig: 'extcmd( cmd )',
+    desc: 'Executes an administrative command from within a program.',
+    params: [
+      '\'label\': Sets the cart label to the current screen.',
+      '\'screen\': Saves a screenshot.',
+      '\'rec\': Sets the video recording start point.',
+      '\'video\': Saves an animated GIF to the desktop.',
+      '\'audio_rec\': Starts audio recording.',
+      '\'audio_end\': Ends audio recording and saves to the desktop.',
+      '\'pause\': Activates the pause menu, as if the player pressed the pause button.',
+      '\'reset\': Resets the currently running cart, as if the player pressed the reset key sequence (Control-R or Command-R).',
+      '\'breadcrumb\': After a cart uses load() with the breadcrumb parameter to load another cart, loads the original cart, as if the player selected the breadcrumb menu item.',
+      '\'shutdown\': Exits the program if used in an exported binary.',
+      '\'set_filename\': Set the filename of the next screenshot or gif.',
+      '\'set_title\': set window title (useful for exported binaries)',
+      '\'folder\': opens the folder where carts are. Nice if you want to open to a created file or what have you.',
+    ],
+  },
+  serial: {
+    sig: 'serial( channel, address, length)',
+    desc: 'Buffers and dispatches GPIO writes at the end of each frame, allowing clock cycling at higher and/or more regular speeds than is possible by manually bit-banging using poke() calls.',
+    params: [
+      'channel: the channel to fread from/write to',
+      'address: the PICO-8 memory location to read from/write to.',
+      'length: number of bytes to send. 1/8ths are allowed to send partial bit strings.',
+    ],
+  },
+  select: {
+    sig: 'select( index, ... )',
+    desc: 'Selects from the given parameters.',
+    params: [
+      'index: Index to return parameters from, or \'#\' to return number of parameters',
+      '...: parameters',
+    ],
+  },
+  yield: {
+    sig: 'yield( [...] )',
+    desc: 'Yields control back to the caller from within a coroutine.',
+    params: [
+      '...: Arguments to be passed to the coresume() that resumed its coroutine.',
+    ],
+  },
+  stop: {
+    sig: 'stop( [message,] [x,] [y,] [col] )',
+    desc: 'Stops the program\'s execution and returns to the command prompt.',
+    params: [
+      'message: An optional message to print before stopping.',
+      'x: The x coordinate of the upper left corner to start printing.',
+      'y: The y coordinate of the upper left corner to start printing.',
+      'col: The color to use for the text.',
+    ],
+  },
+  trace: {
+    sig: 'trace( [coroutine,] [message,] [skip] )',
+    desc: 'Returns a description of the current call stack as a string.',
+    params: [
+      'coroutine: Optionally get the stack trace for a coroutine. Defaults to the current one or the main thread.',
+      'message: Adds the given string to the top of the trace report. Defaults to blank.',
+      'skip: Number of levels of the stack to skip. Defaults to 1, to skip the trace() call\'s own level.',
+    ],
+  },
+  run: {
+    sig: 'run( [str] )',
+    desc: 'Runs the current cartridge from the start of the program.',
+    params: [
+      'str: A "breadcrumb" string, as if passed by a calling cartridge.',
+    ],
   },
 };
 // Add 'mapdraw' alias for older version of 'map' function
