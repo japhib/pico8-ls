@@ -315,6 +315,13 @@ describe('SymbolFinder', () => {
     ]);
   });
 
+  it('creates a symbol for a label', () => {
+    const { symbols } = parse('::this_label::');
+    deepEquals(symbols, [
+      { name: 'this_label', type: CodeSymbolType.Label, children: [] },
+    ]);
+  });
+
   describe('handles "self" inside function definitions', () => {
     it('normal case', () => {
       const { symbols } = parse(`

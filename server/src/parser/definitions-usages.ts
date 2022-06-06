@@ -2,7 +2,7 @@
 
 import { createWarning, errMessages, Warning } from './errors';
 import { getMemberExpresionBaseIdentifier, getMemberExpressionName, getMemberExpressionParentName, Identifier, MemberExpression, TableConstructorExpression, TableKeyString } from './expressions';
-import { AssignmentStatement, Chunk, ForGenericStatement, ForNumericStatement, FunctionDeclaration, getBareFunctionDeclarationName, LocalStatement } from './statements';
+import { AssignmentStatement, Chunk, ForGenericStatement, ForNumericStatement, FunctionDeclaration, getBareFunctionDeclarationName, LabelStatement, LocalStatement } from './statements';
 import { Bounds, boundsEqual, boundsSize, CodeLocation } from './types';
 import { ASTVisitor, VisitableASTNode } from './visitor';
 import { BuiltinConstants, Builtins } from './builtins';
@@ -704,5 +704,9 @@ class DefinitionsUsagesFinder extends ASTVisitor<DefUsageScope> {
     }
 
     return { name, baseName };
+  }
+
+  override visitLabelStatement(node: LabelStatement): void {
+    this.addDefinition(node.label.name, node.loc!);
   }
 }

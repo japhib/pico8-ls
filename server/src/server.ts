@@ -361,8 +361,10 @@ function getDocumentSettings(resource: string): Thenable<DocumentSettings> {
 const symbolTypeLookup = {
   [CodeSymbolType.Function]: SymbolKind.Function,
   [CodeSymbolType.LocalVariable]: SymbolKind.Variable,
-  // Obviously a global variable is not a class, but we use it since it has a nicer symbol
+  // Obviously a global variable is not a class, but we use it since it has a nicer icon
   [CodeSymbolType.GlobalVariable]: SymbolKind.Class,
+  // Obviously a label is not null but there's no Label thing and the Null has a cool icon
+  [CodeSymbolType.Label]: SymbolKind.Null,
 };
 
 function boundsToRange(textDocument: TextDocument, bounds: Bounds): Range {

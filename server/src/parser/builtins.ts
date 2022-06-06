@@ -162,6 +162,7 @@ export const Builtins: { [key: string]: BuiltinFunctionInfo } = {
       'x: The x coordinate of the upper left corner to start printing.',
       'y: The y coordinate of the upper left corner to start printing.',
       'color: The color to use for the text.',
+      'return-value: The x coordinate of the next character to be printed (can be used to calculate printed width)',
     ],
   },
   pal: {
@@ -564,7 +565,7 @@ export const Builtins: { [key: string]: BuiltinFunctionInfo } = {
     deprecated: true,
   },
   add: {
-    sig: 'add( table, value, [index]  )',
+    sig: 'add( table, value, [index] )',
     desc: 'Adds a element to the end of a sequence in a table.',
     params: [
       'table: The table.',
@@ -802,9 +803,14 @@ export const Builtins: { [key: string]: BuiltinFunctionInfo } = {
     sig: 'time( )',
     desc: 'Returns the amount of time since PICO-8 was last started, as a (fractional) number of seconds.',
   },
+  extcmd: {
+    sig: '',
+  },
 };
 // Add 'mapdraw' alias for older version of 'map' function
 Builtins.mapdraw = Builtins.map;
+// Add ? as alias of print function
+Builtins['?'] = Builtins.print;
 
 // The symbols you get by typing shift+A, etc all the way to shift+Z
 export const BuiltinConstants: Set<string> = new Set<string>([
