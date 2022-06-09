@@ -59,7 +59,9 @@ function _deepEquals(actual: any, expected: any): boolean {
     return false;
   }
 
-  if (typeof expected === 'object') {
+  if (expected === null || expected === undefined) {
+    return expected === actual;
+  } else if (typeof expected === 'object') {
     if (Array.isArray(expected)) {
       return _deepEqualsArray(actual, expected);
     } else {

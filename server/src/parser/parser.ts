@@ -840,13 +840,21 @@ export default class Parser {
 
   // Special PICO-8 print statement: ? expression '\n'
   parseSpecialPrint(flowContext: FlowContext): CallStatement {
-    let expression: Expression;
+    const args: Expression[] = [];
     this.lexer.withSignificantNewline((() => {
-      expression = this.parseExpectedExpression(flowContext);
+      let expression = this.parseExpectedExpression(flowContext);
+      args.push(expression);
+
+      // look for more args
+      while (this.token.type === TokenType.Punctuator && this.token.value === ',') {
+        this.lexerNext();
+        expression = this.parseExpectedExpression(flowContext);
+        args.push(expression);
+      }
     }).bind(this));
 
     const base = this.finishNode(AST.identifier('?'));
-    const callExpression = this.finishNode(AST.callExpression(base, [ expression! ]));
+    const callExpression = this.finishNode(AST.callExpression(base, args));
     return this.finishNode(AST.callStatement(callExpression));
   }
 

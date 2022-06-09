@@ -103,13 +103,17 @@
 		"vscode-publish": "vsce package && vsce publish",
 		"clean": "rm -rf client/out client/out-min server/out server/out-min",
 		"clean-deps": "rm -rf node_modules client/node_modules server/node_modules && npm install",
-		"compile": "npm run esbuild-client && npm run esbuild-server",
-		"compile-nomin": "npm run esbuild-client-nomin && npm run esbuild-server-nomin",
+		
 		"compile-tsc": "node node_modules/typescript/bin/tsc -b",
+
+		"compile": "npm run esbuild-client && npm run esbuild-server",
 		"esbuild-client": "esbuild ./client/src/extension.ts --bundle --outfile=./client/out-min/main.js --external:vscode --format=cjs --platform=node --minify",
-		"esbuild-client-nomin": "esbuild ./client/src/extension.ts --bundle --outfile=./client/out-min/main.js --external:vscode --format=cjs --platform=node",
 		"esbuild-server": "esbuild ./server/src/server.ts --bundle --outfile=./server/out-min/main.js --external:vscode --format=cjs --platform=node --minify",
+
+		"compile-nomin": "npm run esbuild-client-nomin && npm run esbuild-server-nomin",
+		"esbuild-client-nomin": "esbuild ./client/src/extension.ts --bundle --outfile=./client/out-min/main.js --external:vscode --format=cjs --platform=node",
 		"esbuild-server-nomin": "esbuild ./server/src/server.ts --bundle --outfile=./server/out-min/main.js --external:vscode --format=cjs --platform=node",
+
 		"lint": "eslint ./client/src ./server/src --ext .ts",
 		"lint:fix": "eslint ./client/src ./server/src --ext .ts --fix",
 		"postinstall": "cd client && npm install && cd ../server && npm install && cd .."

@@ -343,7 +343,6 @@ class SymbolFinder extends ASTVisitor<SymbolScope> {
   }
 
   override visitLabelStatement(node: LabelStatement): void {
-    console.log('visit label statement');
     this.addSymbol(
       node.label.name,
       undefined,

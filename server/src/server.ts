@@ -18,6 +18,7 @@ import { findProjects, getProjectFiles, iterateProject, ParsedDocumentsMap, Proj
 import * as url from 'url';
 import * as fs from 'fs';
 import * as path from 'path';
+import { inspect } from 'util';
 
 console.log('PICO-8 Language Server starting.');
 

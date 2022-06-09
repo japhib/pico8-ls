@@ -321,6 +321,61 @@ a >><= b`;
     ]);
   });
 
+  describe('? print shorthand', () => {
+    it('parses ? with one argument', () => {
+      const { body, errors } = parse('?abc');
+      deepEquals(errors, []);
+      deepEquals(body, [
+        {
+          type: 'CallStatement',
+          expression: {
+            type: 'CallExpression',
+            base: {
+              type: 'Identifier',
+              name: '?',
+            },
+            arguments: [{
+              type: 'Identifier',
+              name: 'abc',
+            }],
+          },
+        },
+      ]);
+    });
+
+    it('parses ? with multiple arguments', () => {
+      const { body, errors } = parse('?abc,\'def\'');
+      deepEquals(errors, []);
+      deepEquals(body, [
+        {
+          type: 'CallStatement',
+          expression: {
+            type: 'CallExpression',
+            base: {
+              type: 'Identifier',
+              name: '?',
+            },
+            arguments: [
+              { type: 'Identifier', name: 'abc' },
+              { type: 'StringLiteral', value: 'def' },
+            ],
+          },
+        },
+      ]);
+    });
+
+    it('parses ? with more complicated args, in context of a function', () => {
+      const code = `debug,lmb,rmb=1,0,0
+function debug_draw()
+  circfill(mx,my,lmb>0 and 2 or 1,7)
+  local f,g = flags[fmx+fmy*128], switch[fmx+fmy*128]
+  ?fmx.." "..fmy,1,122,12
+end`;
+      const { errors } = parse(code);
+      deepEquals(errors, []);
+    });
+  });
+
   it('parses a complicated member expression', () => {
     const { body } = parse('getInstance().field = "blah"');
     deepEquals(body, [

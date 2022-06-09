@@ -1,5 +1,7 @@
+import { assert } from 'console';
 import { AnonymousFunctionName } from '../statements';
 import { CodeSymbolType } from '../symbols';
+import { logObj } from '../util';
 import { locationOfToken, parse, deepEquals } from './test-utils';
 
 describe('SymbolFinder', () => {
@@ -320,6 +322,20 @@ describe('SymbolFinder', () => {
     deepEquals(symbols, [
       { name: 'this_label', type: CodeSymbolType.Label, children: [] },
     ]);
+  });
+
+  it.only('provides symbols around ? print shorthand', () => {
+    const code = `
+function debug_draw()
+circfill(mx,my,lmb>0 and 2 or 1,7)
+local f,g = flags[fmx+fmy*128], switch[fmx+fmy*128]
+?fmx.." "..fmy,1,122,12
+end`;
+    const { errors, symbols } = parse(code);
+    deepEquals(errors, []);
+    logObj(symbols);
+    // For some reason the "debug_draw" function doesn't have a location
+    deepEquals(symbols, [{ name: 'debug_draw', type: 'Function', loc: {} }]);
   });
 
   describe('handles "self" inside function definitions', () => {
