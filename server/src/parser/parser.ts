@@ -43,6 +43,7 @@ import { findSymbols } from './symbols';
 import { Token, TokenType } from './tokens';
 import { indexOfObject } from './util';
 import * as path from 'path';
+import { inspect } from 'util';
 
 export type Scope = string[];
 
@@ -840,6 +841,8 @@ export default class Parser {
 
   // Special PICO-8 print statement: ? expression '\n'
   parseSpecialPrint(flowContext: FlowContext): CallStatement {
+    const startMarker = this.createLocationMarker();
+
     const args: Expression[] = [];
     this.lexer.withSignificantNewline((() => {
       let expression = this.parseExpectedExpression(flowContext);
@@ -853,8 +856,13 @@ export default class Parser {
       }
     }).bind(this));
 
+    // Each part uses the same start marker. One instance of it was already
+    // pushed above. finishNode will consume the top location on the stack so we
+    // have to push 2 more times.
     const base = this.finishNode(AST.identifier('?'));
+    this.pushLocation(startMarker);
     const callExpression = this.finishNode(AST.callExpression(base, args));
+    this.pushLocation(startMarker);
     return this.finishNode(AST.callStatement(callExpression));
   }
 

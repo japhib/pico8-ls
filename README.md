@@ -39,9 +39,13 @@ such as NeoVim, Atom, etc.
 
 # Changelog
 
+## 0.4.3 (6/9/2022)
+
+- Fix shorthand ? print function messing up document outline ([#17](https://github.com/japhib/pico8-ls/issues/17))
+
 ## 0.4.2 (6/6/2022)
 
-- Fix warning on shorthand ? print function ([#17](https://github.com/japhib/pico8-ls/issues/17))
+- Fix warning on shorthand ? print function
 - Fix warning on labels and gotos ([#16](https://github.com/japhib/pico8-ls/issues/16))
 - Add support for `extcmd`, `yield`, and a few other missing built-in functions ([14](https://github.com/japhib/pico8-ls/issues/14))
 

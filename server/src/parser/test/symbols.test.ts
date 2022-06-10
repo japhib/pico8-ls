@@ -2,7 +2,7 @@ import { assert } from 'console';
 import { AnonymousFunctionName } from '../statements';
 import { CodeSymbolType } from '../symbols';
 import { logObj } from '../util';
-import { locationOfToken, parse, deepEquals } from './test-utils';
+import { locationOfToken, parse, deepEquals, bounds } from './test-utils';
 
 describe('SymbolFinder', () => {
   it('defines a symbol for a function', () => {
@@ -333,9 +333,8 @@ local f,g = flags[fmx+fmy*128], switch[fmx+fmy*128]
 end`;
     const { errors, symbols } = parse(code);
     deepEquals(errors, []);
-    logObj(symbols);
-    // For some reason the "debug_draw" function doesn't have a location
-    deepEquals(symbols, [{ name: 'debug_draw', type: 'Function', loc: {} }]);
+    // Issue #17: the `debug_draw` function has the wrong location
+    deepEquals(symbols, [{ name: 'debug_draw', type: 'Function', loc: bounds(2, 0, 6, 3) }]);
   });
 
   describe('handles "self" inside function definitions', () => {

@@ -115,7 +115,7 @@ export default class Lexer {
       // an error during parsing
 
       // Consume the significant newline
-      if (this.token!.type == TokenType.Newline) {
+      if (this.token!.type === TokenType.Newline) {
         this.next();
       }
 
