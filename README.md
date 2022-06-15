@@ -46,6 +46,7 @@ such as NeoVim, Atom, etc.
 ## 0.4.4 (6/15/2022)
 
 - Support for binary literals like `0b0101101001011010.1` ([#10](https://github.com/japhib/pico8-ls/issues/10))
+- (0.4.5) Added auto-complete demo in readme
 
 ## 0.4.3 (6/9/2022)
 
