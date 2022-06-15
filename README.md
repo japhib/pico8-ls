@@ -9,6 +9,10 @@ but specifically tailored for a frictionless PICO-8 experience.
 
 # Feature highlights
 
+View docs on hover, then auto-complete and signature help:
+
+![docs gif](https://github.com/japhib/pico8-ls/blob/master/img/docs.gif?raw=true)
+
 Full support for `#include` statements:
 
 ![include gif](https://github.com/japhib/pico8-ls/blob/master/img/includes.gif?raw=true)
