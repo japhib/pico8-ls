@@ -39,6 +39,10 @@ such as NeoVim, Atom, etc.
 
 # Changelog
 
+## 0.4.4 (6/15/2022)
+
+- Support for binary literals like `0b0101101001011010.1` ([#10](https://github.com/japhib/pico8-ls/issues/10))
+
 ## 0.4.3 (6/9/2022)
 
 - Fix shorthand ? print function messing up document outline ([#17](https://github.com/japhib/pico8-ls/issues/17))

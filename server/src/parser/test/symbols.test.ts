@@ -324,7 +324,7 @@ describe('SymbolFinder', () => {
     ]);
   });
 
-  it.only('provides symbols around ? print shorthand', () => {
+  it('provides symbols around ? print shorthand', () => {
     const code = `
 function debug_draw()
 circfill(mx,my,lmb>0 and 2 or 1,7)

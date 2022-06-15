@@ -409,6 +409,14 @@ __gfx__
     eq(errors.length, 0, 'Unexpected errors: ' + errors.map(e => `[${e.bounds.start.line}:${e.bounds.end.column}] ${e.message}`).join(','));
   });
 
+  it('parses a binary literal', () => {
+    const { body, errors } = parse('a = 0b0101101001011010.1');
+    deepEquals(errors, []);
+    deepEquals(body, [
+      { type: 'AssignmentStatement', init: [{ type: 'NumericLiteral', raw: '0b0101101001011010.1' }] },
+    ]);
+  });
+
   describe('error handling', () => {
     it('handles malformed function definition', () => {
       const { errors } = parse('function[] end');

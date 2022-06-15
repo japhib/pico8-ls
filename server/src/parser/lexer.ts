@@ -2,7 +2,7 @@ import AST from './ast';
 import { EncodingMode, encodingModes, EncodingModeType } from './encoding-modes';
 import * as errors from './errors';
 import { errMessages } from './errors';
-import { Comment_ } from './expressions';
+import { Comment_, NumericLiteral } from './expressions';
 import ResolvedFile from './file-resolver';
 import { Token, TokenType, TokenValue } from './tokens';
 import { Bounds, CodeLocation } from './types';
@@ -534,8 +534,19 @@ export default class Lexer {
     const character = this.input.charAt(this.index);
     const next = this.input.charAt(this.index + 1);
 
-    const literal = ('0' === character && [ 'x', 'X' ].includes(next)) ?
-      this.readHexLiteral() : this.readDecLiteral();
+    let literal = undefined;
+    if (character === '0') {
+      if ([ 'x', 'X' ].includes(next)) {
+        literal = this.readHexLiteral();
+      } else if ([ 'b', 'B' ].includes(next)) {
+        literal = this.readBinaryLiteral();
+      }
+    }
+
+    if (literal === undefined) {
+      // If we didn't already read hex or binary literal, it must be decimal
+      literal = this.readDecLiteral();
+    }
 
     return this.makeToken(TokenType.NumericLiteral, literal.value);
   }
@@ -663,6 +674,30 @@ export default class Lexer {
     return {
       value: parseFloat(this.input.slice(this.tokenStart, this.index)),
       hasFractionPart: foundFraction || foundExponent,
+    };
+  }
+
+  readBinaryLiteral() {
+    this.index += 2; // Skip 0b part
+
+    while (isBinaryDigit(this.input.charCodeAt(this.index))) {
+      ++this.index;
+    }
+
+    // Fraction part is optional
+    let foundFraction = false;
+    if ('.' === this.input.charAt(this.index)) {
+      foundFraction = true;
+      ++this.index;
+      // Fraction part defaults to 0
+      while (isBinaryDigit(this.input.charCodeAt(this.index))) {
+        ++this.index;
+      }
+    }
+
+    return {
+      value: parseFloat(this.input.slice(this.tokenStart, this.index)),
+      hasFractionPart: foundFraction,
     };
   }
 
@@ -929,6 +964,10 @@ function isDecDigit(charCode: number): boolean {
 
 function isHexDigit(charCode: number): boolean {
   return (charCode >= 48 && charCode <= 57) || (charCode >= 97 && charCode <= 102) || (charCode >= 65 && charCode <= 70);
+}
+
+function isBinaryDigit(charCode: number): boolean {
+  return charCode === 48 || charCode === 49;
 }
 
 // From [Lua 5.2](http://www.lua.org/manual/5.2/manual.html#8.1) onwards
