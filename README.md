@@ -43,6 +43,10 @@ such as NeoVim, Atom, etc.
 
 # Changelog
 
+## 0.4.6 (7/27/2022)
+
+- Fix file URI resolution for Windows (fixes go-to-definition and find-references) ([#20](https://github.com/japhib/pico8-ls/issues/20))
+
 ## 0.4.4 (6/15/2022)
 
 - Support for binary literals like `0b0101101001011010.1` ([#10](https://github.com/japhib/pico8-ls/issues/10))
