@@ -38,8 +38,18 @@ export function fileURLToPath(fileUrl: string): string {
   return url.fileURLToPath(fileUrl);
 }
 
-export function pathToFileURL(path: string): string {
-  return url.pathToFileURL(path).toString();
+export function pathToFileURL(filePath: string): string {
+  let uri = url.pathToFileURL(filePath).toString();
+
+  const match = /^file:\/\/\/(\w):\/(.*)$/.exec(uri);
+  if (match) {
+    // For Windows URIs we need to urlencode the colon in "c:/" or whatever
+    const driveLetter = match[1];
+    const rest = match[2];
+    uri = `file:///${driveLetter}%3A/${rest}`;
+  }
+
+  return uri;
 }
 
 export function resolveIncludeFile(currFile: ResolvedFile, includeFilename: string): ResolvedFile {

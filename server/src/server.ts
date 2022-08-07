@@ -12,7 +12,7 @@ import { DefinitionsUsages, DefinitionsUsagesLookup, DefUsageScope, findDefiniti
 import { ParseError, Warning } from './parser/errors';
 import { Builtins, BuiltinFunctionInfo } from './parser/builtins';
 import { isIdentifierPart } from './parser/lexer';
-import ResolvedFile, { FileResolver } from './parser/file-resolver';
+import ResolvedFile, { FileResolver, pathToFileURL } from './parser/file-resolver';
 import { Chunk, Include } from './parser/statements';
 import { findProjects, getProjectFiles, iterateProject, ParsedDocumentsMap, Project, ProjectDocument, ProjectDocumentNode, projectToString } from './projects';
 import * as url from 'url';
@@ -142,22 +142,8 @@ async function getFilesRecursive(folderPath: string): Promise<string[]> {
   return p8andLuaFiles;
 }
 
-function filePathToUri(filePath: string): string {
-  let uri = url.pathToFileURL(filePath).toString();
-
-  const match = /^file:\/\/\/(\w):\/(.*)$/.exec(uri);
-  if (match) {
-    // For Windows URIs we need to urlencode the colon in "c:/" or whatever
-    const driveLetter = match[1];
-    const rest = match[2];
-    uri = `file:///${driveLetter}%3A/${rest}`;
-  }
-
-  return uri;
-}
-
 async function createTextDocument(filePath: string) {
-  const uri = filePathToUri(filePath);
+  const uri = pathToFileURL(filePath);
 
   const cached = documents.get(uri);
   if (cached) {
@@ -384,8 +370,8 @@ const symbolTypeLookup = {
 
 function boundsToRange(textDocument: TextDocument, bounds: Bounds): Range {
   return {
-    start: textDocument.positionAt(bounds.start?.index ?? 0),
-    end: textDocument.positionAt(bounds.end?.index ?? 0),
+    start: textDocument.positionAt(bounds?.start?.index ?? 0),
+    end: textDocument.positionAt(bounds?.end?.index ?? 0),
   };
 }
 
