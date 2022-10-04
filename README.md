@@ -43,6 +43,11 @@ such as NeoVim, Atom, etc.
 
 # Changelog
 
+## 0.4.8 (9/23/2022)
+
+- Fixed snippets
+- Added working indentation rules based on the other [pico8vscodeeditor](https://github.com/grumpydev/pico8vscodeeditor) extension
+
 ## 0.4.6 (7/27/2022)
 
 - Fix file URI resolution for Windows (fixes go-to-definition and find-references) ([#20](https://github.com/japhib/pico8-ls/issues/20))

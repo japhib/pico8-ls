@@ -5,7 +5,7 @@
 	"author": "JanPaul Bergeson",
 	"publisher": "PollywogGames",
 	"license": "MIT",
-	"version": "0.4.7",
+	"version": "0.4.8",
 	"repository": {
 		"type": "git",
 		"url": "https://github.com/japhib/pico8-ls"
@@ -88,13 +88,13 @@
 			{
 				"language": "pico-8-lua",
 				"scopeName": "source.pico8.lua",
-				"path": "syntaxes/pico-8-lua.tmLanguage.json"
+				"path": "./syntaxes/pico-8-lua.tmLanguage.json"
 			}
 		],
 		"snippets": [
 			{
 				"language": "pico-8",
-				"path": "syntaxes/snippets.json"
+				"path": "./syntaxes/snippets.json"
 			}
 		]
 	},

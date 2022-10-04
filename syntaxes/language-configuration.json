@@ -25,11 +25,8 @@
         ["\"", "\""],
         ["'", "'"]
     ],
-    // This isn't working, idk why
-    // "onEnterRules": [{
-    //     "beforeText": "({|\b(function|while|if|for)\b)",
-    //     "action": {
-    //         "indent": "indent"
-    //     }
-    // }]
+    "indentationRules": {
+		"increaseIndentPattern": "((\\b(else|function|then|do|repeat)\\b((?!\\b(end|until)\\b).)*)|(\\{\\s*))$",
+		"decreaseIndentPattern": "^\\s*((\\b(elseif|else|end|until)\\b)|(\\})|(\\)))"
+	}
 }
