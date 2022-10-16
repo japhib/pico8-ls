@@ -9,7 +9,8 @@ function format(text: string): string {
 }
 
 describe('Formatter', () => {
-  it.only('formats low.p8', () => {
+  // TODO: write proper tests for the final implementation
+  it('formats low.p8', () => {
     const formatted = format(getTestFileContents('low.p8'));
     console.log(formatted);
   });

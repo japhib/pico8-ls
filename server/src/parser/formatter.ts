@@ -50,6 +50,8 @@ const defaultOptions: FormatterOptions = Object.freeze({
   insertSpaces: true,
 });
 
+// TODO: consider moving formatter to its separate folder parallel to parser, then move shared statements and expressions outside parser as well
+
 /*
  * Formatter for visiting the AST and outputting a formatted representation of the code.
  *

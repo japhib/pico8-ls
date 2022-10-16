@@ -2,7 +2,7 @@ import {
   CompletionItem, CompletionItemTag, createConnection, DefinitionParams, Diagnostic, DiagnosticSeverity, DidChangeConfigurationNotification, DocumentFormattingParams,
   DocumentSymbol, DocumentSymbolParams, DocumentUri, HoverParams, InitializeParams, InitializeResult, Location, Position, ProposedFeatures,
   Range, ReferenceParams, SignatureHelpParams, SignatureInformation, SymbolKind, TextDocumentPositionParams, TextDocuments, TextDocumentSyncKind,
-  WorkspaceFolder,
+  TextEdit, WorkspaceFolder,
 } from 'vscode-languageserver/node';
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import Parser from './parser/parser';
@@ -427,7 +427,7 @@ const fileResolver: FileResolver = {
   },
 };
 
-function parseTextDocument(textDocument: TextDocument) {
+function parseTextDocument(textDocument: TextDocument): ProjectDocument | undefined {
   try {
     // parse document
     const text = textDocument.getText();
@@ -679,25 +679,44 @@ connection.onSignatureHelp((params: SignatureHelpParams) => {
   };
 });
 
-connection.onDocumentFormatting((params: DocumentFormattingParams) => {
-  const document = documentTextCache.get(params.textDocument.uri);
-  if (!document) return null;
+// TODO: write tests for this handler maybe?
 
-  // parse document
-  const text = document.getText();
-  const parser = new Parser(text);
-  const parsedChunk = parser.parse();
-  if (parsedChunk.errors.length > 0) {
-    console.error('Can\'t format document when there are parsing errors!');
+// TODO: support pico-8 format or limit formatter to pico-8-lua only. Right now formatting pico-8 file type results with all "#include"s inlined and non-Lua content being removed!
+
+// TODO: missing features:
+//       -  
+//       - preserve comments
+//       - preserve single blank lines after locals
+//       - ... what else?
+
+// TODO: bugs:
+//       - `local abc` got formatted to `local abc =`, which is invalid (note there is nothing more before line ends)
+//       - `return not boss` got formatted to `return notboss` (notice how negation got concatenated into a new identifier)
+//       - `1 - (t-1)^4` got formatted to `1 - t - 1 ^ 4` (notice missing parentheses)
+
+connection.onDocumentFormatting((params: DocumentFormattingParams) => {
+  const textDocument = documentTextCache.get(params.textDocument.uri);
+  if (!textDocument) return null;
+
+  const parsedDocument = parseTextDocument(textDocument);
+  if (parsedDocument) {
+    parsedDocuments.set(textDocument.uri, parsedDocument);
+  } else {
+    // TODO: from Beetroot Paul: I didn't manage to write Lua which would raise an error instead of parsing 
+    //       (I managed to test this condition by throwing manually). Isn't parsing too lenient? 
+    console.error(`Can't format document when there are parsing errors! (document: "${textDocument.uri}"`);
     return null;
   }
 
-  const formatter = new Formatter(params.options);
-  const formatted = formatter.formatChunk(parsedChunk);
-  return [{
-    range: Range.create(document.positionAt(0), document.positionAt(Number.MAX_VALUE)),
-    newText: formatted,
-  }];
+  return [
+    TextEdit.replace(
+      Range.create(
+        textDocument.positionAt(0),
+        textDocument.positionAt(Number.MAX_VALUE)
+      ),
+      new Formatter(params.options).formatChunk(parsedDocument.chunk)
+    )
+  ];
 });
 
 // Make the text document manager listen on the connection
