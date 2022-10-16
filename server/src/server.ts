@@ -681,8 +681,6 @@ connection.onSignatureHelp((params: SignatureHelpParams) => {
 
 // TODO: write tests for this handler maybe?
 
-// TODO: support pico-8 format or limit formatter to pico-8-lua only. Right now formatting pico-8 file type results with all "#include"s inlined and non-Lua content being removed!
-
 // TODO: missing features:
 //       -  
 //       - preserve comments
@@ -697,6 +695,12 @@ connection.onSignatureHelp((params: SignatureHelpParams) => {
 connection.onDocumentFormatting((params: DocumentFormattingParams) => {
   const textDocument = documentTextCache.get(params.textDocument.uri);
   if (!textDocument) return null;
+  
+  if (textDocument.languageId !== 'pico-8-lua') {
+    // TODO: For now we support separate Lua files (".lua") only, but it would be great to support all file types
+    //       handled by this extension (which means to support ".p8" files as well, identified by "pico-8" language ID).
+    return null;
+  }
 
   const parsedDocument = parseTextDocument(textDocument);
   if (parsedDocument) {
