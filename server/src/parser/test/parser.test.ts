@@ -1,5 +1,4 @@
-import { fail, strictEqual as eq } from 'assert';
-import { logObj } from '../util';
+import { strictEqual as eq } from 'assert';
 import { bounds, deepEquals, deepEqualsAST, getTestFileContents, MockFileResolver, parse } from './test-utils';
 
 describe('Parser', () => {

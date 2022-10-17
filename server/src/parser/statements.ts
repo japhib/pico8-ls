@@ -1,5 +1,5 @@
 import { ParseError } from './errors';
-import { Comment_, Expression, Identifier, VarargLiteral, Variable, MemberExpression, getMemberExpressionName } from './expressions';
+import { Comment_, Expression, Identifier, VarargLiteral, Variable, MemberExpression, getMemberExpressionName, Whitespace } from './expressions';
 import ResolvedFile from './file-resolver';
 import { CodeSymbol } from './symbols';
 import { ASTNode } from './types';
@@ -28,6 +28,10 @@ export type IfStatement = ASTNode & {
   clauses: GeneralIfClause[],
   oneLine: boolean,
 };
+
+export function isIfStatement(stmt: any): stmt is IfStatement {
+  return stmt?.type === 'IfStatement';
+}
 
 export type IfClause = ASTNode & {
   type: 'IfClause',
@@ -143,7 +147,14 @@ export function getBareFunctionDeclarationName(funcDeclaration: FunctionDeclarat
 
 export type Statement = LabelStatement | BreakStatement | GotoStatement | ReturnStatement | IfStatement
   | WhileStatement | DoStatement | RepeatStatement | LocalStatement | AssignmentStatement | CallStatement
-  | FunctionDeclaration | ForNumericStatement | ForGenericStatement | IncludeStatement;
+  | FunctionDeclaration | ForNumericStatement | ForGenericStatement | IncludeStatement | Comment_ | Whitespace;
+
+export type StatementWithBody = IfStatement | IfClause | ElseifClause | ElseClause | WhileStatement | DoStatement
+  | RepeatStatement | ForNumericStatement | ForGenericStatement | FunctionDeclaration;
+
+export function isStatementWithBody(statement: any): statement is StatementWithBody {
+  return statement.body !== undefined || statement.type === 'IfStatement';
+}
 
 export type Include = { stmt: IncludeStatement, resolvedFile: ResolvedFile };
 

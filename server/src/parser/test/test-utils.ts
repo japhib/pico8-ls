@@ -49,55 +49,75 @@ export function deepEqualsAST(code: string, expected: any) {
 }
 
 export function deepEquals(actual: any, expected: any) {
-  if (!_deepEquals(actual, expected)) {
-    fail(`Objects are not equal!\n\nexpected:\n${util.inspect(expected, { depth: 90 })}\n\nactual:\n${util.inspect(actual, { depth: 90 })}`);
+  const result = _deepEquals(actual, expected, 'root');
+  if (!result.matches) {
+    fail(`Objects are not equal!\n\nMismatch: ${result.location}\n\nexpected:\n${util.inspect(expected, { depth: 90 })}\n\nactual:\n${util.inspect(actual, { depth: 90 })}`);
   }
 }
 
-function _deepEquals(actual: any, expected: any): boolean {
+type DeepEqualsResult = {
+  matches: boolean,
+  location?: string,
+};
+
+function _deepEquals(actual: any, expected: any, currLocStr: string): DeepEqualsResult {
   if (typeof actual !== typeof expected) {
-    return false;
+    return {
+      matches: false,
+      location: `${currLocStr}.[typeof(actual:${typeof actual},expected:${typeof expected})]`,
+    };
   }
 
   if (expected === null || expected === undefined) {
-    return expected === actual;
+    return {
+      matches: expected === actual,
+      location: `${currLocStr}.[===]`,
+    };
   } else if (typeof expected === 'object') {
     if (Array.isArray(expected)) {
-      return _deepEqualsArray(actual, expected);
+      return _deepEqualsArray(actual, expected, currLocStr);
     } else {
-      return _deepEqualsObject(actual, expected);
+      return _deepEqualsObject(actual, expected, currLocStr);
     }
   } else {
     if (actual !== expected) {
-      return false;
+      return {
+        matches: false,
+        location: `${currLocStr}.[===]`,
+      };
     } else {
-      return true;
+      return { matches: true };
     }
   }
 }
 
-function _deepEqualsArray(actual: any[], expected: any[]): boolean {
+function _deepEqualsArray(actual: any[], expected: any[], currLocStr: string): DeepEqualsResult {
   if (actual.length !== expected.length) {
-    return false;
+    return {
+      matches: false,
+      location: `${currLocStr}.[length(actual:${actual.length},expected:${expected.length})]`,
+    };
   }
 
   for (let i = 0; i < expected.length; i++) {
-    if (!_deepEquals(actual[i], expected[i])) {
-      return false;
+    const subResult = _deepEquals(actual[i], expected[i], `${currLocStr}.${i}`);
+    if (!subResult.matches) {
+      return subResult;
     }
   }
 
-  return true;
+  return { matches: true };
 }
 
-function _deepEqualsObject(actual: any, expected: any): boolean {
+function _deepEqualsObject(actual: any, expected: any, currLocStr: string): DeepEqualsResult {
   for (const key of Object.keys(expected)) {
-    if (!_deepEquals(actual[key], expected[key])) {
-      return false;
+    const subResult = _deepEquals(actual[key], expected[key], `${currLocStr}.${key}`);
+    if (!subResult.matches) {
+      return subResult;
     }
   }
 
-  return true;
+  return { matches: true };
 }
 
 export function locationOfToken(code: string, tokenValue: TokenValue): Bounds {

@@ -4,7 +4,7 @@ import {
   FunctionDeclaration, GeneralIfClause,
   GotoStatement,
   IfClause,
-  IfStatement, LabelStatement,
+  IfStatement, isIfStatement, isStatementWithBody, LabelStatement,
   LocalStatement, RepeatStatement, ReturnStatement, Statement,
   WhileStatement,
 } from './statements';
@@ -12,6 +12,7 @@ import {
   BinaryExpression,
   BooleanLiteral,
   CallExpression,
+  Comment_,
   Expression,
   GeneralTableField,
   Identifier,
@@ -29,8 +30,10 @@ import {
   TableValue,
   UnaryExpression,
   VarargLiteral,
+  Whitespace,
 } from './expressions';
 import { uinteger } from 'vscode-languageserver-types';
+import { boundsCompare, BoundsCompareResult } from './types';
 
 export type FormatterOptions = {
   // Size of a tab in spaces.
@@ -76,7 +79,47 @@ export default class Formatter {
   }
 
   formatChunk(chunk: Chunk): string {
+    this.insertComments(chunk);
     return chunk.body.map(s => this.visitStatement(s)).join('\n');
+  }
+
+  // Inserts all the comments in chunk.comments into the actual body of the AST,
+  // so they go alongside regular statements and the visitor will encounter them
+  // in order.
+  insertComments(chunk: Chunk): void {
+    chunk.comments!.forEach(comment => this.insertComment(comment, chunk.body));
+  }
+
+  insertComment(comment: Comment_, body: Statement[]): void {
+    // right now just scans from the beginning, could be way more efficient
+    for (let i = 0; i < body.length; i++) {
+      const currStmt: Statement = body[i];
+
+      const compareResult = boundsCompare(comment.loc!, currStmt.loc!);
+      if (compareResult === BoundsCompareResult.CONTAINS && isStatementWithBody(currStmt)) {
+        // This comment is contained in the body of the current statement. Recurse into it.
+        if (isIfStatement(currStmt)) {
+          // if statement is a special case, have to check each clause individually
+          for (const clause of currStmt.clauses) {
+            if (boundsCompare(comment.loc!, clause.loc!) === BoundsCompareResult.CONTAINS) {
+              this.insertComment(comment, clause.body);
+              return;
+            }
+          }
+        } else {
+          this.insertComment(comment, (currStmt as any).body);
+          return;
+        }
+      } else if (compareResult === BoundsCompareResult.BEFORE) {
+        // This comment is before the current statement -- insert it at i
+        body.splice(i, 0, comment);
+        return;
+      }
+      // Else, the comment is after the current statement. Continue iterating.
+    }
+
+    // If we got to this point, the comment is at the very end of the block.
+    body.push(comment);
   }
 
   newline() {
@@ -85,7 +128,9 @@ export default class Formatter {
 
   tabsForDepth(): string {
     let ret = '';
-    for (let i = 0; i < this.currentIndent; i++) ret += this.tab;
+    for (let i = 0; i < this.currentIndent; i++) {
+      ret += this.tab;
+    }
     return ret;
   }
 
@@ -113,6 +158,8 @@ export default class Formatter {
     case 'RepeatStatement': return this.visitRepeatStatement(node);
     case 'ReturnStatement': return this.visitReturnStatement(node);
     case 'WhileStatement': return this.visitWhileStatement(node);
+    case 'Comment': return this.visitComment(node);
+    case 'Whitespace': return this.visitWhitespace(node);
     default: throw new Error('Unexpected statement type: ' + (node as any).type);
     }
   }
@@ -198,10 +245,15 @@ export default class Formatter {
 
     let ret = 'local ';
     ret += variables.join(', ');
-    ret += ' ';
-    ret += node.operator ?? '=';
-    ret += ' ';
-    ret += init.join(', ');
+
+    // `local a, b, c` is a valid statement
+    if (init.length > 0) {
+      ret += ' ';
+      ret += node.operator ?? '=';
+      ret += ' ';
+      ret += init.join(', ');
+    }
+
     return ret;
   }
 
@@ -211,7 +263,9 @@ export default class Formatter {
   }
 
   visitCallStatement(node: CallStatement): string {
-    if (!node.expression) throw new Error('Can\'t visit CallStatement with null expression!');
+    if (!node.expression) {
+      throw new Error('Can\'t visit CallStatement with null expression!');
+    }
 
     return this.visitExpression(node.expression);
   }
@@ -262,7 +316,9 @@ export default class Formatter {
     }
 
     let ret = '';
-    for (const clause of node.clauses) ret += this.visitGeneralIfClause(clause);
+    for (const clause of node.clauses) {
+      ret += this.visitGeneralIfClause(clause);
+    }
     ret += 'end';
     return ret;
   }
@@ -328,10 +384,10 @@ export default class Formatter {
   // ****************************** Literals *****************************
 
   visitBooleanLiteral(node: BooleanLiteral): string {
-    return node.value ? 'true' : 'false;';
+    return node.value ? 'true' : 'false';
   }
 
-  visitNilLiteral(node: NilLiteral): string {
+  visitNilLiteral(_node: NilLiteral): string {
     return 'nil';
   }
 
@@ -343,7 +399,7 @@ export default class Formatter {
     return node.raw;
   }
 
-  visitVarargLiteral(node: VarargLiteral): string {
+  visitVarargLiteral(_node: VarargLiteral): string {
     return '...';
   }
 
@@ -359,7 +415,9 @@ export default class Formatter {
 
   visitFunctionDeclaration(node: FunctionDeclaration, isStatement: boolean): string {
     let ret = 'function';
-    if (node.identifier) ret += ' ' + this.visitExpression(node.identifier);
+    if (node.identifier) {
+      ret += ' ' + this.visitExpression(node.identifier);
+    }
     ret += '(' + node.parameters.map(a => this.visitExpression(a)).join(', ') + ')';
 
     this.increaseDepth();
@@ -373,7 +431,9 @@ export default class Formatter {
     ret += this.newline();
     ret += 'end';
 
-    if (isStatement) ret += this.newline();
+    if (isStatement) {
+      ret += this.newline();
+    }
 
     return ret;
   }
@@ -407,27 +467,36 @@ export default class Formatter {
     const newlineFunc = shouldIndent ? this.newline.bind(this) : () => '';
 
     let ret = '{';
-    if (shouldIndent) this.increaseDepth();
+    if (shouldIndent) {
+      this.increaseDepth();
+    }
 
     let first = true;
     for (const f of node.fields) {
-      if (!first) ret += ',' + (shouldIndent ? '' : ' ');
+      if (!first) {
+        ret += ',' + (shouldIndent ? '' : ' ');
+      }
       first = false;
       ret += newlineFunc();
       ret += this.visitGeneralTableField(f);
     }
 
-    if (shouldIndent) this.decreaseDepth();
+    if (shouldIndent) {
+      this.decreaseDepth();
+    }
     ret += newlineFunc();
     ret += '}';
     return ret;
   }
 
   visitUnaryExpression(node: UnaryExpression): string {
-    return `${node.operator}${this.visitExpression(node.argument)}`;
+    let opStr = node.operator;
+    if (opStr === 'not') {
+      // Append space onto end of `not`, otherwise you get `not a` -> `nota`
+      opStr = 'not ';
+    }
+    return `${opStr}${this.visitExpression(node.argument)}`;
   }
-
-  // ****************************** Table Values *****************************
 
   visitTableKey(node: TableKey): string {
     return '[' + this.visitExpression(node.key) + '] = ' + this.visitExpression(node.value);
@@ -439,5 +508,13 @@ export default class Formatter {
 
   visitTableValue(node: TableValue): string {
     return this.visitExpression(node.value);
+  }
+
+  visitComment(node: Comment_): string {
+    return node.raw;
+  }
+
+  visitWhitespace(node: Whitespace): string {
+    return '\n'.repeat(node.count);
   }
 }

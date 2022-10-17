@@ -21,6 +21,30 @@ export type Bounds = {
   end: CodeLocation,
 };
 
+export enum BoundsCompareResult {
+  BEFORE = -1,
+  AFTER = 1,
+  CONTAINS = 0,
+}
+
+export function boundsCompare(a: Bounds, b: Bounds): BoundsCompareResult {
+  const aStart = a.start;
+  const aEnd = a.end;
+  const bStart = b.start;
+  const bEnd = b.end;
+
+  if (aEnd.index < bStart.index) {
+    // A is before B
+    return BoundsCompareResult.BEFORE;
+  } else if (bEnd.index < aStart.index) {
+    // A is after B
+    return BoundsCompareResult.AFTER;
+  } else {
+    // B contains A, or they might be the same
+    return BoundsCompareResult.CONTAINS;
+  }
+}
+
 export function boundsEqual(a: Bounds, b: Bounds): boolean {
   return a && b && codeLocationsEqual(a.start, b.start) && codeLocationsEqual(a.end, b.end);
 }

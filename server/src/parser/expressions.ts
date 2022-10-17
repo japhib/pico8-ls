@@ -194,3 +194,13 @@ export type Comment_ = ASTNode & {
   value: string,
   raw: string,
 };
+
+export type Whitespace = ASTNode & {
+  type: 'Whitespace',
+  // The number of newlines to insert
+  count: number,
+};
+
+export function isComment(node: any): node is Comment_ {
+  return node.type === 'Comment';
+}

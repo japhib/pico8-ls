@@ -181,7 +181,7 @@ function findDefUsagesForProject(project: Project) {
   // files into itself, so its global scope has everything all the other files
   // might want. So we just invoke findDefinitionsUsages on every file,
   // injecting the global scope of the root file into the other files.
-  
+
   // Before we start, make sure we're using the most up-to-date version of the files
   refreshProject(project);
 
@@ -682,7 +682,7 @@ connection.onSignatureHelp((params: SignatureHelpParams) => {
 // TODO: write tests for this handler maybe?
 
 // TODO: missing features:
-//       -  
+//       -
 //       - preserve comments
 //       - preserve single blank lines after locals
 //       - ... what else?
@@ -694,8 +694,10 @@ connection.onSignatureHelp((params: SignatureHelpParams) => {
 
 connection.onDocumentFormatting((params: DocumentFormattingParams) => {
   const textDocument = documentTextCache.get(params.textDocument.uri);
-  if (!textDocument) return null;
-  
+  if (!textDocument) {
+    return null;
+  }
+
   if (textDocument.languageId !== 'pico-8-lua') {
     // TODO: For now we support separate Lua files (".lua") only, but it would be great to support all file types
     //       handled by this extension (which means to support ".p8" files as well, identified by "pico-8" language ID).
@@ -706,8 +708,8 @@ connection.onDocumentFormatting((params: DocumentFormattingParams) => {
   if (parsedDocument) {
     parsedDocuments.set(textDocument.uri, parsedDocument);
   } else {
-    // TODO: from Beetroot Paul: I didn't manage to write Lua which would raise an error instead of parsing 
-    //       (I managed to test this condition by throwing manually). Isn't parsing too lenient? 
+    // TODO: from Beetroot Paul: I didn't manage to write Lua which would raise an error instead of parsing
+    //       (I managed to test this condition by throwing manually). Isn't parsing too lenient?
     console.error(`Can't format document when there are parsing errors! (document: "${textDocument.uri}"`);
     return null;
   }
@@ -716,10 +718,10 @@ connection.onDocumentFormatting((params: DocumentFormattingParams) => {
     TextEdit.replace(
       Range.create(
         textDocument.positionAt(0),
-        textDocument.positionAt(Number.MAX_VALUE)
+        textDocument.positionAt(Number.MAX_VALUE),
       ),
-      new Formatter(params.options).formatChunk(parsedDocument.chunk)
-    )
+      new Formatter(params.options).formatChunk(parsedDocument.chunk),
+    ),
   ];
 });
 

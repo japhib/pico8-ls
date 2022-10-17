@@ -43,7 +43,7 @@ import { findSymbols } from './symbols';
 import { Token, TokenType } from './tokens';
 import { indexOfObject } from './util';
 import * as path from 'path';
-import { inspect } from 'util';
+import { ASTNode } from './types';
 
 export type Scope = string[];
 
@@ -138,7 +138,7 @@ export default class Parser {
     const location = this.popLocation();
     if (location && this.previousToken) {
       location.complete(this.previousToken);
-      location.bless(node);
+      location.bless(node as ASTNode);
     }
     return node;
   }
@@ -262,6 +262,7 @@ export default class Parser {
 
     const chunk = this.finishNode(AST.chunk(body, this.errors));
     chunk.includes = this.includes;
+    chunk.comments = this.lexer.comments;
 
     chunk.symbols = findSymbols(chunk);
 
