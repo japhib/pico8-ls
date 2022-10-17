@@ -34,26 +34,35 @@ describe('Formatter', () => {
     it('formats for loop', () => {
       const input = '	for i=0,29 do add(got_fruit,false) end';
       const formatted = format(input);
-      eq(formatted, `for i = 0, 29 do
+      eq(formatted, `
+for i = 0, 29 do
   add(got_fruit, false)
-end`);
+end
+        `.trim());
     });
 
     it('leaves comments in', () => {
-      const input = '-- this is my variable\nlocal a = 1';
+      const input = `
+-- this is my variable
+local a = 1
+        `.trim();
       const formatted = format(input);
       // should leave it the same
       eq(formatted, input);
     });
 
     it('properly formats unary expressions', () => {
-      const input = `a = not a
+      const input = `
+a = not a
 a = #a
-a = -a`;
+a = -a
+        `.trim();
       const formatted = format(input);
-      eq(formatted, `a = not a
+      eq(formatted, `
+a = not a
 a = #a
-a = -a`);
+a = -a
+        `.trim());
     });
 
     it.skip('doesn\'t inline #include statements', () => {
@@ -71,7 +80,10 @@ a = -a`);
   // rather than relying on inspecting the AST
   describe('Edits AST before formatting', () => {
     it('inserts comments before local statement', () => {
-      const input = '-- this is my variable\nlocal a = 1';
+      const input = `
+-- this is my variable
+local a = 1
+        `.trim();
       const ast = insertComments(input);
       deepEquals(ast, [
         { type: 'Comment', value: ' this is my variable' },
@@ -80,7 +92,12 @@ a = -a`);
     });
 
     it('inserts multi-line comments before local statement', () => {
-      const input = '--[[ this is my \n long-winded \nvariable]]\nlocal a = 1';
+      const input = `
+--[[ this is my 
+ long-winded 
+variable]]
+local a = 1
+        `.trim();
       const ast = insertComments(input);
       deepEquals(ast, [
         { type: 'Comment', value: ' this is my \n long-winded \nvariable' },
@@ -97,7 +114,7 @@ local b
 -- Third comment
 local c
 -- Last comment
-`;
+        `.trim();
       const ast = insertComments(input);
       deepEquals(ast, [
         { type: 'Comment', value: ' First comment' },
@@ -120,7 +137,7 @@ local a
 local b
 -- comment 3a
 -- comment 3b
-`;
+        `.trim();
       const ast = insertComments(input);
       deepEquals(ast, [
         { type: 'Comment', value: ' comment 1a' },
@@ -144,7 +161,7 @@ local a
 local b
 --[[ comment 3a
  comment 3b]]
-`;
+        `.trim();
       const ast = insertComments(input);
       deepEquals(ast, [
         { type: 'Comment', value: ' comment 1a\n comment 1b' },
@@ -161,7 +178,8 @@ local b
 for i=1,10 do
   -- this is where we loop
   print(i)
-end`;
+end
+        `.trim();
       const ast = insertComments(input);
       deepEquals(ast, [
         { type: 'Comment', value: ' about to enter for loop' },
@@ -189,7 +207,7 @@ else
   print('c')
 end
 -- end comment
-`;
+        `.trim();
       const ast = insertComments(input);
       deepEquals(ast, [
         { type: 'Comment', raw: '-- main comment' },
