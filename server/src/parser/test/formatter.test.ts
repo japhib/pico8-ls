@@ -84,7 +84,7 @@ end
       eq(formatted, `
 local function some_fn()
 end
-        `.trim());
+        `.trim() + '\n');
     });
 
     it('preserves parentheses when a their inner expression is called as a function', () => {

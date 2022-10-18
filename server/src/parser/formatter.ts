@@ -414,7 +414,11 @@ export default class Formatter {
   }
 
   visitFunctionDeclaration(node: FunctionDeclaration, isStatement: boolean): string {
-    let ret = 'function';
+    let ret = '';
+    if (node.isLocal) {
+      ret += 'local ';
+    }
+    ret += 'function';
     if (node.identifier) {
       ret += ' ' + this.visitExpression(node.identifier);
     }
