@@ -74,6 +74,73 @@ a = -a
       const formatted = format(input);
       eq(formatted, 'local a');
     });
+
+    it('preserves local keyword used for a function declaration', () => {
+      const input = `
+local function some_fn()
+end
+        `.trim();
+      const formatted = format(input);
+      eq(formatted, `
+local function some_fn()
+end
+        `.trim());
+    });
+
+    it('preserves parentheses when a their inner expression is called as a function', () => {
+      const input = `
+(fn1 or fn_2)()
+        `.trim();
+      const formatted = format(input);
+      eq(formatted, `
+(fn1 or fn_2)()
+        `.trim());
+    });
+
+    it('preserves parentheses when a property is called on their inner expression', () => {
+      const input = `
+(table1 or table2).some_property()
+        `.trim();
+      const formatted = format(input);
+      eq(formatted, `
+(table1 or table2).some_property()
+        `.trim());
+    });
+
+    it('preserves parentheses when a property is accessed by value on their inner expression', () => {
+      const input = `
+local result = ({
+  [123] = "xyz"
+})[123]
+        `.trim();
+      const formatted = format(input);
+      // TODO: ideally we would assert presence of parentheses, while ignoring if new lines are there or not, since they are not a subject of this test
+      eq(formatted, `
+local result = ({[123] = "xyz"})[123]
+        `.trim());
+    });
+  });
+
+  it('preserves parentheses on calculations', () => {
+    const input = `
+a = 1 - (t-1)^2
+b = (some_var_1 - 111 * 222) / 333
+c = (some_var_2 - 111) * 222
+d = (some_var_3 + 111) % 222
+e = some_table.some_fn(
+  some_var_4 * (rnd() - .5),
+  some_var_5 * (rnd() - .5)
+)
+        `.trim();
+    const formatted = format(input);
+    // TODO: ideally we would assert presence of parentheses, while ignoring if new lines are there or not, since they are not a subject of this test
+    eq(formatted, `
+a = 1 - (t - 1)^2
+b = (some_var_1 - 111 * 222) / 333
+c = (some_var_2 - 111) * 222
+d = (some_var_3 + 111) % 222
+e = some_table.some_fn(some_var_4 * (rnd() - .5), some_var_5 * (rnd() - .5))
+        `.trim());
   });
 
   // TODO change these tests into actual formatting tests
