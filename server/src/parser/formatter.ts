@@ -34,6 +34,7 @@ import {
 } from './expressions';
 import { uinteger } from 'vscode-languageserver-types';
 import { boundsCompare, BoundsCompareResult } from './types';
+import BinaryPrecedence from './binaryPrecedence';
 
 export type FormatterOptions = {
   // Size of a tab in spaces.
@@ -194,22 +195,23 @@ export default class Formatter {
     }
   }
 
-  visitExpression(node: Expression): string {
+  visitExpression(node: Expression, parentPrecedence?: number): string {
     switch (node.type) {
-    case 'FunctionDeclaration': return this.visitFunctionDeclaration(node, false);
-    case 'BinaryExpression': return this.visitBinaryExpression(node);
+    // TODO: which other expressions should receive parentPrecedence as well?
+    case 'FunctionDeclaration': return this.visitFunctionDeclaration(node, false, parentPrecedence);
+    case 'BinaryExpression': return this.visitBinaryExpression(node, parentPrecedence);
     case 'BooleanLiteral': return this.visitBooleanLiteral(node);
     case 'CallExpression': return this.visitCallExpression(node);
     case 'IndexExpression': return this.visitIndexExpression(node);
     case 'Identifier': return this.visitIdentifier(node);
-    case 'LogicalExpression': return this.visitLogicalExpression(node);
+    case 'LogicalExpression': return this.visitLogicalExpression(node, parentPrecedence);
     case 'MemberExpression': return this.visitMemberExpression(node);
     case 'NilLiteral': return this.visitNilLiteral(node);
     case 'NumericLiteral': return this.visitNumericLiteral(node);
     case 'StringCallExpression': return this.visitStringCallExpression(node);
     case 'StringLiteral': return this.visitStringLiteral(node);
     case 'TableCallExpression': return this.visitTableCallExpression(node);
-    case 'TableConstructorExpression': return this.visitTableConstructorExpression(node);
+    case 'TableConstructorExpression': return this.visitTableConstructorExpression(node, parentPrecedence);
     case 'UnaryExpression': return this.visitUnaryExpression(node);
     case 'VarargLiteral': return this.visitVarargLiteral(node);
     default: throw new Error('Unexpected expression type: ' + (node as any).type);
@@ -405,41 +407,64 @@ export default class Formatter {
 
   // ****************************** Expressions *****************************
 
-  visitBinaryExpression(node: BinaryExpression): string {
-    return `${this.visitExpression(node.left)} ${node.operator} ${this.visitExpression(node.right)}`;
+  visitBinaryExpression(node: BinaryExpression, parentPrecedence?: number): string {
+    return this.wrapWithParenthesesIfNeeded(
+      {
+        currentPrecedence: BinaryPrecedence.precedenceValueOf(node.operator),
+        parentPrecedence: parentPrecedence ?? BinaryPrecedence.minPrecedenceValue,
+      },
+      ({ currentPrecedence }) => {
+        let ret = '';
+        ret += this.visitExpression(node.left, currentPrecedence);
+        ret += ` ${node.operator} `;
+        ret += this.visitExpression(node.right, currentPrecedence);
+        return ret;
+      });
   }
 
   visitCallExpression(node: CallExpression): string {
-    return `${this.visitExpression(node.base)}(${node.arguments.map(a => this.visitExpression(a)).join(', ')})`;
+    let ret = '';
+    ret += this.visitExpression(node.base, BinaryPrecedence.maxPrecedenceValue);
+    ret += '(';
+    ret += node.arguments.map(a => this.visitExpression(a)).join(', ');
+    ret += ')';
+    return ret;
   }
 
-  visitFunctionDeclaration(node: FunctionDeclaration, isStatement: boolean): string {
-    let ret = '';
-    if (node.isLocal) {
-      ret += 'local ';
-    }
-    ret += 'function';
-    if (node.identifier) {
-      ret += ' ' + this.visitExpression(node.identifier);
-    }
-    ret += '(' + node.parameters.map(a => this.visitExpression(a)).join(', ') + ')';
+  visitFunctionDeclaration(node: FunctionDeclaration, isStatement: boolean, parentPrecedence?: number): string {
+    return this.wrapWithParenthesesIfNeeded(
+      {
+        currentPrecedence: BinaryPrecedence.minPrecedenceValue,
+        parentPrecedence: parentPrecedence ?? BinaryPrecedence.minPrecedenceValue,
+      },
+      () => {
+        let ret = '';
+        if (node.isLocal) {
+          ret += 'local ';
+        }
+        ret += 'function';
+        if (node.identifier) {
+          ret += ' ' + this.visitExpression(node.identifier);
+        }
+        ret += '(' + node.parameters.map(a => this.visitExpression(a)).join(', ') + ')';
 
-    this.increaseDepth();
+        this.increaseDepth();
 
-    for (const stmt of node.body) {
-      ret += this.newline();
-      ret += this.visitStatement(stmt);
-    }
+        for (const stmt of node.body) {
+          ret += this.newline();
+          ret += this.visitStatement(stmt);
+        }
 
-    this.decreaseDepth();
-    ret += this.newline();
-    ret += 'end';
+        this.decreaseDepth();
+        ret += this.newline();
+        ret += 'end';
 
-    if (isStatement) {
-      ret += this.newline();
-    }
+        if (isStatement) {
+          ret += this.newline();
+        }
 
-    return ret;
+        return ret;
+      });
   }
 
   visitIdentifier(node: Identifier): string {
@@ -447,15 +472,35 @@ export default class Formatter {
   }
 
   visitIndexExpression(node: IndexExpression): string {
-    return `${this.visitExpression(node.base)}[${this.visitExpression(node.index)}]`;
+    let ret = '';
+    ret += this.visitExpression(node.base, BinaryPrecedence.maxPrecedenceValue);
+    ret += '[';
+    ret += this.visitExpression(node.index);
+    ret += ']';
+    return ret;
   }
 
-  visitLogicalExpression(node: LogicalExpression): string {
-    return `${this.visitExpression(node.left)} ${node.operator} ${this.visitExpression(node.right)}`;
+  visitLogicalExpression(node: LogicalExpression, parentPrecedence?: number): string {
+    return this.wrapWithParenthesesIfNeeded(
+      {
+        currentPrecedence: BinaryPrecedence.precedenceValueOf(node.operator),
+        parentPrecedence: parentPrecedence ?? BinaryPrecedence.minPrecedenceValue,
+      },
+      ({ currentPrecedence }) => {
+        let ret = '';
+        ret += this.visitExpression(node.left, currentPrecedence);
+        ret += ` ${node.operator} `;
+        ret += this.visitExpression(node.right, currentPrecedence);
+        return ret;
+      });
   }
 
   visitMemberExpression(node: MemberExpression): string {
-    return this.visitExpression(node.base) + node.indexer + this.visitIdentifier(node.identifier);
+    let ret = '';
+    ret += this.visitExpression(node.base, BinaryPrecedence.maxPrecedenceValue);
+    ret += node.indexer;
+    ret += this.visitIdentifier(node.identifier);
+    return ret;
   }
 
   visitStringCallExpression(node: StringCallExpression): string {
@@ -466,31 +511,40 @@ export default class Formatter {
     return this.visitExpression(node.base) + ' ' + this.visitTableConstructorExpression(node.arguments);
   }
 
-  visitTableConstructorExpression(node: TableConstructorExpression): string {
+  visitTableConstructorExpression(node: TableConstructorExpression, parentPrecedence?: number): string {
     const shouldIndent = node.fields.length > 1;
     const newlineFunc = shouldIndent ? this.newline.bind(this) : () => '';
 
-    let ret = '{';
-    if (shouldIndent) {
-      this.increaseDepth();
-    }
+    return this.wrapWithParenthesesIfNeeded(
+      {
+        currentPrecedence: BinaryPrecedence.minPrecedenceValue,
+        parentPrecedence: parentPrecedence ?? BinaryPrecedence.minPrecedenceValue,
+      },
+      () => {
+        let ret = '';
 
-    let first = true;
-    for (const f of node.fields) {
-      if (!first) {
-        ret += ',' + (shouldIndent ? '' : ' ');
-      }
-      first = false;
-      ret += newlineFunc();
-      ret += this.visitGeneralTableField(f);
-    }
+        ret += '{';
+        if (shouldIndent) {
+          this.increaseDepth();
+        }
 
-    if (shouldIndent) {
-      this.decreaseDepth();
-    }
-    ret += newlineFunc();
-    ret += '}';
-    return ret;
+        let first = true;
+        for (const f of node.fields) {
+          if (!first) {
+            ret += ',' + (shouldIndent ? '' : ' ');
+          }
+          first = false;
+          ret += newlineFunc();
+          ret += this.visitGeneralTableField(f);
+        }
+
+        if (shouldIndent) {
+          this.decreaseDepth();
+        }
+        ret += newlineFunc();
+        ret += '}';
+        return ret;
+      });
   }
 
   visitUnaryExpression(node: UnaryExpression): string {
@@ -520,5 +574,15 @@ export default class Formatter {
 
   visitWhitespace(node: Whitespace): string {
     return '\n'.repeat(node.count);
+  }
+
+  private wrapWithParenthesesIfNeeded(
+    params: { currentPrecedence: number, parentPrecedence: number; },
+    expressionToWrap: (params: { currentPrecedence: number }) => string,
+  ): string {
+    if (params.currentPrecedence < params.parentPrecedence) {
+      return `(${expressionToWrap({ currentPrecedence: params.currentPrecedence })})`;
+    }
+    return expressionToWrap({ currentPrecedence: params.currentPrecedence });
   }
 }

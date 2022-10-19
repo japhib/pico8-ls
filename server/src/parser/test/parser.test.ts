@@ -24,6 +24,58 @@ describe('Parser', () => {
     ]);
   });
 
+  it('parses expression with parentheses', () => {
+    const { body } = parse('a = 1 - (t + 2)^3');
+    deepEquals(body, [
+      {
+        loc: bounds(1, 0, 1, 17),
+        type: 'AssignmentStatement',
+        operator: '=',
+        init: [
+          {
+            loc: bounds(1, 4, 1, 17),
+            type: 'BinaryExpression',
+            operator: '-',
+            left: {
+              loc: bounds(1, 4, 1, 5),
+              type: 'NumericLiteral',
+              value: 1,
+              raw: '1',
+            },
+            right: {
+              loc: bounds(1, 8, 1, 17),
+              type: 'BinaryExpression',
+              operator: '^',
+              left: {
+                loc: bounds(1, 9, 1, 14),
+                type: 'BinaryExpression',
+                operator: '+',
+                left: {
+                  loc: bounds(1, 9, 1, 10),
+                  type: 'Identifier',
+                  name: 't',
+                  isLocal: false,
+                },
+                right: {
+                  loc: bounds(1, 13, 1, 14),
+                  type: 'NumericLiteral',
+                  value: 2,
+                  raw: '2',
+                },
+              },
+              right: {
+                loc: bounds(1, 16, 1, 17),
+                type: 'NumericLiteral',
+                value: 3,
+                raw: '3',
+              },
+            },
+          },
+        ],
+      },
+    ]);
+  });
+
   it('parses basic function declaration', () => {
     const { body } = parse('function f(x)\nreturn x + 1\nend');
     deepEquals(body, [{

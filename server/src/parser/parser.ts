@@ -44,6 +44,7 @@ import { Token, TokenType } from './tokens';
 import { indexOfObject } from './util';
 import * as path from 'path';
 import { ASTNode } from './types';
+import BinaryPrecedence from './binaryPrecedence';
 
 export type Scope = string[];
 
@@ -1076,48 +1077,6 @@ export default class Parser {
     }
   }
 
-  // Return the precedence priority of the operator.
-  //
-  // As unary `-` can't be distinguished from binary `-`, unary precedence
-  // isn't described in this table but in `parseSubExpression()` itself.
-  //
-  // As this gets hit on every expression it's been optimized due to
-  // the expensive CompareICStub which took ~8% of the parse time.
-
-  binaryPrecedence(operator: string): number {
-    const charCode = operator.charCodeAt(0);
-    const length = operator.length;
-
-    if (1 === length) {
-      switch (charCode) {
-      case 94: return 12; // ^
-      case 42: case 47: case 37: case 92: return 10; // * / % \
-      case 43: case 45: return 9; // + -
-      case 38: return 6; // & (bitwise AND)
-      case 124: return 4; // | (bitwise OR)
-      case 60: case 62: return 3; // < >
-      }
-    } else if (2 === length) {
-      switch (charCode) {
-      case 46: return 8; // ..
-      case 60: case 62:
-        if('<<' === operator || '>>' === operator) {
-          return 7;
-        } // << >>
-        return 3; // <= >=
-      case 33: case 61: case 126: return 3; // == ~= !=
-      case 111: return 1; // or
-      case 94: return 5; // ^^ (bitwise XOR, pico-8 lua uses the normal bitwise XOR ~ as bitwise NOT)
-      }
-    } else if (3 === length) {
-      switch (operator) {
-      case '>>>': case '<<>': case '>><': return 7;
-      case 'and': return 2;
-      }
-    }
-    return 0;
-  }
-
   // Implement an operator-precedence parser to handle binary operator
   // precedence.
   //
@@ -1165,9 +1124,9 @@ export default class Parser {
       operator = this.token.value as string;
 
       precedence = (this.token.type === TokenType.Punctuator || this.token.type === TokenType.Keyword) ?
-        this.binaryPrecedence(operator) : 0;
+        BinaryPrecedence.precedenceValueOf(operator) : BinaryPrecedence.minPrecedenceValue;
 
-      if (precedence === 0 || precedence <= minPrecedence) {
+      if (precedence === BinaryPrecedence.minPrecedenceValue || precedence <= minPrecedence) {
         break;
       }
       // Right-hand precedence operators
