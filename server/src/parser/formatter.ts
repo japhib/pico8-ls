@@ -34,7 +34,7 @@ import {
 } from './expressions';
 import { uinteger } from 'vscode-languageserver-types';
 import { boundsCompare, BoundsCompareResult } from './types';
-import BinaryPrecedence from './binaryPrecedence';
+import Operators from './operators';
 
 export type FormatterOptions = {
   // Size of a tab in spaces.
@@ -53,6 +53,11 @@ const defaultOptions: FormatterOptions = Object.freeze({
   tabSize: 2,
   insertSpaces: true,
 });
+
+type ChildContext = {
+  parentOperator?: string,
+  isRightSideOfAnExpression?: boolean,
+};
 
 // TODO: consider moving formatter to its separate folder parallel to parser, then move shared statements and expressions outside parser as well
 
@@ -195,23 +200,23 @@ export default class Formatter {
     }
   }
 
-  visitExpression(node: Expression, parentPrecedence?: number): string {
+  visitExpression(node: Expression, childContext: ChildContext = {}): string {
     switch (node.type) {
-    // TODO: which other expressions should receive parentPrecedence as well?
-    case 'FunctionDeclaration': return this.visitFunctionDeclaration(node, false, parentPrecedence);
-    case 'BinaryExpression': return this.visitBinaryExpression(node, parentPrecedence);
+    // TODO: Which other expression should receive childContext as well?
+    case 'FunctionDeclaration': return this.visitFunctionDeclaration(node, false, childContext);
+    case 'BinaryExpression': return this.visitBinaryExpression(node, childContext);
     case 'BooleanLiteral': return this.visitBooleanLiteral(node);
     case 'CallExpression': return this.visitCallExpression(node);
     case 'IndexExpression': return this.visitIndexExpression(node);
     case 'Identifier': return this.visitIdentifier(node);
-    case 'LogicalExpression': return this.visitLogicalExpression(node, parentPrecedence);
+    case 'LogicalExpression': return this.visitLogicalExpression(node, childContext);
     case 'MemberExpression': return this.visitMemberExpression(node);
     case 'NilLiteral': return this.visitNilLiteral(node);
     case 'NumericLiteral': return this.visitNumericLiteral(node);
     case 'StringCallExpression': return this.visitStringCallExpression(node);
     case 'StringLiteral': return this.visitStringLiteral(node);
     case 'TableCallExpression': return this.visitTableCallExpression(node);
-    case 'TableConstructorExpression': return this.visitTableConstructorExpression(node, parentPrecedence);
+    case 'TableConstructorExpression': return this.visitTableConstructorExpression(node, childContext);
     case 'UnaryExpression': return this.visitUnaryExpression(node);
     case 'VarargLiteral': return this.visitVarargLiteral(node);
     default: throw new Error('Unexpected expression type: ' + (node as any).type);
@@ -407,35 +412,35 @@ export default class Formatter {
 
   // ****************************** Expressions *****************************
 
-  visitBinaryExpression(node: BinaryExpression, parentPrecedence?: number): string {
+  visitBinaryExpression(node: BinaryExpression, childContext: ChildContext = {}): string {
     return this.wrapWithParenthesesIfNeeded(
       {
-        currentPrecedence: BinaryPrecedence.precedenceValueOf(node.operator),
-        parentPrecedence: parentPrecedence ?? BinaryPrecedence.minPrecedenceValue,
+        isRightSideOfAnExpression: childContext.isRightSideOfAnExpression,
+        parentOperator: childContext.parentOperator,
+        currentOperator: node.operator,
       },
-      ({ currentPrecedence }) => {
+      () => {
         let ret = '';
-        ret += this.visitExpression(node.left, currentPrecedence);
+        ret += this.visitExpression(node.left, { parentOperator: node.operator });
         ret += ` ${node.operator} `;
-        ret += this.visitExpression(node.right, currentPrecedence);
+        ret += this.visitExpression(node.right, { parentOperator: node.operator, isRightSideOfAnExpression: true });
         return ret;
       });
   }
 
   visitCallExpression(node: CallExpression): string {
     let ret = '';
-    ret += this.visitExpression(node.base, BinaryPrecedence.maxPrecedenceValue);
+    ret += this.visitExpression(node.base, { parentOperator: Operators.fakeMaxPrecedenceOperator });
     ret += '(';
     ret += node.arguments.map(a => this.visitExpression(a)).join(', ');
     ret += ')';
     return ret;
   }
 
-  visitFunctionDeclaration(node: FunctionDeclaration, isStatement: boolean, parentPrecedence?: number): string {
+  visitFunctionDeclaration(node: FunctionDeclaration, isStatement: boolean, childContext: ChildContext = {}): string {
     return this.wrapWithParenthesesIfNeeded(
       {
-        currentPrecedence: BinaryPrecedence.minPrecedenceValue,
-        parentPrecedence: parentPrecedence ?? BinaryPrecedence.minPrecedenceValue,
+        parentOperator: childContext.parentOperator,
       },
       () => {
         let ret = '';
@@ -473,31 +478,32 @@ export default class Formatter {
 
   visitIndexExpression(node: IndexExpression): string {
     let ret = '';
-    ret += this.visitExpression(node.base, BinaryPrecedence.maxPrecedenceValue);
+    ret += this.visitExpression(node.base, { parentOperator: Operators.fakeMaxPrecedenceOperator });
     ret += '[';
     ret += this.visitExpression(node.index);
     ret += ']';
     return ret;
   }
 
-  visitLogicalExpression(node: LogicalExpression, parentPrecedence?: number): string {
+  visitLogicalExpression(node: LogicalExpression, childContext: ChildContext = {}): string {
     return this.wrapWithParenthesesIfNeeded(
       {
-        currentPrecedence: BinaryPrecedence.precedenceValueOf(node.operator),
-        parentPrecedence: parentPrecedence ?? BinaryPrecedence.minPrecedenceValue,
+        isRightSideOfAnExpression: childContext.isRightSideOfAnExpression,
+        parentOperator: childContext.parentOperator,
+        currentOperator: node.operator,
       },
-      ({ currentPrecedence }) => {
+      () => {
         let ret = '';
-        ret += this.visitExpression(node.left, currentPrecedence);
+        ret += this.visitExpression(node.left, { parentOperator: node.operator });
         ret += ` ${node.operator} `;
-        ret += this.visitExpression(node.right, currentPrecedence);
+        ret += this.visitExpression(node.right, { parentOperator: node.operator, isRightSideOfAnExpression: true });
         return ret;
       });
   }
 
   visitMemberExpression(node: MemberExpression): string {
     let ret = '';
-    ret += this.visitExpression(node.base, BinaryPrecedence.maxPrecedenceValue);
+    ret += this.visitExpression(node.base, { parentOperator: Operators.fakeMaxPrecedenceOperator });
     ret += node.indexer;
     ret += this.visitIdentifier(node.identifier);
     return ret;
@@ -511,14 +517,13 @@ export default class Formatter {
     return this.visitExpression(node.base) + ' ' + this.visitTableConstructorExpression(node.arguments);
   }
 
-  visitTableConstructorExpression(node: TableConstructorExpression, parentPrecedence?: number): string {
+  visitTableConstructorExpression(node: TableConstructorExpression, childContext: ChildContext = {}): string {
     const shouldIndent = node.fields.length > 1;
     const newlineFunc = shouldIndent ? this.newline.bind(this) : () => '';
 
     return this.wrapWithParenthesesIfNeeded(
       {
-        currentPrecedence: BinaryPrecedence.minPrecedenceValue,
-        parentPrecedence: parentPrecedence ?? BinaryPrecedence.minPrecedenceValue,
+        parentOperator: childContext.parentOperator,
       },
       () => {
         let ret = '';
@@ -577,12 +582,34 @@ export default class Formatter {
   }
 
   private wrapWithParenthesesIfNeeded(
-    params: { currentPrecedence: number, parentPrecedence: number; },
-    expressionToWrap: (params: { currentPrecedence: number }) => string,
+    params: {
+      parentOperator?: string;
+      currentOperator?: string,
+      isRightSideOfAnExpression?: boolean,
+    },
+    expressionToWrap: () => string,
   ): string {
-    if (params.currentPrecedence < params.parentPrecedence) {
-      return `(${expressionToWrap({ currentPrecedence: params.currentPrecedence })})`;
+    const expression = expressionToWrap();
+
+    const parentPrecedence = params.parentOperator
+      ? Operators.binaryPrecedenceOf(params.parentOperator)
+      : Operators.minPrecedenceValue;
+    const currentPrecedence = params.currentOperator
+      ? Operators.binaryPrecedenceOf(params.currentOperator)
+      : Operators.minPrecedenceValue;
+    if (currentPrecedence < parentPrecedence) {
+      return `(${expression})`;
     }
-    return expressionToWrap({ currentPrecedence: params.currentPrecedence });
+
+    if (
+      params.parentOperator &&
+      params.parentOperator === params.currentOperator &&
+      params.isRightSideOfAnExpression &&
+      !Operators.isAssociative(params.parentOperator)
+    ) {
+      return `(${expression})`;
+    }
+
+    return expression;
   }
 }

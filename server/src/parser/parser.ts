@@ -44,7 +44,7 @@ import { Token, TokenType } from './tokens';
 import { indexOfObject } from './util';
 import * as path from 'path';
 import { ASTNode } from './types';
-import BinaryPrecedence from './binaryPrecedence';
+import Operators from './operators';
 
 export type Scope = string[];
 
@@ -1124,9 +1124,9 @@ export default class Parser {
       operator = this.token.value as string;
 
       precedence = (this.token.type === TokenType.Punctuator || this.token.type === TokenType.Keyword) ?
-        BinaryPrecedence.precedenceValueOf(operator) : BinaryPrecedence.minPrecedenceValue;
+        Operators.binaryPrecedenceOf(operator) : Operators.minPrecedenceValue;
 
-      if (precedence === BinaryPrecedence.minPrecedenceValue || precedence <= minPrecedence) {
+      if (precedence === Operators.minPrecedenceValue || precedence <= minPrecedence) {
         break;
       }
       // Right-hand precedence operators

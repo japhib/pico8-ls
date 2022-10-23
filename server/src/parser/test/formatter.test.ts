@@ -164,12 +164,24 @@ g = some_table.some_fn(some_var_4 * (rnd() - .5), some_var_5 * (rnd() - .5))
       const input = `
 a = some_var_1 + (some_var_2 + some_var_3)
 b = some_var_1 * (some_var_2 * some_var_3)
+c = (some_var_1 + some_var_2) + some_var_3
+d = (some_var_1 * some_var_2) * some_var_3
+e = (some_var_1 + some_var_2 + some_var_3)
+f = (some_var_1) * some_var_2 * (some_var_3)
+g = (some_var_1 - some_var_2) - some_var_3
+h = (some_var_1 / some_var_2) / some_var_3
         `.trim();
       const formatted = format(input);
       // TODO: ideally we would assert presence of parentheses, while ignoring if new lines are there or not, since they are not a subject of this test
       eq(formatted, `
 a = some_var_1 + some_var_2 + some_var_3
 b = some_var_1 * some_var_2 * some_var_3
+c = some_var_1 + some_var_2 + some_var_3
+d = some_var_1 * some_var_2 * some_var_3
+e = some_var_1 + some_var_2 + some_var_3
+f = some_var_1 * some_var_2 * some_var_3
+g = some_var_1 - some_var_2 - some_var_3
+h = some_var_1 / some_var_2 / some_var_3
         `.trim());
     });
   });
