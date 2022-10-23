@@ -16,6 +16,7 @@ function insertComments(text: string): Statement[] {
   return chunk.body;
 }
 
+// TODO: add a test for `opts = opts or {}` to not add parentheses around `{}`
 describe('Formatter', () => {
   describe('Formats entire files', () => {
     // TODO: write proper tests for the final implementation

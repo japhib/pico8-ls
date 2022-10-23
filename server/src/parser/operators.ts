@@ -54,10 +54,10 @@ export default class Operators {
 
     if (1 === length) {
       switch (charCode) {
-      case 42: return true;
-      case 43: return true;
-      case 38: return true;
-      case 124: return true;
+      case 42: return true; // *
+      case 43: return true; // +
+      case 38: return true; // & (bitwise AND)
+      case 124: return true; // | (bitwise OR)
       }
     } else if (2 === length) {
       switch (charCode) {
