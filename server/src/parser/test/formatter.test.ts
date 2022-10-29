@@ -1,19 +1,11 @@
 import { deepEquals, getTestFileContents, parse } from './test-utils';
 import { strictEqual as eq } from 'assert';
 import Formatter from '../formatter';
-import { Statement } from '../statements';
 
 function format(text: string): string {
   const chunk = parse(text);
   const formatter = new Formatter();
   return formatter.formatChunk(chunk);
-}
-
-function insertComments(text: string): Statement[] {
-  const chunk = parse(text);
-  const formatter = new Formatter();
-  formatter.insertComments(chunk);
-  return chunk.body;
 }
 
 // TODO: add a test for `opts = opts or {}` to not add parentheses around `{}`
@@ -183,214 +175,142 @@ h = some_var_1 / some_var_2 / some_var_3
 
   describe('preserves comments', () => {
 
-    it('keeps comment outside statements in its place', () => {
+    it('keeps comments around local statements', () => {
       const input = `
+--[[ there is 
+     some comment
+     A ]]
 local a = 1
--- there is some comment
-local b = a + 2
+local b = 2
+-- there is some comment B
+-- there is some comment C
+local c = a * b
+local d = a / b
+--[[ there is 
+     some comment
+     D ]]
+--[[ there is 
+     some comment
+     E ]]
+local e = d - c - b - a
+-- there is some comment F
         `.trim();
       eq(format(input), input);
     });
 
-    it('keeps comments inside table constructor', () => {
+    it('keeps comments around and inside a table constructor', () => {
       const input = `
+-- comment before a table constructor
 local a = {
-  -- Some key which serves some purpose:
+  --[[Some key which serves
+   some purpose:]]
   some_key = 111,
   -- some_key = 222,
+  another_key = 333,
+  -- another_key = 444,
 }
+-- comment after a table constructor
         `.trim();
       eq(format(input), input);
     });
 
-    it('keeps comments inside a statement function', () => {
+    // TODO: write a test for a case of a table constructor which gets formatted into a single line,
+    //       i.e.
+    //         a = {
+    //           -- b = 1
+    //           b = 2,
+    //         }
+    //       into
+    //         a = {b = 2} -- and where to put that comment from the input?
+
+    it('keeps comments around and inside a statement function', () => {
       const input = `
+-- comment before a statement function
 function a(b)
-  -- printh(b)
+  -- print(b)
   do_something(b)
-  -- do_another_thing(b)
+  --[[
+    do_another_thing(b)
+    do_another_thing(b + 1)
+  ]]
+  do_something_totally_different(b)
+  -- print(b - 1)
 end
+-- comment after a statement function
         `.trim() + '\n';
       eq(format(input), input);
     });
 
-    it('keeps comments inside an assigned function', () => {
+    it('keeps comments around and inside an assigned function', () => {
       const input = `
+-- comment before an assigned function
 local a = function(b)
-  -- printh(b)
+  -- print(b)
   do_something(b)
-  -- do_another_thing(b)
+  --[[
+    do_another_thing(b)
+    do_another_thing(b + 1)
+  ]]
+  do_something_totally_different(b)
+  -- print(b - 1)
 end
+-- comment after an assigned function
         `.trim();
+      eq(format(input), input);
+    });
+
+    it('keeps comments around and inside block statements', () => {
+      const input = `
+-- comment before block statement
+for i = 1, 10 do
+  -- print(i)
+  do_something(i)
+  --[[
+    do_another_thing(i)
+    do_another_thing(i + 1)
+  ]]
+  do_something_totally_different(i)
+  -- print(i - 1)
+end
+-- comment before after statement
+        `.trim();
+      eq(format(input), input);
+    });
+
+    it('keeps comments around and inside "if" statement branches', () => {
+      const input = `
+-- comment before "if" statement
+if a < 1 then
+  -- print(a)
+  do_something(a)
+  --[[ 
+  print(a)
+  ]]
+  do_something_totally_different(a)
+  -- print(a - 1)
+elseif a == 1 then
+  -- print(a)
+  do_something(a)
+  --[[ 
+  print(a)
+  ]]
+  do_something_totally_different(a)
+  -- print(a - 1)
+else
+  -- print(a)
+  do_something(a)
+  --[[ 
+  print(a)
+  ]]
+  do_something_totally_different(a)
+  -- print(a - 1)
+end
+-- comment after "if" statement
+        `.trim();
+      // eq(parse(input).body, 123);
       eq(format(input), input);
     });
 
   });
 
-  // TODO change these tests into actual formatting tests
-  // rather than relying on inspecting the AST
-  describe('Edits AST before formatting', () => {
-    it('inserts comments before local statement', () => {
-      const input = `
--- this is my variable
-local a = 1
-        `.trim();
-      const ast = insertComments(input);
-      deepEquals(ast, [
-        { type: 'Comment', value: ' this is my variable' },
-        { type: 'LocalStatement' },
-      ]);
-    });
-
-    it('inserts multi-line comments before local statement', () => {
-      const input = `
---[[ this is my 
- long-winded 
-variable]]
-local a = 1
-        `.trim();
-      const ast = insertComments(input);
-      deepEquals(ast, [
-        { type: 'Comment', value: ' this is my \n long-winded \nvariable' },
-        { type: 'LocalStatement' },
-      ]);
-    });
-
-    it('inserts comments in between statements', () => {
-      const input = `
--- First comment
-local a
--- Second comment
-local b
--- Third comment
-local c
--- Last comment
-        `.trim();
-      const ast = insertComments(input);
-      deepEquals(ast, [
-        { type: 'Comment', value: ' First comment' },
-        { type: 'LocalStatement' },
-        { type: 'Comment', value: ' Second comment' },
-        { type: 'LocalStatement' },
-        { type: 'Comment', value: ' Third comment' },
-        { type: 'LocalStatement' },
-        { type: 'Comment', value: ' Last comment' },
-      ]);
-    });
-
-    it('inserts multiple line comments in between statements', () => {
-      const input = `
--- comment 1a
--- comment 1b
-local a
--- comment 2a
--- comment 2b
-local b
--- comment 3a
--- comment 3b
-        `.trim();
-      const ast = insertComments(input);
-      deepEquals(ast, [
-        { type: 'Comment', value: ' comment 1a' },
-        { type: 'Comment', value: ' comment 1b' },
-        { type: 'LocalStatement' },
-        { type: 'Comment', value: ' comment 2a' },
-        { type: 'Comment', value: ' comment 2b' },
-        { type: 'LocalStatement' },
-        { type: 'Comment', value: ' comment 3a' },
-        { type: 'Comment', value: ' comment 3b' },
-      ]);
-    });
-
-    it('inserts multi-line comments in between statements', () => {
-      const input = `
---[[ comment 1a
- comment 1b]]
-local a
---[[ comment 2a
- comment 2b]]
-local b
---[[ comment 3a
- comment 3b]]
-        `.trim();
-      const ast = insertComments(input);
-      deepEquals(ast, [
-        { type: 'Comment', value: ' comment 1a\n comment 1b' },
-        { type: 'LocalStatement' },
-        { type: 'Comment', value: ' comment 2a\n comment 2b' },
-        { type: 'LocalStatement' },
-        { type: 'Comment', value: ' comment 3a\n comment 3b' },
-      ]);
-    });
-
-    it('Inserts comments into block statements', () => {
-      const input = `
--- about to enter for loop
-for i=1,10 do
-  -- this is where we loop
-  print(i)
-end
-        `.trim();
-      const ast = insertComments(input);
-      deepEquals(ast, [
-        { type: 'Comment', value: ' about to enter for loop' },
-        {
-          type: 'ForNumericStatement',
-          body: [
-            { type: 'Comment', value: ' this is where we loop' },
-            { type: 'CallStatement' },
-          ],
-        },
-      ]);
-    });
-
-    it('inserts comments into the various clauses of an "if" statement', () => {
-      const input = `
--- main comment
-if a < 1 then
-  -- if clause
-  print('a')
-elseif a == 1 then
-  -- elseif clause
-  print('b')
-else
-  -- else clause
-  print('c')
-end
--- end comment
-        `.trim();
-      const ast = insertComments(input);
-      deepEquals(ast, [
-        { type: 'Comment', raw: '-- main comment' },
-        {
-          type: 'IfStatement',
-          oneLine: false,
-          clauses: [
-            {
-              type: 'IfClause',
-              body: [
-                { type: 'Comment', raw: '-- if clause' },
-                { type: 'CallStatement' },
-              ],
-            },
-            {
-              type: 'ElseifClause',
-              body: [
-                { type: 'Comment', raw: '-- elseif clause' },
-                { type: 'CallStatement' },
-              ],
-            },
-            {
-              type: 'ElseClause',
-              body: [
-                { type: 'Comment', raw: '-- else clause' },
-                { type: 'CallStatement' },
-              ],
-            },
-          ],
-        },
-        { type: 'Comment', raw: '-- end comment' },
-      ]);
-    });
-  });
 });

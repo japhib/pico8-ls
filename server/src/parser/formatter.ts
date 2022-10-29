@@ -152,23 +152,40 @@ export default class Formatter {
 
   visitStatement(node: Statement): string {
     switch (node.type) {
-    case 'AssignmentStatement': return this.visitAssignmentStatement(node);
-    case 'BreakStatement': return this.visitBreakStatement(node);
-    case 'CallStatement': return this.visitCallStatement(node);
-    case 'DoStatement': return this.visitDoStatement(node);
-    case 'ForGenericStatement': return this.visitForGenericStatement(node);
-    case 'ForNumericStatement': return this.visitForNumericStatement(node);
-    case 'FunctionDeclaration': return this.visitFunctionDeclaration(node, true);
-    case 'GotoStatement': return this.visitGotoStatement(node);
-    case 'IfStatement': return this.visitIfStatement(node);
-    case 'LabelStatement': return this.visitLabelStatement(node);
-    case 'LocalStatement': return this.visitLocalStatement(node);
-    case 'RepeatStatement': return this.visitRepeatStatement(node);
-    case 'ReturnStatement': return this.visitReturnStatement(node);
-    case 'WhileStatement': return this.visitWhileStatement(node);
-    case 'Comment': return this.visitComment(node);
-    case 'Whitespace': return this.visitWhitespace(node);
-    default: throw new Error('Unexpected statement type: ' + (node as any).type);
+    case 'AssignmentStatement':
+      return this.visitAssignmentStatement(node);
+    case 'BreakStatement':
+      return this.visitBreakStatement(node);
+    case 'CallStatement':
+      return this.visitCallStatement(node);
+    case 'DoStatement':
+      return this.visitDoStatement(node);
+    case 'ForGenericStatement':
+      return this.visitForGenericStatement(node);
+    case 'ForNumericStatement':
+      return this.visitForNumericStatement(node);
+    case 'FunctionDeclaration':
+      return this.visitFunctionDeclaration(node, true);
+    case 'GotoStatement':
+      return this.visitGotoStatement(node);
+    case 'IfStatement':
+      return this.visitIfStatement(node);
+    case 'LabelStatement':
+      return this.visitLabelStatement(node);
+    case 'LocalStatement':
+      return this.visitLocalStatement(node);
+    case 'RepeatStatement':
+      return this.visitRepeatStatement(node);
+    case 'ReturnStatement':
+      return this.visitReturnStatement(node);
+    case 'WhileStatement':
+      return this.visitWhileStatement(node);
+    case 'Comment':
+      return this.visitComment(node);
+    case 'Whitespace':
+      return this.visitWhitespace(node);
+    default:
+      throw new Error('Unexpected statement type: ' + (node as any).type);
     }
   }
 
@@ -195,42 +212,67 @@ export default class Formatter {
 
   visitGeneralIfClause(node: GeneralIfClause): string {
     switch (node.type) {
-    case 'IfClause': return this.visitIfClause(node);
-    case 'ElseClause': return this.visitElseClause(node);
-    case 'ElseifClause': return this.visitElseifClause(node);
-    default: throw new Error('Unexpected if clause type: ' + (node as any).type);
+    case 'IfClause':
+      return this.visitIfClause(node);
+    case 'ElseClause':
+      return this.visitElseClause(node);
+    case 'ElseifClause':
+      return this.visitElseifClause(node);
+    default:
+      throw new Error('Unexpected if clause type: ' + (node as any).type);
     }
   }
 
   visitExpression(node: Expression, childContext: ChildContext = {}): string {
     switch (node.type) {
     // TODO: Which other expression should receive childContext as well?
-    case 'FunctionDeclaration': return this.visitFunctionDeclaration(node, false, childContext);
-    case 'BinaryExpression': return this.visitBinaryExpression(node, childContext);
-    case 'BooleanLiteral': return this.visitBooleanLiteral(node);
-    case 'CallExpression': return this.visitCallExpression(node);
-    case 'IndexExpression': return this.visitIndexExpression(node);
-    case 'Identifier': return this.visitIdentifier(node);
-    case 'LogicalExpression': return this.visitLogicalExpression(node, childContext);
-    case 'MemberExpression': return this.visitMemberExpression(node);
-    case 'NilLiteral': return this.visitNilLiteral(node);
-    case 'NumericLiteral': return this.visitNumericLiteral(node);
-    case 'StringCallExpression': return this.visitStringCallExpression(node);
-    case 'StringLiteral': return this.visitStringLiteral(node);
-    case 'TableCallExpression': return this.visitTableCallExpression(node);
-    case 'TableConstructorExpression': return this.visitTableConstructorExpression(node, childContext);
-    case 'UnaryExpression': return this.visitUnaryExpression(node);
-    case 'VarargLiteral': return this.visitVarargLiteral(node);
-    default: throw new Error('Unexpected expression type: ' + (node as any).type);
+    case 'FunctionDeclaration':
+      return this.visitFunctionDeclaration(node, false, childContext);
+    case 'BinaryExpression':
+      return this.visitBinaryExpression(node, childContext);
+    case 'BooleanLiteral':
+      return this.visitBooleanLiteral(node);
+    case 'CallExpression':
+      return this.visitCallExpression(node);
+    case 'IndexExpression':
+      return this.visitIndexExpression(node);
+    case 'Identifier':
+      return this.visitIdentifier(node);
+    case 'LogicalExpression':
+      return this.visitLogicalExpression(node, childContext);
+    case 'MemberExpression':
+      return this.visitMemberExpression(node);
+    case 'NilLiteral':
+      return this.visitNilLiteral(node);
+    case 'NumericLiteral':
+      return this.visitNumericLiteral(node);
+    case 'StringCallExpression':
+      return this.visitStringCallExpression(node);
+    case 'StringLiteral':
+      return this.visitStringLiteral(node);
+    case 'TableCallExpression':
+      return this.visitTableCallExpression(node);
+    case 'TableConstructorExpression':
+      return this.visitTableConstructorExpression(node, childContext);
+    case 'UnaryExpression':
+      return this.visitUnaryExpression(node);
+    case 'VarargLiteral':
+      return this.visitVarargLiteral(node);
+    default:
+      throw new Error('Unexpected expression type: ' + (node as any).type);
     }
   }
 
   visitGeneralTableField(node: GeneralTableField): string {
     switch (node.type) {
-    case 'TableKey': return this.visitTableKey(node);
-    case 'TableKeyString': return this.visitTableKeyString(node);
-    case 'TableValue': return this.visitTableValue(node);
-    default: throw new Error('Unexpected table field type: ' + (node as any).type);
+    case 'TableKey':
+      return this.visitTableKey(node);
+    case 'TableKeyString':
+      return this.visitTableKeyString(node);
+    case 'TableValue':
+      return this.visitTableValue(node);
+    default:
+      throw new Error('Unexpected table field type: ' + (node as any).type);
     }
   }
 
