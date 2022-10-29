@@ -59,7 +59,9 @@ type ChildContext = {
   isRightSideOfAnExpression?: boolean,
 };
 
-// TODO: consider moving formatter to its separate folder parallel to parser, then move shared statements and expressions outside parser as well
+// TODO: move formatter (in a separate PR) to its own folder, parallel to parser,
+//       then move shared statements and expressions outside parser as well.
+//       Remember to update test files' locations as well.
 
 /*
  * Formatter for visiting the AST and outputting a formatted representation of the code.
@@ -605,7 +607,7 @@ export default class Formatter {
       params.parentOperator &&
       params.parentOperator === params.currentOperator &&
       params.isRightSideOfAnExpression &&
-      !Operators.isAssociative(params.parentOperator)
+      !Operators.isBothLeftAndRightAssociative(params.parentOperator)
     ) {
       return `(${expression})`;
     }
