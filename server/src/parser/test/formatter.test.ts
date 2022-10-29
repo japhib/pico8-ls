@@ -42,16 +42,6 @@ end
         `.trim());
     });
 
-    it('leaves comments in', () => {
-      const input = `
--- this is my variable
-local a = 1
-        `.trim();
-      const formatted = format(input);
-      // should leave it the same
-      eq(formatted, input);
-    });
-
     it('properly formats unary expressions', () => {
       const input = `
 a = not a
@@ -88,55 +78,57 @@ end
         `.trim() + '\n');
     });
 
-    it('preserves parentheses when their inner expression is called as a function', () => {
-      const input = `
-(fn1 or fn_2)()
-        `.trim();
-      const formatted = format(input);
-      eq(formatted, `
-(fn1 or fn_2)()
-        `.trim());
-    });
+    describe('handles parentheses correctly', () => {
 
-    it('preserves parentheses around function definition when called immediately', () => {
-      const input = `
+      it('preserves parentheses when their inner expression is called as a function', () => {
+        const input = `
+(fn1 or fn_2)()
+          `.trim();
+        const formatted = format(input);
+        eq(formatted, `
+(fn1 or fn_2)()
+          `.trim());
+      });
+
+      it('preserves parentheses around function definition when called immediately', () => {
+        const input = `
 (function()
   do_something()
 end)()
-        `.trim();
-      const formatted = format(input);
-      eq(formatted, `
+          `.trim();
+        const formatted = format(input);
+        eq(formatted, `
 (function()
   do_something()
 end)()
-        `.trim());
-    });
+          `.trim());
+      });
 
-    it('preserves parentheses when a property is called on their inner expression', () => {
-      const input = `
+      it('preserves parentheses when a property is called on their inner expression', () => {
+        const input = `
 (table1 or table2).some_property()
-        `.trim();
-      const formatted = format(input);
-      eq(formatted, `
+          `.trim();
+        const formatted = format(input);
+        eq(formatted, `
 (table1 or table2).some_property()
-        `.trim());
-    });
+          `.trim());
+      });
 
-    it('preserves parentheses when a property is accessed by value on their inner expression', () => {
-      const input = `
+      it('preserves parentheses when a property is accessed by value on their inner expression', () => {
+        const input = `
 local result = ({
   [123] = "xyz"
 })[123]
-        `.trim();
-      const formatted = format(input);
-      // TODO: ideally we would assert presence of parentheses, while ignoring if new lines are there or not, since they are not a subject of this test
-      eq(formatted, `
+          `.trim();
+        const formatted = format(input);
+        // TODO: ideally we would assert presence of parentheses, while ignoring if new lines are there or not, since they are not a subject of this test
+        eq(formatted, `
 local result = ({[123] = "xyz"})[123]
-        `.trim());
-    });
+          `.trim());
+      });
 
-    it('preserves parentheses on calculations when they are required', () => {
-      const input = `
+      it('preserves parentheses on calculations when they are required', () => {
+        const input = `
 a = some_var_1 - (some_var_2 - some_var_3)
 b = some_var_1 / (some_var_2 / some_var_3)
 c = 1 - (t - 1) ^ 2
@@ -147,10 +139,10 @@ g = some_table.some_fn(
   some_var_4 * (rnd() - .5),
   some_var_5 * (rnd() - .5)
 )
-        `.trim();
-      const formatted = format(input);
-      // TODO: ideally we would assert presence of parentheses, while ignoring if new lines are there or not, since they are not a subject of this test
-      eq(formatted, `
+          `.trim();
+        const formatted = format(input);
+        // TODO: ideally we would assert presence of parentheses, while ignoring if new lines are there or not, since they are not a subject of this test
+        eq(formatted, `
 a = some_var_1 - (some_var_2 - some_var_3)
 b = some_var_1 / (some_var_2 / some_var_3)
 c = 1 - (t - 1) ^ 2
@@ -158,11 +150,11 @@ d = (some_var_1 - 111 * 222) / 333
 e = (some_var_2 - 111) * 222
 f = (some_var_3 + 111) % 222
 g = some_table.some_fn(some_var_4 * (rnd() - .5), some_var_5 * (rnd() - .5))
-        `.trim());
-    });
+          `.trim());
+      });
 
-    it('removes parentheses from calculations when they are unnecessary', () => {
-      const input = `
+      it('removes parentheses from calculations when they are unnecessary', () => {
+        const input = `
 a = some_var_1 + (some_var_2 + some_var_3)
 b = some_var_1 * (some_var_2 * some_var_3)
 c = (some_var_1 + some_var_2) + some_var_3
@@ -171,10 +163,10 @@ e = (some_var_1 + some_var_2 + some_var_3)
 f = (some_var_1) * some_var_2 * (some_var_3)
 g = (some_var_1 - some_var_2) - some_var_3
 h = (some_var_1 / some_var_2) / some_var_3
-        `.trim();
-      const formatted = format(input);
-      // TODO: ideally we would assert presence of parentheses, while ignoring if new lines are there or not, since they are not a subject of this test
-      eq(formatted, `
+          `.trim();
+        const formatted = format(input);
+        // TODO: ideally we would assert presence of parentheses, while ignoring if new lines are there or not, since they are not a subject of this test
+        eq(formatted, `
 a = some_var_1 + some_var_2 + some_var_3
 b = some_var_1 * some_var_2 * some_var_3
 c = some_var_1 + some_var_2 + some_var_3
@@ -183,8 +175,56 @@ e = some_var_1 + some_var_2 + some_var_3
 f = some_var_1 * some_var_2 * some_var_3
 g = some_var_1 - some_var_2 - some_var_3
 h = some_var_1 / some_var_2 / some_var_3
-        `.trim());
+          `.trim());
+      });
     });
+
+  });
+
+  describe('preserves comments', () => {
+
+    it('keeps comment outside statements in its place', () => {
+      const input = `
+local a = 1
+-- there is some comment
+local b = a + 2
+        `.trim();
+      eq(format(input), input);
+    });
+
+    it('keeps comments inside table constructor', () => {
+      const input = `
+local a = {
+  -- Some key which serves some purpose:
+  some_key = 111,
+  -- some_key = 222,
+}
+        `.trim();
+      eq(format(input), input);
+    });
+
+    it('keeps comments inside a statement function', () => {
+      const input = `
+function a(b)
+  -- printh(b)
+  do_something(b)
+  -- do_another_thing(b)
+end
+        `.trim() + '\n';
+      eq(format(input), input);
+    });
+
+    it('keeps comments inside an assigned function', () => {
+      const input = `
+local a = function(b)
+  -- printh(b)
+  do_something(b)
+  -- do_another_thing(b)
+end
+        `.trim();
+      eq(format(input), input);
+    });
+
   });
 
   // TODO change these tests into actual formatting tests
