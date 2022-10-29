@@ -1,19 +1,11 @@
 import { deepEquals, getTestFileContents, parse } from './test-utils';
 import { strictEqual as eq } from 'assert';
 import Formatter from '../formatter';
-import { Statement } from '../statements';
 
 function format(text: string): string {
   const chunk = parse(text);
   const formatter = new Formatter();
   return formatter.formatChunk(chunk);
-}
-
-function insertComments(text: string): Statement[] {
-  const chunk = parse(text);
-  const formatter = new Formatter();
-  formatter.insertComments(chunk);
-  return chunk.body;
 }
 
 // TODO: add a test for `opts = opts or {}` to not add parentheses around `{}`
@@ -40,16 +32,6 @@ for i = 0, 29 do
   add(got_fruit, false)
 end
         `.trim());
-    });
-
-    it('leaves comments in', () => {
-      const input = `
--- this is my variable
-local a = 1
-        `.trim();
-      const formatted = format(input);
-      // should leave it the same
-      eq(formatted, input);
     });
 
     it('properly formats unary expressions', () => {
@@ -88,55 +70,57 @@ end
         `.trim() + '\n');
     });
 
-    it('preserves parentheses when their inner expression is called as a function', () => {
-      const input = `
-(fn1 or fn_2)()
-        `.trim();
-      const formatted = format(input);
-      eq(formatted, `
-(fn1 or fn_2)()
-        `.trim());
-    });
+    describe('handles parentheses correctly', () => {
 
-    it('preserves parentheses around function definition when called immediately', () => {
-      const input = `
+      it('preserves parentheses when their inner expression is called as a function', () => {
+        const input = `
+(fn1 or fn_2)()
+          `.trim();
+        const formatted = format(input);
+        eq(formatted, `
+(fn1 or fn_2)()
+          `.trim());
+      });
+
+      it('preserves parentheses around function definition when called immediately', () => {
+        const input = `
 (function()
   do_something()
 end)()
-        `.trim();
-      const formatted = format(input);
-      eq(formatted, `
+          `.trim();
+        const formatted = format(input);
+        eq(formatted, `
 (function()
   do_something()
 end)()
-        `.trim());
-    });
+          `.trim());
+      });
 
-    it('preserves parentheses when a property is called on their inner expression', () => {
-      const input = `
+      it('preserves parentheses when a property is called on their inner expression', () => {
+        const input = `
 (table1 or table2).some_property()
-        `.trim();
-      const formatted = format(input);
-      eq(formatted, `
+          `.trim();
+        const formatted = format(input);
+        eq(formatted, `
 (table1 or table2).some_property()
-        `.trim());
-    });
+          `.trim());
+      });
 
-    it('preserves parentheses when a property is accessed by value on their inner expression', () => {
-      const input = `
+      it('preserves parentheses when a property is accessed by value on their inner expression', () => {
+        const input = `
 local result = ({
   [123] = "xyz"
 })[123]
-        `.trim();
-      const formatted = format(input);
-      // TODO: ideally we would assert presence of parentheses, while ignoring if new lines are there or not, since they are not a subject of this test
-      eq(formatted, `
+          `.trim();
+        const formatted = format(input);
+        // TODO: ideally we would assert presence of parentheses, while ignoring if new lines are there or not, since they are not a subject of this test
+        eq(formatted, `
 local result = ({[123] = "xyz"})[123]
-        `.trim());
-    });
+          `.trim());
+      });
 
-    it('preserves parentheses on calculations when they are required', () => {
-      const input = `
+      it('preserves parentheses on calculations when they are required', () => {
+        const input = `
 a = some_var_1 - (some_var_2 - some_var_3)
 b = some_var_1 / (some_var_2 / some_var_3)
 c = 1 - (t - 1) ^ 2
@@ -147,10 +131,10 @@ g = some_table.some_fn(
   some_var_4 * (rnd() - .5),
   some_var_5 * (rnd() - .5)
 )
-        `.trim();
-      const formatted = format(input);
-      // TODO: ideally we would assert presence of parentheses, while ignoring if new lines are there or not, since they are not a subject of this test
-      eq(formatted, `
+          `.trim();
+        const formatted = format(input);
+        // TODO: ideally we would assert presence of parentheses, while ignoring if new lines are there or not, since they are not a subject of this test
+        eq(formatted, `
 a = some_var_1 - (some_var_2 - some_var_3)
 b = some_var_1 / (some_var_2 / some_var_3)
 c = 1 - (t - 1) ^ 2
@@ -158,11 +142,11 @@ d = (some_var_1 - 111 * 222) / 333
 e = (some_var_2 - 111) * 222
 f = (some_var_3 + 111) % 222
 g = some_table.some_fn(some_var_4 * (rnd() - .5), some_var_5 * (rnd() - .5))
-        `.trim());
-    });
+          `.trim());
+      });
 
-    it('removes parentheses from calculations when they are unnecessary', () => {
-      const input = `
+      it('removes parentheses from calculations when they are unnecessary', () => {
+        const input = `
 a = some_var_1 + (some_var_2 + some_var_3)
 b = some_var_1 * (some_var_2 * some_var_3)
 c = (some_var_1 + some_var_2) + some_var_3
@@ -171,10 +155,10 @@ e = (some_var_1 + some_var_2 + some_var_3)
 f = (some_var_1) * some_var_2 * (some_var_3)
 g = (some_var_1 - some_var_2) - some_var_3
 h = (some_var_1 / some_var_2) / some_var_3
-        `.trim();
-      const formatted = format(input);
-      // TODO: ideally we would assert presence of parentheses, while ignoring if new lines are there or not, since they are not a subject of this test
-      eq(formatted, `
+          `.trim();
+        const formatted = format(input);
+        // TODO: ideally we would assert presence of parentheses, while ignoring if new lines are there or not, since they are not a subject of this test
+        eq(formatted, `
 a = some_var_1 + some_var_2 + some_var_3
 b = some_var_1 * some_var_2 * some_var_3
 c = some_var_1 + some_var_2 + some_var_3
@@ -183,115 +167,150 @@ e = some_var_1 + some_var_2 + some_var_3
 f = some_var_1 * some_var_2 * some_var_3
 g = some_var_1 - some_var_2 - some_var_3
 h = some_var_1 / some_var_2 / some_var_3
-        `.trim());
+          `.trim());
+      });
     });
+
   });
 
-  describe('Edits AST before formatting', () => {
-    it('leaves comments before local statement', () => {
+  describe('preserves comments', () => {
+
+    it('keeps comments around local statements', () => {
       const input = `
--- this is my variable
-local a = 1`.trim();
-      const output = format(input);
-      eq(output, input);
+--[[ there is 
+     some comment
+     A ]]
+local a = 1
+local b = 2
+-- there is some comment B
+-- there is some comment C
+local c = a * b
+local d = a / b
+--[[ there is 
+     some comment
+     D ]]
+--[[ there is 
+     some comment
+     E ]]
+local e = d - c - b - a
+-- there is some comment F
+        `.trim();
+      eq(format(input), input);
     });
 
-    it('leaves multi-line comments before local statement', () => {
+    it('keeps comments around and inside a table constructor', () => {
       const input = `
---[[ this is my
- long-winded
-variable]]
-local a = 1`.trim();
-      const output = format(input);
-      eq(output, input);
+-- comment before a table constructor
+local a = {
+  --[[Some key which serves
+   some purpose:]]
+  some_key = 111,
+  -- some_key = 222,
+  another_key = 333,
+  -- another_key = 444,
+}
+-- comment after a table constructor
+        `.trim();
+      eq(format(input), input);
     });
 
-    it('leaves comments in between statements', () => {
-      const input = `
--- First comment
-local a
--- Second comment
-local b
--- Third comment
-local c
--- Last comment`.trim();
-      const output = format(input);
-      eq(output, input);
-    });
+    // TODO: write a test for a case of a table constructor which gets formatted into a single line,
+    //       i.e.
+    //         a = {
+    //           -- b = 1
+    //           b = 2,
+    //         }
+    //       into
+    //         a = {b = 2} -- and where to put that comment from the input?
 
-    it('leaves multiple line comments in between statements', () => {
+    it('keeps comments around and inside a statement function', () => {
       const input = `
--- comment 1a
--- comment 1b
-local a
--- comment 2a
--- comment 2b
-local b
--- comment 3a
--- comment 3b`.trim();
-      const output = format(input);
-      eq(output, input);
-    });
-
-    it('leaves multi-line comments in between statements', () => {
-      const input = `
---[[ comment 1a
- comment 1b]]
-local a
---[[ comment 2a
- comment 2b]]
-local b
---[[ comment 3a
- comment 3b]]`.trim();
-      const output = format(input);
-      eq(output, input);
-    });
-
-    it('leaves comments in block statements', () => {
-      const input = `
--- about to enter for loop
-for i = 1, 10 do
-  -- this is where we loop
-  print(i)
-end`.trim();
-      const output = format(input);
-      eq(output, input);
-    });
-
-    it('leaves comments into the various clauses of an "if" statement', () => {
-      const input = `
--- main comment
-if a < 1 then
-  -- if clause
-  print('a')
-elseif a == 1 then
-  -- elseif clause
-  print('b')
-else
-  -- else clause
-  print('c')
+-- comment before a statement function
+function a(b)
+  -- print(b)
+  do_something(b)
+  --[[
+    do_another_thing(b)
+    do_another_thing(b + 1)
+  ]]
+  do_something_totally_different(b)
+  -- print(b - 1)
 end
--- end comment`.trim();
-      const output = format(input);
-      eq(output, input);
+-- comment after a statement function
+        `.trim() + '\n';
+      eq(format(input), input);
     });
 
-    it('allows comments between expressions in a statement', () => {
+    it('keeps comments around and inside an assigned function', () => {
       const input = `
-function my_func()
-  -- one for the money
-  return 1,
-    -- two for the show
-    2,
-    -- three for ... something else?
-    3
-end`.trim();
-      const output = format(input).trim();
-      eq(output, input);
+-- comment before an assigned function
+local a = function(b)
+  -- print(b)
+  do_something(b)
+  --[[
+    do_another_thing(b)
+    do_another_thing(b + 1)
+  ]]
+  do_something_totally_different(b)
+  -- print(b - 1)
+end
+-- comment after an assigned function
+        `.trim();
+      eq(format(input), input);
     });
 
-    // it('preserves a multi-line function call', () => {
+    it('keeps comments around and inside block statements', () => {
+      const input = `
+-- comment before block statement
+for i = 1, 10 do
+  -- print(i)
+  do_something(i)
+  --[[
+    do_another_thing(i)
+    do_another_thing(i + 1)
+  ]]
+  do_something_totally_different(i)
+  -- print(i - 1)
+end
+-- comment before after statement
+        `.trim();
+      eq(format(input), input);
+    });
 
-    // });
+    it('keeps comments around and inside "if" statement branches', () => {
+      const input = `
+-- comment before "if" statement
+if a < 1 then
+  -- print(a)
+  do_something(a)
+  --[[ 
+  print(a)
+  ]]
+  do_something_totally_different(a)
+  -- print(a - 1)
+elseif a == 1 then
+  -- print(a)
+  do_something(a)
+  --[[ 
+  print(a)
+  ]]
+  do_something_totally_different(a)
+  -- print(a - 1)
+else
+  -- print(a)
+  do_something(a)
+  --[[ 
+  print(a)
+  ]]
+  do_something_totally_different(a)
+  -- print(a - 1)
+end
+-- comment after "if" statement
+        `.trim();
+      // eq(parse(input).body, 123);
+      eq(format(input), input);
+    });
+
   });
+
 });

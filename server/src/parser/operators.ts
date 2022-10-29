@@ -48,7 +48,7 @@ export default class Operators {
     return Operators.minPrecedenceValue;
   }
 
-  static isAssociative(operator: string): boolean {
+  static isBothLeftAndRightAssociative(operator: string): boolean {
     const charCode = operator.charCodeAt(0);
     const length = operator.length;
 

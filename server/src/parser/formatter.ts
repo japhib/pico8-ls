@@ -59,7 +59,9 @@ type ChildContext = {
   isRightSideOfAnExpression?: boolean,
 };
 
-// TODO: consider moving formatter to its separate folder parallel to parser, then move shared statements and expressions outside parser as well
+// TODO: move formatter (in a separate PR) to its own folder, parallel to parser,
+//       then move shared statements and expressions outside parser as well.
+//       Remember to update test files' locations as well.
 
 /*
  * Formatter for visiting the AST and outputting a formatted representation of the code.
@@ -246,10 +248,14 @@ export default class Formatter {
 
   visitGeneralIfClause(node: GeneralIfClause): string {
     switch (node.type) {
-    case 'IfClause': return this.visitIfClause(node);
-    case 'ElseClause': return this.visitElseClause(node);
-    case 'ElseifClause': return this.visitElseifClause(node);
-    default: throw new Error('Unexpected if clause type: ' + (node as any).type);
+    case 'IfClause':
+      return this.visitIfClause(node);
+    case 'ElseClause':
+      return this.visitElseClause(node);
+    case 'ElseifClause':
+      return this.visitElseifClause(node);
+    default:
+      throw new Error('Unexpected if clause type: ' + (node as any).type);
     }
   }
 
@@ -284,10 +290,14 @@ export default class Formatter {
 
   visitGeneralTableField(node: GeneralTableField): string {
     switch (node.type) {
-    case 'TableKey': return this.visitTableKey(node);
-    case 'TableKeyString': return this.visitTableKeyString(node);
-    case 'TableValue': return this.visitTableValue(node);
-    default: throw new Error('Unexpected table field type: ' + (node as any).type);
+    case 'TableKey':
+      return this.visitTableKey(node);
+    case 'TableKeyString':
+      return this.visitTableKeyString(node);
+    case 'TableValue':
+      return this.visitTableValue(node);
+    default:
+      throw new Error('Unexpected table field type: ' + (node as any).type);
     }
   }
 
@@ -664,7 +674,7 @@ export default class Formatter {
       params.parentOperator &&
       params.parentOperator === params.currentOperator &&
       params.isRightSideOfAnExpression &&
-      !Operators.isAssociative(params.parentOperator)
+      !Operators.isBothLeftAndRightAssociative(params.parentOperator)
     ) {
       return `(${expression})`;
     }
