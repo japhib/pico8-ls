@@ -139,7 +139,7 @@ export default class Parser {
     const location = this.popLocation();
     if (location && this.previousToken) {
       location.complete(this.previousToken);
-      location.bless(node as ASTNode);
+      location.bless(node as any as ASTNode);
     }
     return node;
   }

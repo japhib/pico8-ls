@@ -29,10 +29,6 @@ export type IfStatement = ASTNode & {
   oneLine: boolean,
 };
 
-export function isIfStatement(stmt: any): stmt is IfStatement {
-  return stmt?.type === 'IfStatement';
-}
-
 export type IfClause = ASTNode & {
   type: 'IfClause',
   condition: Expression,
@@ -149,11 +145,11 @@ export type Statement = LabelStatement | BreakStatement | GotoStatement | Return
   | WhileStatement | DoStatement | RepeatStatement | LocalStatement | AssignmentStatement | CallStatement
   | FunctionDeclaration | ForNumericStatement | ForGenericStatement | IncludeStatement | Comment_ | Whitespace;
 
-export type StatementWithBody = IfStatement | IfClause | ElseifClause | ElseClause | WhileStatement | DoStatement
+export type StatementWithBody = WhileStatement | DoStatement
   | RepeatStatement | ForNumericStatement | ForGenericStatement | FunctionDeclaration;
 
 export function isStatementWithBody(statement: any): statement is StatementWithBody {
-  return statement.body !== undefined || statement.type === 'IfStatement';
+  return statement.body !== undefined;
 }
 
 export type Include = { stmt: IncludeStatement, resolvedFile: ResolvedFile };

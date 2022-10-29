@@ -1,5 +1,6 @@
 import ResolvedFile from './file-resolver';
 import * as path from 'path';
+import { Comment_ } from './expressions';
 
 export type CodeLocation = {
   line: number,
@@ -88,5 +89,9 @@ export function boundsClone(bounds: Bounds): Bounds {
 }
 
 export type ASTNode = {
+  type: string,
   loc?: Bounds,
+
+  // Any comments right before this node in the AST
+  comments?: Comment_[],
 };

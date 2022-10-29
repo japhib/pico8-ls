@@ -187,36 +187,26 @@ h = some_var_1 / some_var_2 / some_var_3
     });
   });
 
-  // TODO change these tests into actual formatting tests
-  // rather than relying on inspecting the AST
   describe('Edits AST before formatting', () => {
-    it('inserts comments before local statement', () => {
+    it('leaves comments before local statement', () => {
       const input = `
 -- this is my variable
-local a = 1
-        `.trim();
-      const ast = insertComments(input);
-      deepEquals(ast, [
-        { type: 'Comment', value: ' this is my variable' },
-        { type: 'LocalStatement' },
-      ]);
+local a = 1`.trim();
+      const output = format(input);
+      eq(output, input);
     });
 
-    it('inserts multi-line comments before local statement', () => {
+    it('leaves multi-line comments before local statement', () => {
       const input = `
---[[ this is my 
- long-winded 
+--[[ this is my
+ long-winded
 variable]]
-local a = 1
-        `.trim();
-      const ast = insertComments(input);
-      deepEquals(ast, [
-        { type: 'Comment', value: ' this is my \n long-winded \nvariable' },
-        { type: 'LocalStatement' },
-      ]);
+local a = 1`.trim();
+      const output = format(input);
+      eq(output, input);
     });
 
-    it('inserts comments in between statements', () => {
+    it('leaves comments in between statements', () => {
       const input = `
 -- First comment
 local a
@@ -224,21 +214,12 @@ local a
 local b
 -- Third comment
 local c
--- Last comment
-        `.trim();
-      const ast = insertComments(input);
-      deepEquals(ast, [
-        { type: 'Comment', value: ' First comment' },
-        { type: 'LocalStatement' },
-        { type: 'Comment', value: ' Second comment' },
-        { type: 'LocalStatement' },
-        { type: 'Comment', value: ' Third comment' },
-        { type: 'LocalStatement' },
-        { type: 'Comment', value: ' Last comment' },
-      ]);
+-- Last comment`.trim();
+      const output = format(input);
+      eq(output, input);
     });
 
-    it('inserts multiple line comments in between statements', () => {
+    it('leaves multiple line comments in between statements', () => {
       const input = `
 -- comment 1a
 -- comment 1b
@@ -247,22 +228,12 @@ local a
 -- comment 2b
 local b
 -- comment 3a
--- comment 3b
-        `.trim();
-      const ast = insertComments(input);
-      deepEquals(ast, [
-        { type: 'Comment', value: ' comment 1a' },
-        { type: 'Comment', value: ' comment 1b' },
-        { type: 'LocalStatement' },
-        { type: 'Comment', value: ' comment 2a' },
-        { type: 'Comment', value: ' comment 2b' },
-        { type: 'LocalStatement' },
-        { type: 'Comment', value: ' comment 3a' },
-        { type: 'Comment', value: ' comment 3b' },
-      ]);
+-- comment 3b`.trim();
+      const output = format(input);
+      eq(output, input);
     });
 
-    it('inserts multi-line comments in between statements', () => {
+    it('leaves multi-line comments in between statements', () => {
       const input = `
 --[[ comment 1a
  comment 1b]]
@@ -271,40 +242,23 @@ local a
  comment 2b]]
 local b
 --[[ comment 3a
- comment 3b]]
-        `.trim();
-      const ast = insertComments(input);
-      deepEquals(ast, [
-        { type: 'Comment', value: ' comment 1a\n comment 1b' },
-        { type: 'LocalStatement' },
-        { type: 'Comment', value: ' comment 2a\n comment 2b' },
-        { type: 'LocalStatement' },
-        { type: 'Comment', value: ' comment 3a\n comment 3b' },
-      ]);
+ comment 3b]]`.trim();
+      const output = format(input);
+      eq(output, input);
     });
 
-    it('Inserts comments into block statements', () => {
+    it('leaves comments in block statements', () => {
       const input = `
 -- about to enter for loop
-for i=1,10 do
+for i = 1, 10 do
   -- this is where we loop
   print(i)
-end
-        `.trim();
-      const ast = insertComments(input);
-      deepEquals(ast, [
-        { type: 'Comment', value: ' about to enter for loop' },
-        {
-          type: 'ForNumericStatement',
-          body: [
-            { type: 'Comment', value: ' this is where we loop' },
-            { type: 'CallStatement' },
-          ],
-        },
-      ]);
+end`.trim();
+      const output = format(input);
+      eq(output, input);
     });
 
-    it('inserts comments into the various clauses of an "if" statement', () => {
+    it('leaves comments into the various clauses of an "if" statement', () => {
       const input = `
 -- main comment
 if a < 1 then
@@ -317,40 +271,27 @@ else
   -- else clause
   print('c')
 end
--- end comment
-        `.trim();
-      const ast = insertComments(input);
-      deepEquals(ast, [
-        { type: 'Comment', raw: '-- main comment' },
-        {
-          type: 'IfStatement',
-          oneLine: false,
-          clauses: [
-            {
-              type: 'IfClause',
-              body: [
-                { type: 'Comment', raw: '-- if clause' },
-                { type: 'CallStatement' },
-              ],
-            },
-            {
-              type: 'ElseifClause',
-              body: [
-                { type: 'Comment', raw: '-- elseif clause' },
-                { type: 'CallStatement' },
-              ],
-            },
-            {
-              type: 'ElseClause',
-              body: [
-                { type: 'Comment', raw: '-- else clause' },
-                { type: 'CallStatement' },
-              ],
-            },
-          ],
-        },
-        { type: 'Comment', raw: '-- end comment' },
-      ]);
+-- end comment`.trim();
+      const output = format(input);
+      eq(output, input);
     });
+
+    it('allows comments between expressions in a statement', () => {
+      const input = `
+function my_func()
+  -- one for the money
+  return 1,
+    -- two for the show
+    2,
+    -- three for ... something else?
+    3
+end`.trim();
+      const output = format(input).trim();
+      eq(output, input);
+    });
+
+    // it('preserves a multi-line function call', () => {
+
+    // });
   });
 });
