@@ -9,7 +9,10 @@ function mockTextDocument(name: string, includes: string[]): ProjectDocument {
   return {
     textDocument: TextDocument.create(name, 'pico-8-lua', 0, 'test file contents'),
     chunk: {
-      body: [],
+      block: {
+        type: 'Block',
+        body: [],
+      },
       errors: [],
       symbols: [],
       type: 'Chunk',

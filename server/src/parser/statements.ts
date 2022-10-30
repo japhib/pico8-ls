@@ -4,6 +4,11 @@ import ResolvedFile from './file-resolver';
 import { CodeSymbol } from './symbols';
 import { ASTNode } from './types';
 
+export type Block = ASTNode & {
+  type: 'Block',
+  body: Statement[],
+};
+
 export type LabelStatement = ASTNode & {
   type: 'LabelStatement',
   label: Identifier
@@ -32,18 +37,18 @@ export type IfStatement = ASTNode & {
 export type IfClause = ASTNode & {
   type: 'IfClause',
   condition: Expression,
-  body: Statement[],
+  block: Block,
 };
 
 export type ElseifClause = ASTNode & {
   type: 'ElseifClause',
   condition: Expression,
-  body: Statement[],
+  block: Block,
 };
 
 export type ElseClause = ASTNode & {
   type: 'ElseClause',
-  body: Statement[],
+  block: Block,
 };
 
 export type GeneralIfClause = IfClause | ElseifClause | ElseClause;
@@ -51,18 +56,18 @@ export type GeneralIfClause = IfClause | ElseifClause | ElseClause;
 export type WhileStatement = ASTNode & {
   type: 'WhileStatement',
   condition: Expression,
-  body: Statement[],
+  block: Block,
 };
 
 export type DoStatement = ASTNode & {
   type: 'DoStatement',
-  body: Statement[],
+  block: Block,
 };
 
 export type RepeatStatement = ASTNode & {
   type: 'RepeatStatement',
   condition: Expression,
-  body: Statement[],
+  block: Block,
 };
 
 export type LocalStatement = ASTNode & {
@@ -95,14 +100,14 @@ export type ForNumericStatement = ASTNode & {
   start: Expression,
   end: Expression,
   step: Expression | null,
-  body: Statement[],
+  block: Block,
 };
 
 export type ForGenericStatement = ASTNode & {
   type: 'ForGenericStatement',
   variables: Identifier[],
   iterators: Expression[],
-  body: Statement[],
+  block: Block,
 };
 
 export type FunctionParameter = Identifier | VarargLiteral;
@@ -112,7 +117,7 @@ export type FunctionDeclaration = ASTNode & {
   identifier: Identifier | MemberExpression | null,
   isLocal: boolean,
   parameters: FunctionParameter[],
-  body: Statement[],
+  block: Block,
 };
 
 export const AnonymousFunctionName = '<anonymous function>';
@@ -146,17 +151,17 @@ export type Statement = LabelStatement | BreakStatement | GotoStatement | Return
   | FunctionDeclaration | ForNumericStatement | ForGenericStatement | IncludeStatement | Comment_ | Whitespace;
 
 export type StatementWithBody = WhileStatement | DoStatement
-  | RepeatStatement | ForNumericStatement | ForGenericStatement | FunctionDeclaration;
+  | RepeatStatement | ForNumericStatement | ForGenericStatement | FunctionDeclaration | GeneralIfClause;
 
 export function isStatementWithBody(statement: any): statement is StatementWithBody {
-  return statement.body !== undefined;
+  return statement.block !== undefined;
 }
 
 export type Include = { stmt: IncludeStatement, resolvedFile: ResolvedFile };
 
 export type Chunk = {
   type: 'Chunk',
-  body: Statement[],
+  block: Block,
   errors: ParseError[],
   symbols: CodeSymbol[],
   comments?: Comment_[],

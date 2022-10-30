@@ -44,7 +44,7 @@ export function parse(
 }
 
 export function deepEqualsAST(code: string, expected: any) {
-  const { body } = parse(code);
+  const { block: { body } } = parse(code);
   deepEquals(body, expected);
 }
 
@@ -71,7 +71,7 @@ function _deepEquals(actual: any, expected: any, currLocStr: string): DeepEquals
   if (expected === null || expected === undefined) {
     return {
       matches: expected === actual,
-      location: `${currLocStr}.[===]`,
+      location: `${currLocStr}.[===] (expected: ${expected}, actual: ${actual})`,
     };
   } else if (typeof expected === 'object') {
     if (Array.isArray(expected)) {
@@ -83,7 +83,7 @@ function _deepEquals(actual: any, expected: any, currLocStr: string): DeepEquals
     if (actual !== expected) {
       return {
         matches: false,
-        location: `${currLocStr}.[===]`,
+        location: `${currLocStr}.[===] (expected: ${expected}, actual: ${actual})`,
       };
     } else {
       return { matches: true };

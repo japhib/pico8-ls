@@ -1,40 +1,19 @@
 import {
-  AssignmentStatement, BreakStatement, CallStatement, Chunk,
-  DoStatement, ElseClause, ElseifClause, ForGenericStatement, ForNumericStatement,
-  FunctionDeclaration, GeneralIfClause,
-  GotoStatement,
-  IfClause,
-  IfStatement, isStatementWithBody, LabelStatement,
-  LocalStatement, RepeatStatement, ReturnStatement, Statement,
-  WhileStatement,
+  AssignmentStatement, Block, BreakStatement, CallStatement, Chunk, DoStatement, ElseClause,
+  ElseifClause, ForGenericStatement, ForNumericStatement, FunctionDeclaration, GeneralIfClause,
+  GotoStatement, IfClause, IfStatement, isStatementWithBody, LabelStatement, LocalStatement,
+  RepeatStatement, ReturnStatement, Statement, WhileStatement,
 } from './statements';
 import {
-  BinaryExpression,
-  BooleanLiteral,
-  CallExpression,
-  Comment_,
-  Expression,
-  GeneralTableField,
-  Identifier,
-  IndexExpression,
-  LogicalExpression,
-  MemberExpression,
-  NilLiteral,
-  NumericLiteral,
-  StringCallExpression,
-  StringLiteral,
-  TableCallExpression,
-  TableConstructorExpression,
-  TableKey,
-  TableKeyString,
-  TableValue,
-  UnaryExpression,
-  VarargLiteral,
-  Whitespace,
+  BinaryExpression, BooleanLiteral, CallExpression, Comment_, Expression, GeneralTableField,
+  Identifier, IndexExpression, LogicalExpression, MemberExpression, NilLiteral, NumericLiteral,
+  StringCallExpression, StringLiteral, TableCallExpression, TableConstructorExpression, TableKey,
+  TableKeyString, TableValue, UnaryExpression, VarargLiteral, Whitespace,
 } from './expressions';
 import { uinteger } from 'vscode-languageserver-types';
 import { ASTNode, boundsCompare, BoundsCompareResult } from './types';
 import Operators from './operators';
+import * as util from 'util';
 
 export type FormatterOptions = {
   // Size of a tab in spaces.
@@ -58,10 +37,6 @@ type ChildContext = {
   parentOperator?: string,
   isRightSideOfAnExpression?: boolean,
 };
-
-// TODO: move formatter (in a separate PR) to its own folder, parallel to parser,
-//       then move shared statements and expressions outside parser as well.
-//       Remember to update test files' locations as well.
 
 /*
  * Formatter for visiting the AST and outputting a formatted representation of the code.
@@ -90,7 +65,7 @@ export default class Formatter {
     this.insertComments(chunk);
 
     // Most of the formatting work happens here
-    let formatted = chunk.body.map(s => this.visitStatement(s)).join('\n');
+    let formatted = chunk.block.body.map(s => this.visitStatement(s)).join('\n');
 
     // Before returning, trim all trailing spaces from lines
     formatted = formatted.split('\n').map(line => line.trimRight()).join('\n');
@@ -101,10 +76,11 @@ export default class Formatter {
   // so they go alongside regular statements and the visitor will encounter them
   // in order.
   insertComments(chunk: Chunk): void {
-    chunk.comments!.forEach(comment => this.insertComment(comment, chunk.body, true));
+    chunk.comments!.forEach(comment => this.insertComment(comment, chunk.block.body, true));
+    // console.log(JSON.stringify(chunk.block.body));
   }
 
-  insertComment(comment: Comment_, body: ASTNode[], splice: boolean): void {
+  insertComment(comment: Comment_, body: ASTNode[], splice: boolean, canFail?: boolean): boolean {
     // right now just scans from the beginning, could be way more efficient
     for (let i = 0; i < body.length; i++) {
       const currNode: ASTNode = body[i];
@@ -112,7 +88,7 @@ export default class Formatter {
       const compareResult = boundsCompare(comment.loc!, currNode.loc!);
       if (compareResult === BoundsCompareResult.CONTAINS) {
         this.insertCommentIntoNode(comment, currNode);
-        return;
+        return true;
       } else if (compareResult === BoundsCompareResult.BEFORE) {
         // This comment is before the current statement
         if (splice) {
@@ -126,19 +102,24 @@ export default class Formatter {
             currNode.comments.push(comment);
           }
         }
-        return;
+        return true;
       }
       // Else, the comment is after the current statement. Continue iterating.
     }
 
+    if (canFail) {
+      return false;
+    }
+
     // If we got to this point, the comment is at the very end of the block.
     body.push(comment);
+    return true;
   }
 
   insertCommentIntoNode(comment: Comment_, node: ASTNode) {
     if (isStatementWithBody(node)) {
       // This comment is contained in the body of the current statement. Recurse into it.
-      this.insertComment(comment, node.body, true);
+      this.insertComment(comment, node.block.body, true);
       return;
     }
 
@@ -151,6 +132,19 @@ export default class Formatter {
     case 'ReturnStatement':
       // check each returned expression
       this.insertComment(comment, (node as ReturnStatement).arguments, false);
+      return;
+
+    case 'AssignmentStatement':
+    case 'LocalStatement':
+      // check each initializer and assigned expression
+      const init = this.insertComment(comment, (node as LocalStatement).init, false, true);
+      if (!init) {
+        this.insertComment(comment, (node as LocalStatement).variables, false);
+      }
+      return;
+
+    case 'TableConstructorExpression':
+      this.insertComment(comment, (node as TableConstructorExpression).fields, false);
       return;
     }
 
@@ -225,7 +219,9 @@ export default class Formatter {
     return ret;
   }
 
-  visitBlock(stmts: Statement[], begin?: string, skipEnd?: boolean): string {
+  visitBlock(block: Block, begin?: string, skipEnd?: boolean): string {
+    const stmts = block.body;
+
     let ret = '';
     begin ??= 'do';
 
@@ -248,14 +244,10 @@ export default class Formatter {
 
   visitGeneralIfClause(node: GeneralIfClause): string {
     switch (node.type) {
-    case 'IfClause':
-      return this.visitIfClause(node);
-    case 'ElseClause':
-      return this.visitElseClause(node);
-    case 'ElseifClause':
-      return this.visitElseifClause(node);
-    default:
-      throw new Error('Unexpected if clause type: ' + (node as any).type);
+    case 'IfClause': return this.visitIfClause(node);
+    case 'ElseClause': return this.visitElseClause(node);
+    case 'ElseifClause': return this.visitElseifClause(node);
+    default: throw new Error('Unexpected if clause type: ' + (node as any).type + ', ' + util.inspect(node, { depth: 99 }));
     }
   }
 
@@ -288,16 +280,13 @@ export default class Formatter {
     return ret;
   }
 
-  visitGeneralTableField(node: GeneralTableField): string {
+  visitGeneralTableField(node: GeneralTableField | Comment_): string {
     switch (node.type) {
-    case 'TableKey':
-      return this.visitTableKey(node);
-    case 'TableKeyString':
-      return this.visitTableKeyString(node);
-    case 'TableValue':
-      return this.visitTableValue(node);
-    default:
-      throw new Error('Unexpected table field type: ' + (node as any).type);
+    case 'TableKey': return this.visitTableKey(node);
+    case 'TableKeyString': return this.visitTableKeyString(node);
+    case 'TableValue': return this.visitTableValue(node);
+    case 'Comment': return this.visitComment(node);
+    default: throw new Error('Unexpected table field type: ' + (node as any).type);
     }
   }
 
@@ -347,7 +336,7 @@ export default class Formatter {
   }
 
   visitDoStatement(node: DoStatement): string {
-    return this.visitBlock(node.body);
+    return this.visitBlock(node.block);
   }
 
   visitForGenericStatement(node: ForGenericStatement): string {
@@ -359,7 +348,7 @@ export default class Formatter {
     ret += ' in ';
     ret += iterators.join(', ');
     ret += ' ';
-    ret += this.visitBlock(node.body);
+    ret += this.visitBlock(node.block);
     return ret;
   }
 
@@ -377,7 +366,7 @@ export default class Formatter {
     }
 
     ret += ' ';
-    ret += this.visitBlock(node.body);
+    ret += this.visitBlock(node.block);
     return ret;
   }
 
@@ -386,9 +375,9 @@ export default class Formatter {
   }
 
   visitIfStatement(node: IfStatement): string {
-    if (node.oneLine && node.clauses.length === 1 && node.clauses[0].body.length === 1) {
+    if (node.oneLine && node.clauses.length === 1 && node.clauses[0].block.body.length === 1) {
       const clause = node.clauses[0] as IfClause;
-      return `if (${this.visitExpression(clause.condition)}) ${this.visitStatement(clause.body[0])}`;
+      return `if (${this.visitExpression(clause.condition)}) ${this.visitStatement(clause.block.body[0])}`;
     }
 
     let ret = '';
@@ -407,7 +396,7 @@ export default class Formatter {
   }
 
   visitRepeatStatement(node: RepeatStatement): string {
-    let ret = this.visitBlock(node.body, 'repeat', true);
+    let ret = this.visitBlock(node.block, 'repeat', true);
     ret += 'until ';
     ret += this.visitExpression(node.condition);
     return ret;
@@ -431,7 +420,7 @@ export default class Formatter {
   visitWhileStatement(node: WhileStatement): string {
     let ret = 'while ';
     ret += this.visitExpression(node.condition);
-    ret += this.visitBlock(node.body, ' do');
+    ret += this.visitBlock(node.block, ' do');
     return ret;
   }
 
@@ -440,7 +429,7 @@ export default class Formatter {
   visitIfClause(node: IfClause): string {
     let ret = 'if ';
     ret += this.visitExpression(node.condition);
-    ret += this.visitBlock(node.body, ' then', true);
+    ret += this.visitBlock(node.block, ' then', true);
     ret += this.newline();
     return ret;
   }
@@ -448,13 +437,13 @@ export default class Formatter {
   visitElseifClause(node: ElseifClause): string {
     let ret = 'elseif ';
     ret += this.visitExpression(node.condition);
-    ret += this.visitBlock(node.body, ' then', true);
+    ret += this.visitBlock(node.block, ' then', true);
     ret += this.newline();
     return ret;
   }
 
   visitElseClause(node: ElseClause): string {
-    return this.visitBlock(node.body, 'else', true) + this.newline();
+    return this.visitBlock(node.block, 'else', true) + this.newline();
   }
 
   // ****************************** Literals *****************************
@@ -524,7 +513,7 @@ export default class Formatter {
 
         this.increaseDepth();
 
-        for (const stmt of node.body) {
+        for (const stmt of node.block.body) {
           ret += this.newline();
           ret += this.visitStatement(stmt);
         }

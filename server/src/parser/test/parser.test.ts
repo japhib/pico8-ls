@@ -3,7 +3,7 @@ import { bounds, deepEquals, deepEqualsAST, getTestFileContents, MockFileResolve
 
 describe('Parser', () => {
   it('parses basic assignment statement', () => {
-    const { body } = parse('i = 1');
+    const { block: { body } } = parse('i = 1');
     deepEquals(body, [
       {
         type: 'AssignmentStatement',
@@ -25,7 +25,7 @@ describe('Parser', () => {
   });
 
   it('parses expression with parentheses', () => {
-    const { body } = parse('a = 1 - (t + 2)^3');
+    const { block: { body } } = parse('a = 1 - (t + 2)^3');
     deepEquals(body, [
       {
         loc: bounds(1, 0, 1, 17),
@@ -77,32 +77,39 @@ describe('Parser', () => {
   });
 
   it('parses basic function declaration', () => {
-    const { body } = parse('function f(x)\nreturn x + 1\nend');
-    deepEquals(body, [{
-      type: 'FunctionDeclaration',
-      isLocal: false,
-      identifier: {
-        type: 'Identifier',
-        name: 'f',
-        loc: bounds(1, 9, 1, 10),
-      },
-      parameters: [{
-        type: 'Identifier',
-        name: 'x',
-        loc: bounds(1, 11, 1, 12),
-      }],
+    const { block } = parse('function f(x)\nreturn x + 1\nend');
+    deepEquals(block, {
+      type: 'Block',
       body: [{
-        type: 'ReturnStatement',
-        arguments: [{
-          type: 'BinaryExpression',
-          operator: '+',
-          left: { type: 'Identifier', name: 'x', loc: bounds(2, 7, 2, 8) },
-          right: { type: 'NumericLiteral', value: 1, loc: bounds(2, 11, 2, 12) },
-          loc: bounds(2, 7, 2, 12),
+        type: 'FunctionDeclaration',
+        isLocal: false,
+        identifier: {
+          type: 'Identifier',
+          name: 'f',
+          loc: bounds(1, 9, 1, 10),
+        },
+        parameters: [{
+          type: 'Identifier',
+          name: 'x',
+          loc: bounds(1, 11, 1, 12),
         }],
-        loc: bounds(2, 0, 2, 12),
+        block: {
+          type: 'Block',
+          body: [{
+            type: 'ReturnStatement',
+            arguments: [{
+              type: 'BinaryExpression',
+              operator: '+',
+              left: { type: 'Identifier', name: 'x', loc: bounds(2, 7, 2, 8) },
+              right: { type: 'NumericLiteral', value: 1, loc: bounds(2, 11, 2, 12) },
+              loc: bounds(2, 7, 2, 12),
+            }],
+            loc: bounds(2, 0, 2, 12),
+          }],
+        },
       }],
-    }]);
+      loc: bounds(1, 0, 3, 3),
+    });
   });
 
   it('parses function declaration with multiple args', () => {
@@ -115,10 +122,12 @@ describe('Parser', () => {
         { type: 'Identifier', name: 'y' },
         { type: 'Identifier', name: 'z' },
       ],
-      body: [{
-        type: 'ReturnStatement',
-        arguments: [],
-      }],
+      block: {
+        body: [{
+          type: 'ReturnStatement',
+          arguments: [],
+        }],
+      },
     }]);
   });
 
@@ -134,31 +143,45 @@ describe('Parser', () => {
   });
 
   it('parses if statement', () => {
-    const printHi = [{
-      type: 'CallStatement',
-      expression: {
-        type: 'CallExpression',
-        base: { type: 'Identifier', name: 'print' },
-        arguments: [{ type: 'StringLiteral', value: 'hi' }],
-      },
-    }];
+    const printHiBlock = {
+      type: 'Block',
+      body: [{
+        type: 'CallStatement',
+        expression: {
+          type: 'CallExpression',
+          base: { type: 'Identifier', name: 'print' },
+          arguments: [{ type: 'StringLiteral', value: 'hi' }],
+        },
+      }],
+    };
 
-    deepEqualsAST('if false then print("hi") elseif false then print("hi") else print("hi") end', [{
+    const input = `
+if false then
+  print("hi")
+  -- end comment 1
+elseif false then
+  print("hi")
+  -- end comment 2
+else
+  print("hi")
+  -- end comment 3
+end`.trim();
+    deepEqualsAST(input, [{
       type: 'IfStatement',
       clauses: [
         {
           type: 'IfClause',
           condition: { type: 'BooleanLiteral', value: false },
-          body: printHi,
+          block: { ...printHiBlock, loc: bounds(2, 2, 4, 6) },
         },
         {
           type: 'ElseifClause',
           condition: { type: 'BooleanLiteral', value: false },
-          body: printHi,
+          block: { ...printHiBlock, loc: bounds(5, 2, 7, 4) },
         },
         {
           type: 'ElseClause',
-          body: printHi,
+          block: { ...printHiBlock, loc: bounds(8, 2, 10, 3) },
         },
       ],
     }]);
@@ -171,14 +194,16 @@ describe('Parser', () => {
         clauses: [{
           type: 'IfClause',
           condition: { type: 'BooleanLiteral', value: false },
-          body: [{
-            type: 'CallStatement',
-            expression: {
-              type: 'CallExpression',
-              base: { type: 'Identifier', name: 'print' },
-              arguments: [{ type: 'StringLiteral', value: 'hi' }],
-            },
-          }],
+          block: {
+            body: [{
+              type: 'CallStatement',
+              expression: {
+                type: 'CallExpression',
+                base: { type: 'Identifier', name: 'print' },
+                arguments: [{ type: 'StringLiteral', value: 'hi' }],
+              },
+            }],
+          },
         },
         ],
       },
@@ -206,7 +231,7 @@ describe('Parser', () => {
         clauses: [{
           type: 'IfClause',
           condition: { type: 'BooleanLiteral', value: false },
-          body: [{ type: 'ReturnStatement', arguments: [] }],
+          block: { body: [{ type: 'ReturnStatement', arguments: [] }] },
         }],
       },
       {
@@ -228,7 +253,7 @@ describe('Parser', () => {
   it('parses a PICO-8 "print" operator (?)', () => {
     // This is the same as print("hi")
     // (Note the argument must be on the same line as the ?)
-    const { body, errors } = parse('?"hi"');
+    const { block: { body }, errors } = parse('?"hi"');
     deepEquals(errors, []);
     deepEquals(body, [
       { type: 'CallStatement', expression: {
@@ -248,7 +273,7 @@ a = a / b
 a = a \\ b -- division + floor
 a = a % b  -- modulo
 a = a ^ b  -- exponentiation`;
-    const { body, errors } = parse(code);
+    const { block: { body }, errors } = parse(code);
     deepEquals(errors, []);
     deepEquals(body, [
       { type: 'AssignmentStatement', init: [{ type: 'UnaryExpression', operator: '-' }] },
@@ -273,7 +298,7 @@ a = a >> b -- arithmetic shift right
 a = a >>> b -- logical shift right
 a = a <<> b -- rotate left
 a = a >>< b -- rotate right`;
-    const { body, errors } = parse(code);
+    const { block: { body }, errors } = parse(code);
     deepEquals(errors, []);
     deepEquals(body, [
       { type: 'AssignmentStatement', init: [{ type: 'UnaryExpression', operator: '~' }] },
@@ -293,7 +318,7 @@ a = a >>< b -- rotate right`;
 a = @a -- peek()
 a = %a -- peek2()
 a = $a -- peek4()`;
-    const { body, errors } = parse(code);
+    const { block: { body }, errors } = parse(code);
     deepEquals(errors, []);
     deepEquals(body, [
       { type: 'AssignmentStatement', init: [{ type: 'UnaryExpression', operator: '@' }] },
@@ -315,7 +340,7 @@ a = a and b
 a = a or b
 a = not a
 a = a .. b`;
-    const { body, errors } = parse(code);
+    const { block: { body }, errors } = parse(code);
     deepEquals(errors, []);
     deepEquals(body, [
       { type: 'AssignmentStatement', init: [{ type: 'BinaryExpression', operator: '<' }] },
@@ -350,7 +375,7 @@ a >>= b
 a >>>= b
 a <<>= b
 a >><= b`;
-    const { body, errors } = parse(code);
+    const { block: { body }, errors } = parse(code);
     deepEquals(errors, []);
     deepEquals(body, [
       { type: 'AssignmentStatement', operator: '+=' },
@@ -374,7 +399,7 @@ a >><= b`;
 
   describe('? print shorthand', () => {
     it('parses ? with one argument', () => {
-      const { body, errors } = parse('?abc');
+      const { block: { body }, errors } = parse('?abc');
       deepEquals(errors, []);
       deepEquals(body, [
         {
@@ -395,7 +420,7 @@ a >><= b`;
     });
 
     it('parses ? with multiple arguments', () => {
-      const { body, errors } = parse('?abc,\'def\'');
+      const { block: { body }, errors } = parse('?abc,\'def\'');
       deepEquals(errors, []);
       deepEquals(body, [
         {
@@ -428,7 +453,7 @@ end`;
   });
 
   it('parses a complicated member expression', () => {
-    const { body } = parse('getInstance().field = "blah"');
+    const { block: { body } } = parse('getInstance().field = "blah"');
     deepEquals(body, [
       { type: 'AssignmentStatement', variables: [
         {
@@ -461,7 +486,7 @@ __gfx__
   });
 
   it('parses a binary literal', () => {
-    const { body, errors } = parse('a = 0b0101101001011010.1');
+    const { block: { body }, errors } = parse('a = 0b0101101001011010.1');
     deepEquals(errors, []);
     deepEquals(body, [
       { type: 'AssignmentStatement', init: [{ type: 'NumericLiteral', raw: '0b0101101001011010.1' }] },
@@ -475,7 +500,7 @@ __gfx__
     });
 
     it('if an error occurs inside a block, it breaks out of the block and continues parsing', () => {
-      const { body, errors } = parse(`
+      const { block: { body }, errors } = parse(`
       i = 1
       function somefn()
         blah blah blah
@@ -519,7 +544,7 @@ __gfx__
       const fileResolver = new MockFileResolver();
       fileResolver.loadFileContents = () => 'local a = 1';
 
-      const { body, errors } = parse('#include other_file.lua', false, fileResolver);
+      const { block: { body }, errors } = parse('#include other_file.lua', false, fileResolver);
       deepEquals(errors, []);
       deepEquals(body, [{ type: 'LocalStatement' }]);
     });
@@ -554,7 +579,7 @@ __gfx__
       const fileResolver = new MockFileResolver();
       fileResolver.loadFileContents = () => 'a';
 
-      const { body, errors } = parse('#include other_file.lua\n= 1', false, fileResolver);
+      const { block: { body }, errors } = parse('#include other_file.lua\n= 1', false, fileResolver);
       deepEquals(errors, []);
       deepEquals(body, [{ type: 'AssignmentStatement' }]);
     });

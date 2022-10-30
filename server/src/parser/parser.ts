@@ -20,6 +20,7 @@ import Lexer from './lexer';
 import Marker from './marker';
 import {
   AssignmentStatement,
+  Block,
   BreakStatement,
   CallStatement,
   Chunk,
@@ -134,11 +135,20 @@ export default class Parser {
   // -----------------
 
   // Wrap up the node object.
-  finishNode<T>(node: T): T {
+  finishNode<T>(node: T, greedy?: boolean): T {
     // Pop a `Marker` off the location-array and attach its location data.
     const location = this.popLocation();
-    if (location && this.previousToken) {
-      location.complete(this.previousToken);
+
+    // For "greedy" nodes we take the next token, instead of the previous one
+    // (this is just block nodes atm)
+    let endingToken = greedy ? this.token : this.previousToken;
+    if (greedy && !endingToken) {
+      // If there's no next token, take the previous one instead
+      endingToken = this.previousToken;
+    }
+
+    if (location && endingToken) {
+      location.complete(endingToken.bounds.end);
       location.bless(node as any as ASTNode);
     }
     return node;
@@ -275,7 +285,9 @@ export default class Parser {
   //
   //     block ::= {stat} [retstat]
 
-  parseBlock(flowContext: FlowContext, endsWithEOF?: boolean): Statement[] {
+  parseBlock(flowContext: FlowContext, endsWithEOF?: boolean): Block {
+    this.pushLocation(this.createLocationMarker());
+
     const block: Statement[] = [];
     const endingFunction = endsWithEOF ? isEndOfFile : isBlockFollow;
 
@@ -339,8 +351,7 @@ export default class Parser {
       }
     }
 
-    // Doesn't really need an ast node
-    return block;
+    return this.finishNode(AST.block(block), true);
   }
 
   includeFile(statement: IncludeStatement, resolvedInclude: ResolvedFile) {
@@ -550,12 +561,13 @@ export default class Parser {
     if (!this.lexer.consume('then')) {
       if (canBeOneLiner) {
         // Handle special PICO-8 one-line if statement
-
-        this.lexer.newlineSignificant = true;
-
-        this.lexer.withSignificantNewline((() => {
+        this.lexer.withSignificantNewline(() => {
+          // pseudo-block for the if statement contents
+          marker = this.createLocationMarker();
+          this.pushLocation(marker);
           this.createScope();
           flowContext.pushScope();
+
           const statement = this.parseStatement(flowContext);
           if (!statement) {
             errors.raiseUnexpectedToken('statement', this.token);
@@ -563,9 +575,11 @@ export default class Parser {
 
           flowContext.popScope();
           this.destroyScope();
-          clauses.push(this.finishNode(AST.ifClause(condition, [ statement ])));
+          clauses.push(this.finishNode(AST.ifClause(condition, this.finishNode(AST.block([ statement ]), true))));
 
           if (this.lexer.consume('else')) {
+            marker = this.createLocationMarker();
+            this.pushLocation(marker);
             this.createScope();
             flowContext.pushScope();
             const elseStatement = this.parseStatement(flowContext);
@@ -575,9 +589,9 @@ export default class Parser {
 
             flowContext.popScope();
             this.destroyScope();
-            clauses.push(this.finishNode(AST.elseClause([ elseStatement ])));
+            clauses.push(this.finishNode(AST.elseClause(this.finishNode(AST.block([ statement ]), true))));
           }
-        }).bind(this));
+        });
 
         return this.finishNode(AST.ifStatement(clauses, true));
       } else {
@@ -590,7 +604,7 @@ export default class Parser {
     body = this.parseBlock(flowContext);
     flowContext.popScope();
     this.destroyScope();
-    clauses.push(this.finishNode(AST.ifClause(condition, body)));
+    clauses.push(this.finishNode(AST.ifClause(condition, body), true));
 
     marker = this.createLocationMarker();
     while (this.lexer.consume('elseif')) {
@@ -602,22 +616,20 @@ export default class Parser {
       body = this.parseBlock(flowContext);
       flowContext.popScope();
       this.destroyScope();
-      clauses.push(this.finishNode(AST.elseifClause(condition, body)));
+      clauses.push(this.finishNode(AST.elseifClause(condition, body), true));
       marker = this.createLocationMarker();
     }
 
     if (this.lexer.consume('else')) {
       // Include the `else` in the location of ElseClause.
-      {
-        marker = new Marker(this.previousToken);
-        this.pushLocation(marker);
-      }
+      marker = new Marker(this.previousToken);
+      this.pushLocation(marker);
       this.createScope();
       flowContext.pushScope();
       body = this.parseBlock(flowContext);
       flowContext.popScope();
       this.destroyScope();
-      clauses.push(this.finishNode(AST.elseClause(body)));
+      clauses.push(this.finishNode(AST.elseClause(body), true));
     }
 
     this.lexer.expect('end');
@@ -846,7 +858,7 @@ export default class Parser {
     const startMarker = this.createLocationMarker();
 
     const args: Expression[] = [];
-    this.lexer.withSignificantNewline((() => {
+    this.lexer.withSignificantNewline(() => {
       let expression = this.parseExpectedExpression(flowContext);
       args.push(expression);
 
@@ -856,7 +868,7 @@ export default class Parser {
         expression = this.parseExpectedExpression(flowContext);
         args.push(expression);
       }
-    }).bind(this));
+    });
 
     // Each part uses the same start marker. One instance of it was already
     // pushed above. finishNode will consume the top location on the stack so we
