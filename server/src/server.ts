@@ -716,18 +716,8 @@ connection.onSignatureHelp((params: SignatureHelpParams) => {
   };
 });
 
-// TODO: write tests for this handler maybe?
-
 // TODO: missing features:
-//       -
-//       - preserve comments
-//       - preserve single blank lines after locals
-//       - ... what else?
-
-// TODO: bugs:
-//       - `local abc` got formatted to `local abc =`, which is invalid (note there is nothing more before line ends)
-//       - `return not boss` got formatted to `return notboss` (notice how negation got concatenated into a new identifier)
-//       - `1 - (t-1)^4` got formatted to `1 - t - 1 ^ 4` (notice missing parentheses)
+//       - preserve single blank lines after locals (visual grouping of code lines by keeping a single blank line between them)
 
 connection.onDocumentFormatting((params: DocumentFormattingParams) => {
   const textDocument = documentTextCache.get(params.textDocument.uri);

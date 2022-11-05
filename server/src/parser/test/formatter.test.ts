@@ -241,7 +241,25 @@ end
       eq(format(input).trim(), input.trim());
     });
 
-    it('keeps comments around and inside an assigned function', () => {
+    it('keeps comments around and inside an assigned function (case of global assignment)', () => {
+      const input = `
+-- comment before an assigned function
+a = function(b)
+  -- print(b)
+  do_something(b)
+  --[[
+    do_another_thing(b)
+    do_another_thing(b + 1)
+  ]]
+  do_something_totally_different(b)
+  -- print(b - 1)
+end
+-- comment after an assigned function
+        `.trim();
+      eq(format(input), input);
+    });
+
+    it('keeps comments around and inside an assigned function (case of local assignment)', () => {
       const input = `
 -- comment before an assigned function
 local a = function(b)
