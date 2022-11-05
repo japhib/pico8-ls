@@ -663,7 +663,7 @@ export default class Formatter {
       params.parentOperator &&
       params.parentOperator === params.currentOperator &&
       params.isRightSideOfAnExpression &&
-      !Operators.isBothLeftAndRightAssociative(params.parentOperator)
+      Operators.doesNeedParenthesesIfOnTheRightSide(params.parentOperator)
     ) {
       return `(${expression})`;
     }

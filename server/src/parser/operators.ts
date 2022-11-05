@@ -48,29 +48,29 @@ export default class Operators {
     return Operators.minPrecedenceValue;
   }
 
-  static isBothLeftAndRightAssociative(operator: string): boolean {
+  static doesNeedParenthesesIfOnTheRightSide(operator: string): boolean {
     const charCode = operator.charCodeAt(0);
     const length = operator.length;
 
     if (1 === length) {
       switch (charCode) {
-      case 42: return true; // *
-      case 43: return true; // +
-      case 38: return true; // & (bitwise AND)
-      case 124: return true; // | (bitwise OR)
+      case 42: return false; // *
+      case 43: return false; // +
+      case 38: return false; // & (bitwise AND)
+      case 124: return false; // | (bitwise OR)
       }
     } else if (2 === length) {
       switch (charCode) {
-      case 46: return true; // ..
-      case 61: return true; // ==
-      case 111: return true; // or
+      case 46: return false; // ..
+      case 61: return false; // ==
+      case 111: return false; // or
       }
     } else if (3 === length) {
       switch (operator) {
-      case 'and': return true;
+      case 'and': return false;
       }
     }
-    return false;
+    return true;
   }
 
 }
