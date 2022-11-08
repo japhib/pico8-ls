@@ -439,6 +439,7 @@ local x, y = 111, 222
 local a = "aaa"
 local b = "bbb"
 
+-- x and y:
 local x, y = 111, 222
       `.trim());
     });
