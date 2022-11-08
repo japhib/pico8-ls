@@ -56,7 +56,8 @@ connection.onInitialize((params: InitializeParams) => {
       completionProvider: { triggerCharacters: [ '.', ':' ], resolveProvider: true },
       hoverProvider: true,
       signatureHelpProvider: { triggerCharacters: [ '(' ], retriggerCharacters: [ ',' ] },
-      documentFormattingProvider: true,
+      // TODO: uncomment this piece of configuration once formatting is ready for release
+      // documentFormattingProvider: true,
     },
   };
 
