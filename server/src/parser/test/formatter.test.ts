@@ -1,4 +1,4 @@
-import { getTestFileContents, parse } from './test-utils';
+import { deepEquals, getTestFileContents, parse } from './test-utils';
 import { strictEqual as eq } from 'assert';
 import Formatter from '../formatter';
 
@@ -20,6 +20,46 @@ describe('Formatter', () => {
     it.skip('formats low.lua', () => {
       const formatted = format(getTestFileContents('low.lua'));
       console.log(formatted);
+    });
+  });
+
+  describe('Preserves code structure', () => {
+    [
+      'low.lua',
+      'simple-and-short.lua',
+      'beetrootpaul-dart-07/game.lua',
+      'beetrootpaul-dart-07/hud.lua',
+      'beetrootpaul-dart-07/mission_1.lua',
+      'beetrootpaul-dart-07/movement_fixed_factory.lua',
+      'beetrootpaul-dart-07/multicart.lua',
+      'beetrootpaul-dart-07/player_bullet.lua',
+      'beetrootpaul-dart-07/screen_title.lua',
+    ].forEach(filename => {
+      it(`does not change AST structure on format (filename: "${filename}")`, () => {
+        const initialContent = getTestFileContents(filename);
+        const initialAst = parse(initialContent);
+
+        const formattedContent = new Formatter().formatChunk(initialAst);
+        const newAst = parse(formattedContent);
+
+        deepEquals(
+          newAst.block,
+          initialAst.block,
+          {
+            objectKeyOmitFn: key => key === 'loc',
+            arrayItemOmitFn: item => item?.type == 'Comment',
+          },
+        );
+      });
+
+      it(`does not change code on subsequent formats (filename: "${filename}")`, () => {
+        const initialContent = getTestFileContents(filename);
+
+        const contentFormattedOnce = new Formatter().formatChunk(parse(initialContent));
+        const contentFormattedTwice = new Formatter().formatChunk(parse(contentFormattedOnce));
+
+        eq(contentFormattedTwice, contentFormattedOnce);
+      });
     });
   });
 
