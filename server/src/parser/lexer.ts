@@ -2,7 +2,7 @@ import AST from './ast';
 import { EncodingMode, encodingModes, EncodingModeType } from './encoding-modes';
 import * as errors from './errors';
 import { errMessages } from './errors';
-import { Comment_, NumericLiteral } from './expressions';
+import { Comment_ } from './expressions';
 import ResolvedFile from './file-resolver';
 import { Token, TokenType, TokenValue } from './tokens';
 import { Bounds, CodeLocation } from './types';

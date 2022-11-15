@@ -6,7 +6,7 @@ import { BinaryExpression, BooleanLiteral, CallExpression, Expression, GeneralTa
 } from './expressions';
 import { LabelStatement, BreakStatement, GotoStatement, ReturnStatement, IfStatement, WhileStatement,
   DoStatement, RepeatStatement, LocalStatement, AssignmentStatement, CallStatement, FunctionDeclaration,
-  ForNumericStatement, ForGenericStatement, ElseClause, ElseifClause, IfClause, Chunk, GeneralIfClause, Statement, IncludeStatement,
+  ForNumericStatement, ForGenericStatement, ElseClause, ElseifClause, IfClause, Chunk, GeneralIfClause, Statement, IncludeStatement, Block,
 } from './statements';
 import { logObj } from './util';
 
@@ -179,8 +179,14 @@ export abstract class ASTVisitor<T> {
   // Public entry point for kicking off visiting every node in the AST.
   visit(chunk: Chunk) {
     this.scopeStack.push(this.startingScope());
-    for (const statement of chunk.body) {
+    for (const statement of chunk.block.body) {
       this.visitNode(statement);
+    }
+  }
+
+  private visitBlock(block: Block) {
+    for (const n of block.body) {
+      this.visitNode(n);
     }
   }
 
@@ -229,7 +235,7 @@ export abstract class ASTVisitor<T> {
       const result = this.visitDoStatement(node);
       this.nodeStack.push({ node });
       this.pushScope(result, node);
-      this.visitAll(node.body);
+      this.visitBlock(node.block);
       this.popScope();
       this.nodeStack.pop();
       break;
@@ -249,7 +255,7 @@ export abstract class ASTVisitor<T> {
         }
       }
 
-      this.visitAll(node.body);
+      this.visitBlock(node.block);
       this.popScope();
       this.nodeStack.pop();
       break;
@@ -265,7 +271,7 @@ export abstract class ASTVisitor<T> {
       if (node.step) {
         this.visitNode(node.step);
       }
-      this.visitAll(node.body);
+      this.visitBlock(node.block);
       this.popScope();
       this.nodeStack.pop();
       break;
@@ -283,7 +289,7 @@ export abstract class ASTVisitor<T> {
 
       this.pushScope(result, node);
       this.visitAll(node.parameters);
-      this.visitAll(node.body);
+      this.visitBlock(node.block);
       this.popScope();
       this.nodeStack.pop();
       break;
@@ -308,7 +314,7 @@ export abstract class ASTVisitor<T> {
       this.nodeStack.push({ node });
       this.visitNode(node.condition);
       this.pushScope(result, node);
-      this.visitAll(node.body);
+      this.visitBlock(node.block);
       this.popScope();
       this.nodeStack.pop();
       break;
@@ -319,7 +325,7 @@ export abstract class ASTVisitor<T> {
       this.nodeStack.push({ node });
       this.visitNode(node.condition);
       this.pushScope(result, node);
-      this.visitAll(node.body);
+      this.visitBlock(node.block);
       this.popScope();
       this.nodeStack.pop();
       break;
@@ -329,7 +335,7 @@ export abstract class ASTVisitor<T> {
       const result = this.visitElseClause(node);
       this.nodeStack.push({ node });
       this.pushScope(result, node);
-      this.visitAll(node.body);
+      this.visitBlock(node.block);
       this.popScope();
       this.nodeStack.pop();
       break;
@@ -364,7 +370,7 @@ export abstract class ASTVisitor<T> {
       const result = this.visitRepeatStatement(node);
       this.nodeStack.push({ node });
       this.pushScope(result, node);
-      this.visitAll(node.body);
+      this.visitBlock(node.block);
       this.popScope();
 
       // Condition gets visited afterwards since it's `repeat ... until <condition>`
@@ -385,7 +391,7 @@ export abstract class ASTVisitor<T> {
       this.nodeStack.push({ node });
       this.visitNode(node.condition);
       this.pushScope(result, node);
-      this.visitAll(node.body);
+      this.visitBlock(node.block);
       this.popScope();
       this.nodeStack.pop();
       break;

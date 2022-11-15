@@ -7,7 +7,8 @@ import Parser from '../parser';
 import { Token, TokenType, TokenValue } from '../tokens';
 import { Bounds } from '../types';
 import ResolvedFile, { FileResolver } from '../file-resolver';
-import { DefUsageScope, findDefinitionsUsages } from '../definitions-usages';
+import { DefinitionsUsagesResult, DefUsageScope, findDefinitionsUsages } from '../definitions-usages';
+import { Chunk } from '../statements';
 
 export function getTestFileContents(filename: string): string {
   const filepath = path.join(__dirname, '../../../../testfiles/', filename);
@@ -33,7 +34,7 @@ export function parse(
   includeFileResolver?: FileResolver,
   injectedGlobalScope?: DefUsageScope,
   filename?: string,
-) {
+): Chunk & DefinitionsUsagesResult {
   filename = filename || 'main_test_file';
   const chunk = new Parser(new ResolvedFile(filename, filename), input, includeFileResolver, dontAddGlobalSymbols).parseChunk();
   const defUsResult = findDefinitionsUsages(chunk, dontAddGlobalSymbols, injectedGlobalScope);
@@ -44,60 +45,96 @@ export function parse(
 }
 
 export function deepEqualsAST(code: string, expected: any) {
-  const { body } = parse(code);
+  const { block: { body } } = parse(code);
   deepEquals(body, expected);
 }
 
-export function deepEquals(actual: any, expected: any) {
-  if (!_deepEquals(actual, expected)) {
-    fail(`Objects are not equal!\n\nexpected:\n${util.inspect(expected, { depth: 90 })}\n\nactual:\n${util.inspect(actual, { depth: 90 })}`);
+export function deepEquals(actual: any, expected: any, options: DeepEqualsOptions = {}) {
+  const result = _deepEquals(actual, expected, 'root', options);
+  if (!result.matches) {
+    fail(
+      'Objects are not equal!\n\n' +
+      `Mismatch: ${result.location}\n\n` +
+      'expected:\n' +
+      util.inspect(expected, { depth: 90, colors: true }) +
+      '\n\n' +
+      'actual:\n' +
+      util.inspect(actual, { depth: 90, colors: true }),
+    );
   }
 }
 
-function _deepEquals(actual: any, expected: any): boolean {
+type DeepEqualsOptions = {
+  objectKeyOmitFn?: (key: any) => boolean,
+  arrayItemOmitFn?: (item: any) => boolean,
+};
+
+type DeepEqualsResult = {
+  matches: boolean,
+  location?: string,
+};
+
+function _deepEquals(actual: any, expected: any, currLocStr: string, options: DeepEqualsOptions): DeepEqualsResult {
   if (typeof actual !== typeof expected) {
-    return false;
+    return {
+      matches: false,
+      location: `${currLocStr}.[typeof(actual:${typeof actual},expected:${typeof expected})]`,
+    };
   }
 
   if (expected === null || expected === undefined) {
-    return expected === actual;
+    return {
+      matches: expected === actual,
+      location: `${currLocStr}.[===] (expected: ${expected}, actual: ${actual})`,
+    };
   } else if (typeof expected === 'object') {
     if (Array.isArray(expected)) {
-      return _deepEqualsArray(actual, expected);
+      return _deepEqualsArray(actual, expected, currLocStr, options);
     } else {
-      return _deepEqualsObject(actual, expected);
+      return _deepEqualsObject(actual, expected, currLocStr, options);
     }
   } else {
     if (actual !== expected) {
-      return false;
+      return {
+        matches: false,
+        location: `${currLocStr}.[===] (expected: ${expected}, actual: ${actual})`,
+      };
     } else {
-      return true;
+      return { matches: true };
     }
   }
 }
 
-function _deepEqualsArray(actual: any[], expected: any[]): boolean {
-  if (actual.length !== expected.length) {
-    return false;
+function _deepEqualsArray(actual: any[], expected: any[], currLocStr: string, options: DeepEqualsOptions): DeepEqualsResult {
+  const filteredActual = actual.filter(item => !options.arrayItemOmitFn?.(item));
+  const filteredExpected = expected.filter(item => !options.arrayItemOmitFn?.(item));
+  if (filteredActual.length !== filteredExpected.length) {
+    return {
+      matches: false,
+      location: `${currLocStr}.[length(actual:${filteredActual.length},expected:${filteredExpected.length})]`,
+    };
   }
 
-  for (let i = 0; i < expected.length; i++) {
-    if (!_deepEquals(actual[i], expected[i])) {
-      return false;
+  for (let i = 0; i < filteredExpected.length; i++) {
+    const subResult = _deepEquals(filteredActual[i], filteredExpected[i], `${currLocStr}.${i}`, options);
+    if (!subResult.matches) {
+      return subResult;
     }
   }
 
-  return true;
+  return { matches: true };
 }
 
-function _deepEqualsObject(actual: any, expected: any): boolean {
-  for (const key of Object.keys(expected)) {
-    if (!_deepEquals(actual[key], expected[key])) {
-      return false;
+function _deepEqualsObject(actual: any, expected: any, currLocStr: string, options: DeepEqualsOptions): DeepEqualsResult {
+  const keysToCheck = Object.keys(expected).filter(key => !(options.objectKeyOmitFn?.(key)));
+  for (const key of keysToCheck) {
+    const subResult = _deepEquals(actual[key], expected[key], `${currLocStr}.${key}`, options);
+    if (!subResult.matches) {
+      return subResult;
     }
   }
 
-  return true;
+  return { matches: true };
 }
 
 export function locationOfToken(code: string, tokenValue: TokenValue): Bounds {

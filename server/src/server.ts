@@ -1,24 +1,29 @@
 import {
-  CompletionItem, CompletionItemTag, createConnection, DefinitionParams, Diagnostic, DiagnosticSeverity, DidChangeConfigurationNotification,
-  DocumentSymbol, DocumentSymbolParams, DocumentUri, HoverParams, InitializeParams, InitializeResult, Location, Position, ProposedFeatures,
-  Range, ReferenceParams, SignatureHelpParams, SignatureInformation, SymbolKind, TextDocumentPositionParams, TextDocuments, TextDocumentSyncKind,
-  WorkspaceFolder,
+  CompletionItem, CompletionItemTag, createConnection, DefinitionParams, Diagnostic, DiagnosticSeverity,
+  DidChangeConfigurationNotification, DocumentFormattingParams, DocumentSymbol, DocumentSymbolParams,
+  HoverParams, InitializeParams, InitializeResult, Location, Position, ProposedFeatures,
+  Range, ReferenceParams, SignatureHelpParams, SignatureInformation, SymbolKind, TextDocumentPositionParams,
+  TextDocuments, TextDocumentSyncKind, TextEdit, WorkspaceFolder,
 } from 'vscode-languageserver/node';
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import Parser from './parser/parser';
 import { Bounds } from './parser/types';
 import { CodeSymbolType, CodeSymbol } from './parser/symbols';
-import { DefinitionsUsages, DefinitionsUsagesLookup, DefUsageScope, findDefinitionsUsages } from './parser/definitions-usages';
+import {
+  DefinitionsUsages, DefinitionsUsagesLookup, DefUsageScope, findDefinitionsUsages,
+} from './parser/definitions-usages';
 import { ParseError, Warning } from './parser/errors';
 import { Builtins, BuiltinFunctionInfo } from './parser/builtins';
 import { isIdentifierPart } from './parser/lexer';
 import ResolvedFile, { FileResolver, pathToFileURL } from './parser/file-resolver';
 import { Chunk, Include } from './parser/statements';
-import { findProjects, getProjectFiles, iterateProject, ParsedDocumentsMap, Project, ProjectDocument, ProjectDocumentNode, projectToString } from './projects';
+import Formatter from './parser/formatter';
+import {
+  findProjects, getProjectFiles, iterateProject, ParsedDocumentsMap, Project, ProjectDocument, ProjectDocumentNode,
+} from './projects';
 import * as url from 'url';
 import * as fs from 'fs';
 import * as path from 'path';
-import { inspect } from 'util';
 
 console.log('PICO-8 Language Server starting.');
 
@@ -51,6 +56,8 @@ connection.onInitialize((params: InitializeParams) => {
       completionProvider: { triggerCharacters: [ '.', ':' ], resolveProvider: true },
       hoverProvider: true,
       signatureHelpProvider: { triggerCharacters: [ '(' ], retriggerCharacters: [ ',' ] },
+      // TODO: uncomment this piece of configuration once formatting is ready for release
+      // documentFormattingProvider: true,
     },
   };
 
@@ -67,7 +74,8 @@ connection.onInitialize((params: InitializeParams) => {
 connection.onInitialized(() => {
   if (hasConfigurationCapability) {
     // Register for all config changes
-    connection.client.register(DidChangeConfigurationNotification.type, undefined);
+    // The "void" here is so we don't get a "floating promise" warning
+    void connection.client.register(DidChangeConfigurationNotification.type, undefined);
   }
 
   if (hasWorkspaceFolderCapability) {
@@ -178,18 +186,26 @@ function findDefUsagesForProject(project: Project) {
   // files into itself, so its global scope has everything all the other files
   // might want. So we just invoke findDefinitionsUsages on every file,
   // injecting the global scope of the root file into the other files.
-  
+
   // Before we start, make sure we're using the most up-to-date version of the files
   refreshProject(project);
 
-  const rootScope = processDefUsages(project.root.document);
+  const warnings: Warning[] = [];
+
+  const rootDefUsages = processDefUsages(project.root.document);
+  const rootScope = rootDefUsages?.scopes;
   if (!rootScope) {
     return;
   }
+  warnings.push(...rootDefUsages.warnings);
 
   // recursive stepping through includes in case the includes have includes
   const iterateNode = (projNode: ProjectDocumentNode) => {
-    processDefUsages(projNode.document, rootScope);
+    const result = processDefUsages(projNode.document, rootScope);
+    if (result && result.warnings) {
+      warnings.push(...result.warnings);
+    }
+
     // recurse into children
     for (const child of projNode.included) {
       iterateNode(child);
@@ -199,6 +215,34 @@ function findDefUsagesForProject(project: Project) {
   // actually iterate over the children of the root
   for (const child of project.root.included) {
     iterateNode(child);
+  }
+
+  type DiagnosticsByURI = { [key: string]: Diagnostic[] };
+  let diagnosticsByURI: DiagnosticsByURI = {};
+
+  // Group all warnings by URI and send as diagnostics
+  diagnosticsByURI =
+    warnings.map(w => {
+      return {
+        uri: w.bounds.start.filename.fileURL,
+        diagnostic: toDiagnostic(w),
+      };
+    })
+      .reduce((d, { uri, diagnostic }) => {
+        let list = d[uri];
+        if (list === undefined) {
+          list = [];
+          d[uri] = list;
+        }
+        list.push(diagnostic);
+        return d;
+      }, diagnosticsByURI);
+
+  for (const uri in diagnosticsByURI) {
+    connection.sendDiagnostics({
+      uri: uri,
+      diagnostics: diagnosticsByURI[uri],
+    });
   }
 }
 
@@ -227,11 +271,7 @@ function processDefUsages(document: ProjectDocument, injectedGlobalScope?: DefUs
     documentDefUsage.set(uri, definitionsUsages);
     documentScopes.set(uri, scopes);
 
-    // send diagnostics
-    const diagnostics: Diagnostic[] = warnings.filter(w => inThisFile(uri, w)).map(w => toDiagnostic(w));
-    connection.sendDiagnostics({ uri: uri, diagnostics });
-
-    return scopes;
+    return { scopes, warnings };
   } catch (e) {
     console.error(e);
   }
@@ -293,7 +333,7 @@ documents.onDidChangeContent(change => {
 });
 
 function parseAllProjects(alreadyParsed: { [filename: string]: ProjectDocument }) {
-  projects.forEach(p => reparseProjectFiles(p, alreadyParsed));
+  projects.forEach(p => void reparseProjectFiles(p, alreadyParsed));
 }
 
 async function reparseProjectFiles(project: Project, alreadyParsed: { [filename: string]: ProjectDocument }) {
@@ -343,6 +383,7 @@ connection.onDidChangeConfiguration(change => {
   rescanEverything();
 });
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function getDocumentSettings(resource: string): Thenable<DocumentSettings> {
   if (!hasConfigurationCapability) {
     return Promise.resolve(globalSettings);
@@ -424,7 +465,7 @@ const fileResolver: FileResolver = {
   },
 };
 
-function parseTextDocument(textDocument: TextDocument) {
+function parseTextDocument(textDocument: TextDocument): ProjectDocument | undefined {
   try {
     // parse document
     const text = textDocument.getText();
@@ -674,6 +715,42 @@ connection.onSignatureHelp((params: SignatureHelpParams) => {
     activeSignature: 0,
     activeParameter: numCommas,
   };
+});
+
+// TODO: missing features:
+//       - preserve single blank lines after locals (visual grouping of code lines by keeping a single blank line between them)
+
+connection.onDocumentFormatting((params: DocumentFormattingParams) => {
+  const textDocument = documentTextCache.get(params.textDocument.uri);
+  if (!textDocument) {
+    return null;
+  }
+
+  if (textDocument.languageId !== 'pico-8-lua') {
+    // TODO: For now we support separate Lua files (".lua") only, but it would be great to support all file types
+    //       handled by this extension (which means to support ".p8" files as well, identified by "pico-8" language ID).
+    return null;
+  }
+
+  const parsedDocument = parseTextDocument(textDocument);
+  if (parsedDocument) {
+    parsedDocuments.set(textDocument.uri, parsedDocument);
+  } else {
+    // TODO: from Beetroot Paul: I didn't manage to write Lua which would raise an error instead of parsing
+    //       (I managed to test this condition by throwing manually). Isn't parsing too lenient?
+    console.error(`Can't format document when there are parsing errors! (document: "${textDocument.uri}"`);
+    return null;
+  }
+
+  return [
+    TextEdit.replace(
+      Range.create(
+        textDocument.positionAt(0),
+        textDocument.positionAt(Number.MAX_VALUE),
+      ),
+      new Formatter(params.options).formatChunk(parsedDocument.chunk),
+    ),
+  ];
 });
 
 // Make the text document manager listen on the connection

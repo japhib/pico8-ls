@@ -1,7 +1,5 @@
-import { assert } from 'console';
 import { AnonymousFunctionName } from '../statements';
 import { CodeSymbolType } from '../symbols';
-import { logObj } from '../util';
 import { locationOfToken, parse, deepEquals, bounds } from './test-utils';
 
 describe('SymbolFinder', () => {

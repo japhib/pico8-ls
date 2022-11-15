@@ -40,6 +40,12 @@ such as NeoVim, Atom, etc.
 
 - Snippets for common idioms (functions, loops, #include, etc.)
 - Hover support/signature help for user-defined functions/variables
+- code formatting
+
+# Development
+
+Please follow the official [Language Server Extension Guide](https://code.visualstudio.com/api/language-extensions/language-server-extension-guide)
+to understand how to develop VS Code language server extension.
 
 # Changelog
 

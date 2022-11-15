@@ -3,7 +3,7 @@ import { BinaryExpression, CallExpression, Comment_, Expression, GeneralTableFie
   IndexExpression, Variable, Literal, LogicalExpression, MemberExpression, StringCallExpression, StringLiteral,
   TableCallExpression, TableConstructorExpression, TableKey, TableKeyString, TableValue, UnaryExpression,
 } from './expressions';
-import { AssignmentStatement, BreakStatement, CallStatement, Chunk, DoStatement, ElseClause, ElseifClause,
+import { AssignmentStatement, Block, BreakStatement, CallStatement, Chunk, DoStatement, ElseClause, ElseifClause,
   ForGenericStatement, ForNumericStatement, FunctionDeclaration, FunctionParameter, GeneralIfClause,
   GotoStatement, IfClause, IfStatement, LabelStatement, LocalStatement, RepeatStatement, ReturnStatement,
   Statement, WhileStatement } from './statements';
@@ -15,6 +15,13 @@ import structuredClone from '@ungap/structured-clone';
 // The default AST structure is inspired by the Mozilla Parser API but can
 // easily be customized by overriding these functions.
 export default class AST {
+  static block(body: Statement[]): Block {
+    return {
+      type: 'Block',
+      body,
+    };
+  }
+
   static labelStatement(label: Identifier): LabelStatement {
     return {
       type: 'LabelStatement',
@@ -42,56 +49,57 @@ export default class AST {
     };
   }
 
-  static ifStatement(clauses: GeneralIfClause[]): IfStatement {
+  static ifStatement(clauses: GeneralIfClause[], oneLine: boolean): IfStatement {
     return {
       type: 'IfStatement',
       clauses: clauses,
+      oneLine,
     };
   }
 
-  static ifClause(condition: Expression, body: Statement[]): IfClause {
+  static ifClause(condition: Expression, block: Block): IfClause {
     return {
       type: 'IfClause',
       condition: condition,
-      body: body,
+      block: block,
     };
   }
 
-  static elseifClause(condition: Expression, body: Statement[]): ElseifClause {
+  static elseifClause(condition: Expression, block: Block): ElseifClause {
     return {
       type: 'ElseifClause',
       condition: condition,
-      body: body,
+      block: block,
     };
   }
 
-  static elseClause(body: Statement[]): ElseClause {
+  static elseClause(block: Block): ElseClause {
     return {
       type: 'ElseClause',
-      body: body,
+      block: block,
     };
   }
 
-  static whileStatement(condition: Expression, body: Statement[]): WhileStatement {
+  static whileStatement(condition: Expression, block: Block): WhileStatement {
     return {
       type: 'WhileStatement',
       condition: condition,
-      body: body,
+      block: block,
     };
   }
 
-  static doStatement(body: Statement[]): DoStatement {
+  static doStatement(block: Block): DoStatement {
     return {
       type: 'DoStatement',
-      body: body,
+      block: block,
     };
   }
 
-  static repeatStatement(condition: Expression, body: Statement[]): RepeatStatement {
+  static repeatStatement(condition: Expression, block: Block): RepeatStatement {
     return {
       type: 'RepeatStatement',
       condition: condition,
-      body: body,
+      block: block,
     };
   }
 
@@ -124,14 +132,14 @@ export default class AST {
     identifier: Identifier | MemberExpression | null,
     parameters: FunctionParameter[],
     isLocal: boolean,
-    body: Statement[],
+    block: Block,
   ): FunctionDeclaration {
     return {
       type: 'FunctionDeclaration',
       identifier: identifier,
       isLocal: isLocal,
       parameters: parameters,
-      body: body,
+      block: block,
     };
   }
 
@@ -140,7 +148,7 @@ export default class AST {
     start: Expression,
     end: Expression,
     step: Expression | null,
-    body: Statement[],
+    block: Block,
   ): ForNumericStatement {
     return {
       type: 'ForNumericStatement',
@@ -148,23 +156,23 @@ export default class AST {
       start: start,
       end: end,
       step: step,
-      body: body,
+      block: block,
     };
   }
 
-  static forGenericStatement(variables: Identifier[], iterators: Expression[], body: Statement[]): ForGenericStatement {
+  static forGenericStatement(variables: Identifier[], iterators: Expression[], block: Block): ForGenericStatement {
     return {
       type: 'ForGenericStatement',
       variables: variables,
       iterators: iterators,
-      body: body,
+      block: block,
     };
   }
 
-  static chunk(body: Statement[], errors: ParseError[]): Chunk {
+  static chunk(block: Block, errors: ParseError[]): Chunk {
     return {
       type: 'Chunk',
-      body,
+      block,
       errors,
 
       // This stuff is added later

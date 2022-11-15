@@ -20,6 +20,7 @@ import Lexer from './lexer';
 import Marker from './marker';
 import {
   AssignmentStatement,
+  Block,
   BreakStatement,
   CallStatement,
   Chunk,
@@ -43,7 +44,8 @@ import { findSymbols } from './symbols';
 import { Token, TokenType } from './tokens';
 import { indexOfObject } from './util';
 import * as path from 'path';
-import { inspect } from 'util';
+import { ASTNode } from './types';
+import Operators from './operators';
 
 export type Scope = string[];
 
@@ -133,12 +135,21 @@ export default class Parser {
   // -----------------
 
   // Wrap up the node object.
-  finishNode<T>(node: T): T {
+  finishNode<T>(node: T, greedy?: boolean): T {
     // Pop a `Marker` off the location-array and attach its location data.
     const location = this.popLocation();
-    if (location && this.previousToken) {
-      location.complete(this.previousToken);
-      location.bless(node);
+
+    // For "greedy" nodes we take the next token, instead of the previous one
+    // (this is just block nodes atm)
+    let endingToken = greedy ? this.token : this.previousToken;
+    if (greedy && !endingToken) {
+      // If there's no next token, take the previous one instead
+      endingToken = this.previousToken;
+    }
+
+    if (location && endingToken) {
+      location.complete(endingToken.bounds.end);
+      location.bless(node as any as ASTNode);
     }
     return node;
   }
@@ -262,6 +273,7 @@ export default class Parser {
 
     const chunk = this.finishNode(AST.chunk(body, this.errors));
     chunk.includes = this.includes;
+    chunk.comments = this.lexer.comments;
 
     chunk.symbols = findSymbols(chunk);
 
@@ -273,7 +285,9 @@ export default class Parser {
   //
   //     block ::= {stat} [retstat]
 
-  parseBlock(flowContext: FlowContext, endsWithEOF?: boolean): Statement[] {
+  parseBlock(flowContext: FlowContext, endsWithEOF?: boolean): Block {
+    this.pushLocation(this.createLocationMarker());
+
     const block: Statement[] = [];
     const endingFunction = endsWithEOF ? isEndOfFile : isBlockFollow;
 
@@ -337,8 +351,7 @@ export default class Parser {
       }
     }
 
-    // Doesn't really need an ast node
-    return block;
+    return this.finishNode(AST.block(block), true);
   }
 
   includeFile(statement: IncludeStatement, resolvedInclude: ResolvedFile) {
@@ -548,12 +561,13 @@ export default class Parser {
     if (!this.lexer.consume('then')) {
       if (canBeOneLiner) {
         // Handle special PICO-8 one-line if statement
-
-        this.lexer.newlineSignificant = true;
-
-        this.lexer.withSignificantNewline((() => {
+        this.lexer.withSignificantNewline(() => {
+          // pseudo-block for the if statement contents
+          marker = this.createLocationMarker();
+          this.pushLocation(marker);
           this.createScope();
           flowContext.pushScope();
+
           const statement = this.parseStatement(flowContext);
           if (!statement) {
             errors.raiseUnexpectedToken('statement', this.token);
@@ -561,9 +575,11 @@ export default class Parser {
 
           flowContext.popScope();
           this.destroyScope();
-          clauses.push(this.finishNode(AST.ifClause(condition, [ statement ])));
+          clauses.push(this.finishNode(AST.ifClause(condition, this.finishNode(AST.block([ statement ]), true))));
 
           if (this.lexer.consume('else')) {
+            marker = this.createLocationMarker();
+            this.pushLocation(marker);
             this.createScope();
             flowContext.pushScope();
             const elseStatement = this.parseStatement(flowContext);
@@ -573,11 +589,11 @@ export default class Parser {
 
             flowContext.popScope();
             this.destroyScope();
-            clauses.push(this.finishNode(AST.elseClause([ elseStatement ])));
+            clauses.push(this.finishNode(AST.elseClause(this.finishNode(AST.block([ statement ]), true))));
           }
-        }).bind(this));
+        });
 
-        return this.finishNode(AST.ifStatement(clauses));
+        return this.finishNode(AST.ifStatement(clauses, true));
       } else {
         errors.raiseUnexpectedToken('statement', this.token);
       }
@@ -588,7 +604,7 @@ export default class Parser {
     body = this.parseBlock(flowContext);
     flowContext.popScope();
     this.destroyScope();
-    clauses.push(this.finishNode(AST.ifClause(condition, body)));
+    clauses.push(this.finishNode(AST.ifClause(condition, body), true));
 
     marker = this.createLocationMarker();
     while (this.lexer.consume('elseif')) {
@@ -600,26 +616,24 @@ export default class Parser {
       body = this.parseBlock(flowContext);
       flowContext.popScope();
       this.destroyScope();
-      clauses.push(this.finishNode(AST.elseifClause(condition, body)));
+      clauses.push(this.finishNode(AST.elseifClause(condition, body), true));
       marker = this.createLocationMarker();
     }
 
     if (this.lexer.consume('else')) {
       // Include the `else` in the location of ElseClause.
-      {
-        marker = new Marker(this.previousToken);
-        this.pushLocation(marker);
-      }
+      marker = new Marker(this.previousToken);
+      this.pushLocation(marker);
       this.createScope();
       flowContext.pushScope();
       body = this.parseBlock(flowContext);
       flowContext.popScope();
       this.destroyScope();
-      clauses.push(this.finishNode(AST.elseClause(body)));
+      clauses.push(this.finishNode(AST.elseClause(body), true));
     }
 
     this.lexer.expect('end');
-    return this.finishNode(AST.ifStatement(clauses));
+    return this.finishNode(AST.ifStatement(clauses, false));
   }
 
   // There are two types of for statements, generic and numeric.
@@ -844,7 +858,7 @@ export default class Parser {
     const startMarker = this.createLocationMarker();
 
     const args: Expression[] = [];
-    this.lexer.withSignificantNewline((() => {
+    this.lexer.withSignificantNewline(() => {
       let expression = this.parseExpectedExpression(flowContext);
       args.push(expression);
 
@@ -854,7 +868,7 @@ export default class Parser {
         expression = this.parseExpectedExpression(flowContext);
         args.push(expression);
       }
-    }).bind(this));
+    });
 
     // Each part uses the same start marker. One instance of it was already
     // pushed above. finishNode will consume the top location on the stack so we
@@ -1075,48 +1089,6 @@ export default class Parser {
     }
   }
 
-  // Return the precedence priority of the operator.
-  //
-  // As unary `-` can't be distinguished from binary `-`, unary precedence
-  // isn't described in this table but in `parseSubExpression()` itself.
-  //
-  // As this gets hit on every expression it's been optimized due to
-  // the expensive CompareICStub which took ~8% of the parse time.
-
-  binaryPrecedence(operator: string): number {
-    const charCode = operator.charCodeAt(0);
-    const length = operator.length;
-
-    if (1 === length) {
-      switch (charCode) {
-      case 94: return 12; // ^
-      case 42: case 47: case 37: case 92: return 10; // * / % \
-      case 43: case 45: return 9; // + -
-      case 38: return 6; // & (bitwise AND)
-      case 124: return 4; // | (bitwise OR)
-      case 60: case 62: return 3; // < >
-      }
-    } else if (2 === length) {
-      switch (charCode) {
-      case 46: return 8; // ..
-      case 60: case 62:
-        if('<<' === operator || '>>' === operator) {
-          return 7;
-        } // << >>
-        return 3; // <= >=
-      case 33: case 61: case 126: return 3; // == ~= !=
-      case 111: return 1; // or
-      case 94: return 5; // ^^ (bitwise XOR, pico-8 lua uses the normal bitwise XOR ~ as bitwise NOT)
-      }
-    } else if (3 === length) {
-      switch (operator) {
-      case '>>>': case '<<>': case '>><': return 7;
-      case 'and': return 2;
-      }
-    }
-    return 0;
-  }
-
   // Implement an operator-precedence parser to handle binary operator
   // precedence.
   //
@@ -1164,9 +1136,9 @@ export default class Parser {
       operator = this.token.value as string;
 
       precedence = (this.token.type === TokenType.Punctuator || this.token.type === TokenType.Keyword) ?
-        this.binaryPrecedence(operator) : 0;
+        Operators.binaryPrecedenceOf(operator) : Operators.minPrecedenceValue;
 
-      if (precedence === 0 || precedence <= minPrecedence) {
+      if (precedence === Operators.minPrecedenceValue || precedence <= minPrecedence) {
         break;
       }
       // Right-hand precedence operators
