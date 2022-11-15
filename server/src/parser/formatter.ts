@@ -176,14 +176,18 @@ export default class Formatter {
     this.currentIndent--;
   }
 
-  commentsBeforeNode(node: ASTNode): string {
+  commentsBeforeNode(node: ASTNode, dontIndent?: boolean): string {
     let ret = '';
     if (node.comments !== undefined) {
+      if (!dontIndent) {
       // Caller responsible for returning to previous depth after calling this
-      this.increaseDepth();
+        this.increaseDepth();
+      }
 
       for (const comment of node.comments) {
-        ret += this.newline();
+        if (!dontIndent) {
+          ret += this.newline();
+        }
         ret += this.visitComment(comment);
         ret += this.newline();
       }
@@ -281,13 +285,17 @@ export default class Formatter {
   }
 
   visitGeneralTableField(node: GeneralTableField | Comment_): string {
+    let ret = this.commentsBeforeNode(node, true);
+
     switch (node.type) {
-    case 'TableKey': return this.visitTableKey(node);
-    case 'TableKeyString': return this.visitTableKeyString(node);
-    case 'TableValue': return this.visitTableValue(node);
-    case 'Comment': return this.visitComment(node);
+    case 'TableKey': ret += this.visitTableKey(node); break;
+    case 'TableKeyString': ret += this.visitTableKeyString(node); break;
+    case 'TableValue': ret += this.visitTableValue(node); break;
+    case 'Comment': ret += this.visitComment(node); break;
     default: throw new Error('Unexpected table field type: ' + (node as any).type);
     }
+
+    return ret;
   }
 
   // ****************************** Statements *****************************
@@ -487,10 +495,37 @@ export default class Formatter {
   }
 
   visitCallExpression(node: CallExpression): string {
-    let ret = '';
-    ret += this.visitExpression(node.base, { parentOperator: Operators.fakeMaxPrecedenceOperator });
+    // first, check if the original function call is on more than one line
+    const startingLine = node.base.loc?.start.line;
+    const multiline = node.arguments.some(a => a.loc!.end.line !== startingLine);
+
+    let ret = this.visitExpression(node.base, { parentOperator: Operators.fakeMaxPrecedenceOperator });
     ret += '(';
-    ret += node.arguments.map(a => this.visitExpression(a)).join(', ');
+
+    if (multiline) {
+      // Increase indent
+      this.increaseDepth();
+      ret += this.newline();
+
+      // Each argument on a newline
+      let first = true;
+      for (const arg of node.arguments) {
+        if (first) {
+          first = false;
+        } else {
+          ret += ',' + this.newline();
+        }
+
+        ret += this.visitExpression(arg);
+      }
+
+      this.decreaseDepth();
+      // Trailing ')' goes on its own line
+      ret += this.newline();
+    } else {
+      ret += node.arguments.map(a => this.visitExpression(a)).join(', ');
+    }
+
     ret += ')';
     return ret;
   }

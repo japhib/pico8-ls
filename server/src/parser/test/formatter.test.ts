@@ -187,8 +187,10 @@ c = 1 - (t - 1) ^ 2
 d = (some_var_1 - 111 * 222) / 333
 e = (some_var_2 - 111) * 222
 f = (some_var_3 + 111) % 222
-g = some_table.some_fn(some_var_4 * (rnd() - .5), some_var_5 * (rnd() - .5))
-          `.trim());
+g = some_table.some_fn(
+  some_var_4 * (rnd() - .5),
+  some_var_5 * (rnd() - .5)
+)`.trim());
       });
 
       it('removes parentheses from calculations when they are unnecessary', () => {
@@ -398,9 +400,15 @@ end`.trim();
       eq(output, input);
     });
 
-    // it('preserves a multi-line function call', () => {
-
-    // });
+    it('preserves a multi-line function call', () => {
+      const input = `
+call_some_func(
+  first_arg,
+  second_arg,
+  third_arg
+)`.trim();
+      eq(format(input), input);
+    });
   });
 
   describe('preserve single blank lines', () => {
