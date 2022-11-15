@@ -385,7 +385,7 @@ call_some_func(
       eq(format(input), input);
     });
 
-    it.only('preserves comments inside deeply nested table/function declarations', () => {
+    it('preserves comments inside deeply nested table/function declarations', () => {
       const input = `
 local player = {
   update = function (this)
@@ -396,6 +396,13 @@ local player = {
     local nested_tbl = {
       -- something in the table
       blah = 'blah',
+      -- then ANOTHER nested function
+      get_tbl = function(a)
+        return {
+          -- which, incredibly, has ANOTHER nested table inside of it
+          incremented = a + 1
+        }
+      end,
       -- last comment
     }
 
