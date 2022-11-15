@@ -63,6 +63,7 @@ export default class Formatter {
 
   formatChunk(chunk: Chunk): string {
     this.insertComments(chunk);
+    this.insertWhitespace(chunk);
 
     // Most of the formatting work happens here
     let formatted = chunk.block.body.map(s => this.visitStatement(s)).join('\n');
@@ -70,6 +71,51 @@ export default class Formatter {
     // Before returning, trim all trailing spaces from lines
     formatted = formatted.split('\n').map(line => line.trimRight()).join('\n');
     return formatted;
+  }
+
+  insertWhitespace(chunk: Chunk): void {
+    for (let i = 1; i < chunk.block.body.length; i++) {
+      const currStatement = chunk.block.body[i];
+      const prevStatement = chunk.block.body[i-1];
+
+      const currStmtStartLine = currStatement.loc!.start.line;
+      const prevStmtEndLine = prevStatement.loc!.end.line;
+
+      if (currStmtStartLine - prevStmtEndLine > 1) {
+        // There's at least one empty line in between!
+
+        const prevStmtEnd = prevStatement.loc!.end;
+        const currStmtStart = currStatement.loc!.start;
+        const newlines = currStmtStartLine - prevStmtEndLine - 1;
+
+        // Insert a whitespace node
+        chunk.block.body.splice(i, 0, {
+          type: 'Whitespace',
+          count: newlines,
+
+          // Create a location for the new token
+          loc: {
+            start: {
+              line: prevStmtEnd.line + 1,
+              column: 0,
+              index: prevStmtEnd.index + 1,
+              filename: prevStmtEnd.filename,
+            },
+            end: {
+              line: currStmtStart.line - 1,
+              column: 0,
+              index: currStmtStart.index - 1,
+              filename: currStmtStart.filename,
+            },
+          },
+        });
+
+        // Increment i again to account for inserting another node at the
+        // current position (otherwise we'd check the current node again, since
+        // its index is now i+1)
+        i++;
+      }
+    }
   }
 
   // Inserts all the comments in chunk.comments into the actual body of the AST,
@@ -557,10 +603,6 @@ export default class Formatter {
         ret += this.newline();
         ret += 'end';
 
-        if (isStatement) {
-          ret += this.newline();
-        }
-
         return ret;
       });
   }
@@ -611,8 +653,10 @@ export default class Formatter {
   }
 
   visitTableConstructorExpression(node: TableConstructorExpression, childContext: ChildContext = {}): string {
-    const shouldIndent = node.fields.length > 1;
-    const newlineFunc = shouldIndent ? this.newline.bind(this) : () => '';
+    // first, check if the original function call is on more than one line
+    const startingLine = node.loc?.start.line;
+    const multiline = node.fields.some(f => f.loc!.end.line !== startingLine);
+    const newlineFunc = multiline ? this.newline.bind(this) : () => '';
 
     return this.wrapWithParenthesesIfNeeded(
       {
@@ -622,21 +666,21 @@ export default class Formatter {
         let ret = '';
 
         ret += '{';
-        if (shouldIndent) {
+        if (multiline) {
           this.increaseDepth();
         }
 
         let first = true;
         for (const f of node.fields) {
           if (!first) {
-            ret += ',' + (shouldIndent ? '' : ' ');
+            ret += ',' + (multiline ? '' : ' ');
           }
           first = false;
           ret += newlineFunc();
           ret += this.visitGeneralTableField(f);
         }
 
-        if (shouldIndent) {
+        if (multiline) {
           this.decreaseDepth();
         }
         ret += newlineFunc();
@@ -670,8 +714,9 @@ export default class Formatter {
     return node.raw;
   }
 
-  visitWhitespace(node: Whitespace): string {
-    return '\n'.repeat(node.count);
+  visitWhitespace(_node: Whitespace): string {
+    // the newline will be added later when all statements are joined
+    return '';
   }
 
   private wrapWithParenthesesIfNeeded(
@@ -698,6 +743,7 @@ export default class Formatter {
       params.parentOperator &&
       params.parentOperator === params.currentOperator &&
       params.isRightSideOfAnExpression &&
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-call
       Operators.doesNeedParenthesesIfOnTheRightSide(params.parentOperator)
     ) {
       return `(${expression})`;

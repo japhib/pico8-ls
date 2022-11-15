@@ -26,6 +26,7 @@ function mockTextDocument(name: string, includes: string[]): ProjectDocument {
         };
       }),
     },
+    errors: [],
   };
 }
 

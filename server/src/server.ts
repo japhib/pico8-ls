@@ -119,7 +119,7 @@ async function scanWorkspaceFolder(workspaceFolder: WorkspaceFolder) {
       .reduce((dict, curr) => {
         dict.set(curr!.textDocument.uri, curr!);
         return dict;
-      }, new Map<string, { textDocument: TextDocument, chunk: Chunk }>());
+      }, new Map<string, ProjectDocument>());
 
   rebuildProjectTree();
 
@@ -483,7 +483,7 @@ function parseTextDocument(textDocument: TextDocument): ProjectDocument | undefi
     const diagnostics = errors.filter(e => inThisFile(textDocument.uri, e)).map(e => toDiagnostic(e));
     connection.sendDiagnostics({ uri: textDocument.uri, diagnostics });
 
-    return { textDocument, chunk };
+    return { textDocument, chunk, errors };
   } catch(e) {
     console.error(e);
     return undefined;
@@ -717,9 +717,6 @@ connection.onSignatureHelp((params: SignatureHelpParams) => {
   };
 });
 
-// TODO: missing features:
-//       - preserve single blank lines after locals (visual grouping of code lines by keeping a single blank line between them)
-
 connection.onDocumentFormatting((params: DocumentFormattingParams) => {
   const textDocument = documentTextCache.get(params.textDocument.uri);
   if (!textDocument) {
@@ -733,14 +730,12 @@ connection.onDocumentFormatting((params: DocumentFormattingParams) => {
   }
 
   const parsedDocument = parseTextDocument(textDocument);
-  if (parsedDocument) {
-    parsedDocuments.set(textDocument.uri, parsedDocument);
-  } else {
-    // TODO: from Beetroot Paul: I didn't manage to write Lua which would raise an error instead of parsing
-    //       (I managed to test this condition by throwing manually). Isn't parsing too lenient?
+  if (!parsedDocument || (parsedDocument.errors && parsedDocument.errors.length > 0)) {
     console.error(`Can't format document when there are parsing errors! (document: "${textDocument.uri}"`);
     return null;
   }
+
+  parsedDocuments.set(textDocument.uri, parsedDocument);
 
   return [
     TextEdit.replace(

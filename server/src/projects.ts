@@ -2,8 +2,9 @@ import { TextDocument } from 'vscode-languageserver-textdocument';
 import { Chunk } from './parser/statements';
 import * as url from 'url';
 import * as path from 'path';
+import { ParseError } from './parser/errors';
 
-export type ProjectDocument = { textDocument: TextDocument, chunk: Chunk };
+export type ProjectDocument = { textDocument: TextDocument, chunk: Chunk, errors: ParseError[] };
 
 export type ParsedDocumentsMap = Map<string, ProjectDocument>;
 

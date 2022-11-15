@@ -48,6 +48,14 @@ export default class Operators {
     return Operators.minPrecedenceValue;
   }
 
+  // TODO this could probably be refactored into a separate function that says
+  // which operators are left or right associative.
+  //
+  // Lua operator associativity: https://www.lua.org/pil/3.5.html
+  // """
+  //    All binary operators are left associative, except for `^´
+  //    (exponentiation) and `..´ (concatenation), which are right associative.
+  // """
   static doesNeedParenthesesIfOnTheRightSide(operator: string): boolean {
     const charCode = operator.charCodeAt(0);
     const length = operator.length;
