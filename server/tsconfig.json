@@ -1,16 +1,16 @@
 {
 	"compilerOptions": {
-		"target": "es2019",
+		"target": "ES2020",
+		"lib": [
+			"es2020"
+		],
 		"module": "commonjs",
 		"moduleResolution": "node",
-		"outDir": "./out",
-		"removeComments": false,
-		"allowSyntheticDefaultImports": true,
-		"esModuleInterop": true,
+		"outDir": "out",
 		"forceConsistentCasingInFileNames": true,
 		"strict": true,
 		"noImplicitAny": true,
-		"skipLibCheck": true,
+		"rootDir": "src",
 		"sourceMap": true
 	},
 	"include": [

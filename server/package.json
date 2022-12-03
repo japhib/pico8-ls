@@ -3,14 +3,7 @@
 	"version": "0.0.1",
 	"description": "Language server implementation for PICO-8",
 	"scripts": {
-		"compile": "tsc -p ./",
-		"lint": "eslint src --ext ts",
-		"lint:fix": "eslint src --ext ts --fix",
-		"pretest": "npm run compile",
-		"prestart": "npm run compile",
-		"start": "node out/server.js",
-		"test": "mocha **/*.test.js",
-		"test:only": "npm run compile && mocha"
+
 	},
 	"author": "JanPaul Bergeson",
 	"license": "MIT",
@@ -26,6 +19,6 @@
 	},
 	"dependencies": {
 		"vscode-languageserver": "^7.0.0",
-		"vscode-languageserver-textdocument": "^1.0.3"
+		"vscode-languageserver-textdocument": "^1.0.4"
 	}
 }

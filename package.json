@@ -17,7 +17,7 @@
 		"onLanguage:pico-8",
 		"onLanguage:pico-8-lua"
 	],
-	"main": "./client/out-min/main.js",
+	"main": "./client/out/extension",
 	"categories": [
 		"Programming Languages",
 		"Snippets"
@@ -104,7 +104,8 @@
 		"clean": "rm -rf client/out client/out-min server/out server/out-min",
 		"clean-deps": "rm -rf node_modules client/node_modules server/node_modules && npm install",
 		
-		"compile-tsc": "node node_modules/typescript/bin/tsc -b",
+		"compile-tsc": "tsc -b",
+		"watch": "tsc -b -w",
 
 		"compile": "npm run esbuild-client && npm run esbuild-server",
 		"esbuild-client": "esbuild ./client/src/extension.ts --bundle --outfile=./client/out-min/main.js --external:vscode --format=cjs --platform=node --minify",

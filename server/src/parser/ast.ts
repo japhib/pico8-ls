@@ -8,7 +8,7 @@ import { AssignmentStatement, Block, BreakStatement, CallStatement, Chunk, DoSta
   GotoStatement, IfClause, IfStatement, LabelStatement, LocalStatement, RepeatStatement, ReturnStatement,
   Statement, WhileStatement } from './statements';
 import { Bounds, boundsToString } from './types';
-import structuredClone from '@ungap/structured-clone';
+import structuredClone = require('@ungap/structured-clone');
 
 // ### Abstract Syntax Tree
 //

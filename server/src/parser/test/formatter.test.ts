@@ -1,7 +1,7 @@
 import { deepEquals, getTestFileContents, parse } from './test-utils';
 import { strictEqual as eq } from 'assert';
 import Formatter from '../formatter';
-import structuredClone from '@ungap/structured-clone';
+import structuredClone = require('@ungap/structured-clone');
 
 function format(text: string): string {
   const chunk = parse(text);

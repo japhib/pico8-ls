@@ -4,6 +4,7 @@
 		"module": "commonjs",
 		"moduleResolution": "node",
 		"outDir": "./out",
+		"rootDir": "src",
 		"removeComments": false,
 		"allowSyntheticDefaultImports": true,
 		"esModuleInterop": true,

@@ -13,7 +13,7 @@
             "outFiles": ["${workspaceRoot}/client/out/**/*.js"],
             "preLaunchTask": {
                 "type": "npm",
-                "script": "compile-nomin"
+                "script": "watch"
             }
         },
         {
@@ -22,10 +22,6 @@
             "name": "Attach to Server",
             "port": 6009,
             "restart": true,
-            "preLaunchTask": {
-                "type": "npm",
-                "script": "compile"
-            },
             "outFiles": ["${workspaceRoot}/server/out/**/*.js"]
         },
         {
