@@ -187,18 +187,19 @@ class SymbolFinder extends ASTVisitor<SymbolScope> {
     return functionSignature;
   }
 
-  override visitIdentifier(node: Identifier): void {
-    // We only care about identifiers when they are the parameters of a function declaration.
-    if (this.topNode() && this.topNode().node.type === 'FunctionDeclaration') {
-      this.addSymbol(
-        node.name,
-        undefined,
-        CodeSymbolType.LocalVariable,
-        node.loc!,
-        node.loc!,
-        true);
-    }
-  }
+
+  // override visitIdentifier(node: Identifier): void {
+  //   // We only care about identifiers when they are the parameters of a function declaration.
+  //   if (this.topNode() && this.topNode().node.type === 'FunctionDeclaration') {
+  //     this.addSymbol(
+  //       node.name,
+  //       undefined,
+  //       CodeSymbolType.LocalVariable,
+  //       node.loc!,
+  //       node.loc!,
+  //       true);
+  //   }
+  // }
 
   override visitAssignmentStatement(statement: AssignmentStatement) {
     this.findSymbolsInAssignment(statement);
@@ -314,33 +315,33 @@ class SymbolFinder extends ASTVisitor<SymbolScope> {
       true);
   }
 
-  override visitForGenericStatement(node: ForGenericStatement): SymbolScope {
-    // Add symbols for variables created in the for statement
-    for (const variable of node.variables) {
-      this.addSymbol(
-        variable.name,
-        undefined,
-        CodeSymbolType.LocalVariable,
-        variable.loc!,
-        variable.loc!,
-        true);
-    }
+  // override visitForGenericStatement(node: ForGenericStatement): SymbolScope {
+  //   // Add symbols for variables created in the for statement
+  //   for (const variable of node.variables) {
+  //     this.addSymbol(
+  //       variable.name,
+  //       undefined,
+  //       CodeSymbolType.LocalVariable,
+  //       variable.loc!,
+  //       variable.loc!,
+  //       true);
+  //   }
 
-    return this.createDefaultScope();
-  }
+  //   return this.createDefaultScope();
+  // }
 
-  override visitForNumericStatement(node: ForNumericStatement): SymbolScope {
-    // Add symbols for the variable created in the for statement
-    this.addSymbol(
-      node.variable.name,
-      undefined,
-      CodeSymbolType.LocalVariable,
-      node.variable.loc!,
-      node.variable.loc!,
-      true);
+  // override visitForNumericStatement(node: ForNumericStatement): SymbolScope {
+  //   // Add symbols for the variable created in the for statement
+  //   this.addSymbol(
+  //     node.variable.name,
+  //     undefined,
+  //     CodeSymbolType.LocalVariable,
+  //     node.variable.loc!,
+  //     node.variable.loc!,
+  //     true);
 
-    return this.createDefaultScope();
-  }
+  //   return this.createDefaultScope();
+  // }
 
   override visitLabelStatement(node: LabelStatement): void {
     this.addSymbol(
