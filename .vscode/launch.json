@@ -43,6 +43,7 @@
             "skipFiles": ["<node_internals>/**", "node_modules/mocha/**"],
             "program": "node_modules/mocha/bin/mocha",
             "args": ["${workspaceFolder}/server/**/*.test.js"],
+            "outputCapture": "console",
             "outFiles": [
                 "${workspaceFolder}/**/*.js"
             ],

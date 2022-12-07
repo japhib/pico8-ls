@@ -4,5 +4,17 @@
 	"typescript.preferences.quoteStyle": "single",
 	"editor.codeActionsOnSave": {
 		"source.fixAll.eslint": true
+	},
+	"mochaExplorer.require": "ts-node/register",
+	"mochaExplorer.files": "**/test/**/*.test.ts",
+	"mocha.requires": [
+		"ts-node/register"
+	],
+	"mocha.files.glob": "**/test/*.test.ts",
+	"mocha.sideBarOptions": {
+		"lens": true,
+		"decoration": false,
+		"autoUpdateTime": 2000,
+		"showDebugTestStatus": true
 	}
 }

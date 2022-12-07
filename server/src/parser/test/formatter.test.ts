@@ -1,7 +1,7 @@
 import { deepEquals, getTestFileContents, parse } from './test-utils';
 import { strictEqual as eq } from 'assert';
 import Formatter from '../formatter';
-import structuredClone = require('@ungap/structured-clone');
+import * as structuredClone from '@ungap/structured-clone';
 
 function format(text: string): string {
   const chunk = parse(text);
@@ -47,7 +47,8 @@ describe('Formatter', () => {
         const initialAst = parse(initialContent);
 
         // call structuredClone before formatChunk because formatChunk inserts comments/whitespace nodes
-        const formattedContent = new Formatter().formatChunk(structuredClone(initialAst));
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-call
+        const formattedContent = new Formatter().formatChunk((structuredClone as any).default(initialAst));
         const newAst = parse(formattedContent);
 
         deepEquals(
