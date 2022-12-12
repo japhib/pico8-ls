@@ -160,7 +160,7 @@ class SymbolFinder extends ASTVisitor<SymbolScope> {
     }
     const name = getFunctionDeclarationName(statement);
     const sig = name + this.getFunctionSignature(statement);
-    const detail = statement.description;
+    const detail = ''; //statement.description;
 
     const params =statement.parameters
       .filter((p): p is Identifier=>p.type=='Identifier')
@@ -212,7 +212,6 @@ class SymbolFinder extends ASTVisitor<SymbolScope> {
     functionSignature = '(' + functionSignature + ')';
     return functionSignature;
   }
-
 
   // override visitIdentifier(node: Identifier): void {
   //   // We only care about identifiers when they are the parameters of a function declaration.

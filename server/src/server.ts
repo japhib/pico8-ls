@@ -420,7 +420,7 @@ function toDocumentSymbol(textDocument: TextDocument, symbol: CodeSymbol): Docum
   return {
     name: symbol.name,
     detail: symbol.detail,
-    kind: symbolTypeLookup[symbol.type],
+    kind: symbolTypeLookup[symbol.type as keyof typeof symbolTypeLookup],
     range: boundsToRange(textDocument, symbol.loc),
     selectionRange: boundsToRange(textDocument, symbol.selectionLoc),
     children: symbol.children.map(child => toDocumentSymbol(textDocument, child)),
