@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unsafe-call */
 
 import { getMemberExpressionName, Identifier, MemberExpression, TableConstructorExpression, TableKeyString } from './expressions';
-import { AssignmentStatement, Chunk, ForGenericStatement, ForNumericStatement, FunctionDeclaration, getFunctionDeclarationName, LabelStatement, LocalStatement } from './statements';
+import { AssignmentStatement, Chunk, FunctionDeclaration, getFunctionDeclarationName, LabelStatement, LocalStatement } from './statements';
 import { Bounds } from './types';
 import { ASTVisitor } from './visitor';
 
@@ -160,7 +160,7 @@ class SymbolFinder extends ASTVisitor<SymbolScope> {
     }
     const name = getFunctionDeclarationName(statement);
     const sig = name + this.getFunctionSignature(statement);
-    const detail = ''; //statement.description;
+    const detail = statement.docComment;
 
     const params =statement.parameters
       .filter((p): p is Identifier=>p.type=='Identifier')

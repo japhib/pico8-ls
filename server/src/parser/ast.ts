@@ -1,7 +1,7 @@
 import { ParseError } from './errors';
 import { BinaryExpression, CallExpression, Comment_, Expression, GeneralTableField, Identifier, Indexer,
   IndexExpression, Variable, Literal, LogicalExpression, MemberExpression, StringCallExpression, StringLiteral,
-  TableCallExpression, TableConstructorExpression, TableKey, TableKeyString, TableValue, UnaryExpression,
+  TableCallExpression, TableConstructorExpression, TableKey, TableKeyString, TableValue, UnaryExpression, DocComment,
 } from './expressions';
 import { AssignmentStatement, Block, BreakStatement, CallStatement, Chunk, DoStatement, ElseClause, ElseifClause,
   ForGenericStatement, ForNumericStatement, FunctionDeclaration, FunctionParameter, GeneralIfClause,
@@ -133,6 +133,7 @@ export default class AST {
     parameters: FunctionParameter[],
     isLocal: boolean,
     block: Block,
+    docComment?: string,
   ): FunctionDeclaration {
     return {
       type: 'FunctionDeclaration',
@@ -140,6 +141,7 @@ export default class AST {
       isLocal: isLocal,
       parameters: parameters,
       block: block,
+      docComment: docComment,
     };
   }
 
@@ -319,6 +321,22 @@ export default class AST {
   static comment(value: string, raw: string): Comment_ {
     return {
       type: 'Comment',
+      value: value,
+      raw: raw,
+    };
+  }
+
+  static longComment(value: string, raw: string): Comment_ {
+    return {
+      type: 'LongComment',
+      value: value,
+      raw: raw,
+    };
+  }
+
+  static docComment(value: string, raw: string): DocComment {
+    return {
+      type: 'DocComment',
       value: value,
       raw: raw,
     };

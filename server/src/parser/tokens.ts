@@ -20,4 +20,5 @@ export type Token = {
   type: TokenType,
   value: TokenValue,
   bounds: Bounds,
+  docComment?: string
 };

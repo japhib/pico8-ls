@@ -5,7 +5,7 @@ import {
   RepeatStatement, ReturnStatement, Statement, WhileStatement,
 } from './statements';
 import {
-  BinaryExpression, BooleanLiteral, CallExpression, Comment_, Expression, GeneralTableField,
+  BinaryExpression, BooleanLiteral, CallExpression, Comment_, DocComment, Expression, GeneralTableField,
   Identifier, IndexExpression, LogicalExpression, MemberExpression, NilLiteral, NumericLiteral,
   StringCallExpression, StringLiteral, TableCallExpression, TableConstructorExpression, TableKey,
   TableKeyString, TableValue, UnaryExpression, VarargLiteral, Whitespace,
@@ -126,7 +126,7 @@ export default class Formatter {
     // console.log(JSON.stringify(chunk.block.body));
   }
 
-  insertComment(comment: Comment_, body: ASTNode[], splice: boolean, canFail?: boolean): boolean {
+  insertComment(comment: Comment_ | DocComment, body: ASTNode[], splice: boolean, canFail?: boolean): boolean {
     // right now just scans from the beginning, could be way more efficient
     for (let i = 0; i < body.length; i++) {
       const currNode: ASTNode = body[i];
@@ -162,7 +162,7 @@ export default class Formatter {
     return true;
   }
 
-  insertCommentIntoNode(comment: Comment_, node: ASTNode) {
+  insertCommentIntoNode(comment: Comment_ | DocComment, node: ASTNode) {
     if (isStatementWithBody(node)) {
       // This comment is contained in the body of the current statement. Recurse into it.
       this.insertComment(comment, node.block.body, true);
@@ -710,7 +710,7 @@ export default class Formatter {
     return this.visitExpression(node.value);
   }
 
-  visitComment(node: Comment_): string {
+  visitComment(node: Comment_ | DocComment): string {
     return node.raw;
   }
 

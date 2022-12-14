@@ -190,7 +190,13 @@ export type Expression = TableConstructorExpression | BinaryExpression | Logical
   | Identifier | FunctionDeclaration;
 
 export type Comment_ = ASTNode & {
-  type: 'Comment',
+  type: 'Comment' | 'LongComment',
+  value: string,
+  raw: string,
+};
+
+export type DocComment = ASTNode & {
+  type: 'DocComment',
   value: string,
   raw: string,
 };

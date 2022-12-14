@@ -16,7 +16,7 @@ import { ParseError, Warning } from './parser/errors';
 import { Builtins, BuiltinFunctionInfo } from './parser/builtins';
 import { isIdentifierPart } from './parser/lexer';
 import ResolvedFile, { FileResolver, pathToFileURL } from './parser/file-resolver';
-import { Chunk, Include } from './parser/statements';
+import { Include } from './parser/statements';
 import Formatter from './parser/formatter';
 import {
   findProjects, getProjectFiles, iterateProject, ParsedDocumentsMap, Project, ProjectDocument, ProjectDocumentNode,
@@ -364,7 +364,7 @@ documents.onDidClose(e => documentSettings.delete(e.document.uri));
 // Text for open documents
 const documentTextCache: Map<string, TextDocument> = new Map<string, TextDocument>();
 // Symbols for open documents
-const documentSymbols: Map<string, DocumentSymbol[]> = new Map<string, DocumentSymbol[]>();
+const documentSymbols: Map<string, CodeSymbol[]> = new Map<string, CodeSymbol[]>();
 // Definition/Usages lookup table for open documents
 const documentDefUsage: Map<string, DefinitionsUsagesLookup> = new Map<string, DefinitionsUsagesLookup>();
 // Scopes, for lookup up symbols for auto-completion
@@ -475,8 +475,7 @@ function parseTextDocument(textDocument: TextDocument): ProjectDocument | undefi
     const { errors, symbols, includes } = chunk;
 
     // Set document info in caches
-    const symbolInfo: DocumentSymbol[] = symbols.map(sym => toDocumentSymbol(textDocument, sym));
-    documentSymbols.set(textDocument.uri, symbolInfo);
+    documentSymbols.set(textDocument.uri, symbols);
     documentIncludes.set(textDocument.uri, includes!);
 
     // send errors back to client immediately
@@ -491,7 +490,15 @@ function parseTextDocument(textDocument: TextDocument): ProjectDocument | undefi
 }
 
 connection.onDocumentSymbol((params: DocumentSymbolParams) => {
-  return documentSymbols.get(params.textDocument.uri);
+  const text = documentTextCache.get(params.textDocument.uri);
+  if (!text) {
+    return undefined;
+  }
+  const codeSymbols = documentSymbols.get(params.textDocument.uri);
+  if (!codeSymbols) {
+    return undefined;
+  }
+  return codeSymbols.map(sym => toDocumentSymbol(text, sym));
 });
 
 function getDefinitionsUsagesForPosition(params: TextDocumentPositionParams): DefinitionsUsages | undefined {
@@ -598,6 +605,21 @@ ${info.desc}
 ${info.params?.map(p => ` - ${p}`).join('\n')}`;
 }
 
+function toDocumentationMarkdownCS(symbol: CodeSymbol) : string {
+  if (!symbol.sig) {
+    return '';
+  }
+
+  return `## ${symbol.name}
+
+\`${symbol.sig}\`
+
+${symbol.detail}
+
+### Params:
+${symbol.params?.map(p => ` - ${p}`).join('\n')}`;
+}
+
 connection.onCompletionResolve((item: CompletionItem) => {
   const name = item.label;
 
@@ -606,12 +628,20 @@ connection.onCompletionResolve((item: CompletionItem) => {
     item.detail = info.sig;
     item.documentation = {
       kind: 'markdown',
-      value: toDocumentationMarkdown(name, info),
+      value: toDocumentationMarkdown('onCompletionResolve ' + name, info),
     };
     if (info.deprecated) {
       item.tags = [ CompletionItemTag.Deprecated ];
     }
+
+    return item;
   }
+
+  //TODO: Find the path to the symbol
+
+  //TODO: Find the symbol drilling down
+
+  //TODO: Return processed symbol
 
   return item;
 });
@@ -656,13 +686,73 @@ connection.onHover((params: HoverParams) => {
   }
   const identifier = identifierAtPosition(params.position.character, textOnLine);
 
+  // First check the built in functions
   const info = Builtins[identifier];
   if (info) {
     return {
-      contents: toDocumentationMarkdown(identifier, info),
+      contents: toDocumentationMarkdown('onHover ' + identifier, info),
     };
   }
+
+  // Otherwise check the symbols
+
+  //TODO: Traverse symbols to get to the correct scope, then
+  //travel upwards until you find the symbol needed
+  const docSymbols = documentSymbols.get(params.textDocument.uri);
+  if (!docSymbols || !docSymbols.length) {
+    return;
+  }
+
+  const GlobalCodeSymbol: CodeSymbol   = { name:'GLOBAL', sig:'', detail:undefined, loc:{} as Bounds, selectionLoc: {} as Bounds, type:CodeSymbolType.Function, children: docSymbols };
+  let scopeSymbol = drillDocSymbolsScope(params, { parent:undefined, symbol:GlobalCodeSymbol }, docSymbols);
+
+  if (scopeSymbol) {
+    while(scopeSymbol) {
+      const foundSymbol = scopeSymbol.symbol.children?.find(sym=>sym.name == identifier);
+      if (foundSymbol) {
+        return {
+          contents: toDocumentationMarkdownCS(foundSymbol),
+        };
+      }
+      scopeSymbol = scopeSymbol?.parent;
+    }
+  }
 });
+
+interface LinkedSymbol
+{
+  parent?: LinkedSymbol,
+  symbol: CodeSymbol
+}
+function drillDocSymbolsScope(params: TextDocumentPositionParams, parent?: LinkedSymbol, symbols?: CodeSymbol[]) : LinkedSymbol | undefined {
+  symbols = symbols || [];
+
+  for(const docSymbol of symbols) {
+    // make sure we skip symbold generated from include files
+    if (docSymbol.loc.start.filename.fileURL != params.textDocument.uri) {
+      continue;
+    }
+    // make sure the lines are within bounds
+    if (docSymbol.loc.start.line > params.position.line+1 || docSymbol.loc.end.line < params.position.line+1) {
+      continue;
+    }
+    // if position is on start line then check that the position is after the start char
+    if (docSymbol.loc.start.line == (params.position.line+1) && params.position.character < docSymbol.loc.start.column) {
+      continue;
+    }
+    // if position is on end line then check that the position is before the end char
+    if (docSymbol.loc.end.line == (params.position.line+1) && params.position.character > docSymbol.loc.end.column) {
+      continue;
+    }
+    const obj: LinkedSymbol = { parent: parent, symbol: docSymbol };
+    // drill if it has children that fit, otherwise return itself
+    const child = docSymbol.children ? drillDocSymbolsScope(params, obj, docSymbol.children) : undefined;
+
+    return child || obj;
+  }
+
+  return undefined;
+}
 
 connection.onSignatureHelp((params: SignatureHelpParams) => {
   const textOnLine = getTextOnLine(params.textDocument.uri, params.position);
@@ -698,7 +788,7 @@ connection.onSignatureHelp((params: SignatureHelpParams) => {
     label: info.sig,
     documentation: {
       kind: 'markdown',
-      value: toDocumentationMarkdown(identifier, info),
+      value: toDocumentationMarkdown('onSignatureHelp ' + identifier, info),
     },
     activeParameter: numCommas,
     parameters: info.params.map(p => {

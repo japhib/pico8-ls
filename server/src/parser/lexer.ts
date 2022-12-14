@@ -2,7 +2,7 @@ import AST from './ast';
 import { EncodingMode, encodingModes, EncodingModeType } from './encoding-modes';
 import * as errors from './errors';
 import { errMessages } from './errors';
-import { Comment_ } from './expressions';
+import { Comment_, DocComment } from './expressions';
 import ResolvedFile from './file-resolver';
 import { Token, TokenType, TokenValue } from './tokens';
 import { Bounds, CodeLocation } from './types';
@@ -42,7 +42,7 @@ export default class Lexer {
   // literal)
   tokenStartLineIdx: number = 0;
 
-  comments: Comment_[] = [];
+  comments: (Comment_ | DocComment)[] = [];
   lookahead: Token | undefined;
   previousToken: Token | undefined;
   token: Token | undefined;
@@ -194,11 +194,12 @@ export default class Lexer {
     };
   }
 
-  makeToken(type: TokenType, value: TokenValue): Token {
+  makeToken(type: TokenType, value: TokenValue, docComment?: string): Token {
     return {
       type: type,
       value: value,
       bounds: this.getCurrentBounds(),
+      docComment : docComment,
     };
   }
 
@@ -209,6 +210,9 @@ export default class Lexer {
 
     this.skipWhiteSpace();
 
+    let lastDocComment : Comment_ | DocComment | undefined = undefined;
+
+    const commentBlock : Comment_[] = [];
     while (
       // Skip comments beginning with --
       (45 === this.input.charCodeAt(this.index) && 45 === this.input.charCodeAt(this.index + 1))
@@ -216,9 +220,78 @@ export default class Lexer {
       || (47 === this.input.charCodeAt(this.index) && 47 === this.input.charCodeAt(this.index + 1))
     ) {
       const canBeLongComment = 45 === this.input.charCodeAt(this.index);
-      this.scanComment(canBeLongComment);
+      const node = this.scanComment(canBeLongComment);
+      commentBlock.push(node);
       this.skipWhiteSpace();
     }
+    if (commentBlock.length) {
+
+      //TODO: go through all comments and group any short comments together
+      /*
+        [
+          1: [node, node],
+          2: [node],
+          3: [node, node, node]
+        ]
+      */
+
+      const _groupedComments = commentBlock
+        .reduce((a:Comment_[][], c) :Comment_[][] => {
+          //start here if totally empty
+          if (!a.length) {
+            a.push([ c ]);
+            return a;
+          }
+
+          if (a[a.length-1][0].type == 'Comment' && c.type == 'Comment') {
+            // ok not empty so let's compare to last item and if they're both short
+            // comments, just add it to the inner array
+            a[a.length-1].push(c);
+          } else {
+            // other wise add as a root item
+            a.push([ c ]);
+          }
+
+          return a;
+        }, [])
+        .map((gc) : Comment_ | DocComment => {
+          // merge grouped nodes into single nodes and convert to DocComment where applicable
+          if (gc.length == 1) {
+            const isDocComment = gc[0].value.replace('\r\n', '\n').split('\n').every(line=>line.startsWith('-'));
+
+            if (isDocComment) {
+              const n = AST.docComment(gc[0].value, gc[0].raw); //rewrite as doccomment type
+              n.loc = gc[0].loc;
+              return n;
+            } else {
+              return gc[0]; // return the comment already defined
+            }
+          } else {
+            const value = gc.map(gc=>gc.value).join('\n');
+            const raw = gc.map(gc=>gc.raw).join('\n'); //TODO: Check if EOL chars are stored
+            const isDocComment = value.replace('\r\n', '\n').split('\n').every(line=>line.startsWith('-'));
+
+            if (isDocComment) {
+              const n = AST.docComment(value, raw); //rewrite as doccomment type
+              n.loc = { start: gc[0].loc!.start, end: gc[gc.length-1].loc!.end };
+              return n;
+            } else {
+              const n = AST.comment(value, raw); //rewrite as doccomment type
+              n.loc = { start: gc[0].loc!.start, end: gc[gc.length-1].loc!.end };
+              return n;
+            }
+          }
+        });
+
+      //TODO: add all comments to this.comments
+      _groupedComments.forEach(gc=>this.comments.push(gc));
+      //TODO: add the last comment "block" as the last doccomment
+      if (_groupedComments[_groupedComments.length-1].type == 'DocComment') {
+        lastDocComment = _groupedComments[_groupedComments.length-1];
+      }
+    }
+
+    console.log('lastDocComment', lastDocComment);
 
     if (this.index >= this.length) {
       return this.makeToken(TokenType.EOF, '<eof>');
@@ -232,7 +305,7 @@ export default class Lexer {
     this.tokenStartLine = this.line;
     this.tokenStartLineIdx = this.lineStart;
     if (isIdentifierStart(charCode)) {
-      return this.scanIdentifierOrKeyword();
+      return this.scanIdentifierOrKeyword(lastDocComment);
     }
 
     switch (charCode) {
@@ -417,7 +490,7 @@ export default class Lexer {
   // simply go through them one by one and defaulting to an identifier if no
   // previous case matched.
 
-  scanIdentifierOrKeyword(): Token {
+  scanIdentifierOrKeyword(lastDocComment?: Comment_ | DocComment): Token {
     let value, type;
 
     // Slicing the input string is prefered before string concatenation in a
@@ -445,7 +518,7 @@ export default class Lexer {
       type = TokenType.Identifier;
     }
 
-    return this.makeToken(type, value);
+    return this.makeToken(type, value, lastDocComment?.value);
   }
 
   // Once a punctuator reaches this function it should already have been
@@ -794,8 +867,12 @@ export default class Lexer {
       content = this.input.slice(commentStart, this.index);
     }
 
-    const node = AST.comment(content, this.input.slice(this.tokenStart, this.index));
-
+    let node = undefined;
+    if (isLong) {
+      node = AST.longComment(content, this.input.slice(this.tokenStart, this.index));
+    } else {
+      node = AST.comment(content, this.input.slice(this.tokenStart, this.index));
+    }
     // `Marker`s depend on tokens available in the parser and as comments are
     // intercepted in the lexer all location data is set manually.
     node.loc = {
@@ -812,7 +889,7 @@ export default class Lexer {
         filename: this.filename,
       },
     };
-    this.comments.push(node);
+    return node;
   }
 
   // Read a multiline string by calculating the depth of `=` characters and
