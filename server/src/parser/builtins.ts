@@ -34,6 +34,14 @@ export const Builtins: { [key: string]: BuiltinFunctionInfo } = {
       'color: A color to use for the background. The default is 0 (black).',
     ],
   },
+  reset: {
+    sig: 'reset( )',
+    desc: 'Reset the values in RAM from 0x5f00..0x5f7f to their default values. This includes the palette, camera position, clipping, and fill pattern.',
+  },
+  info: {
+    sig: 'info( )',
+    desc: 'Print out some information about the cartridge, including code size, tokens, and compressed size.',
+  },
   ovalfill: {
     sig: 'ovalfill( x0, y0, x1, y1, [col] )',
     desc: 'Draws a filled oval shape.',
