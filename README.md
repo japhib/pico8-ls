@@ -49,6 +49,10 @@ to understand how to develop VS Code language server extension.
 
 # Changelog
 
+## 0.4.9 (12/17/2022)
+
+- Add `reset` and `info` built-in function calls ([#36](https://github.com/japhib/pico8-ls/pull/36)) - thanks to [@miguno](https://github.com/miguno) for the contribution!
+
 ## 0.4.8 (9/23/2022)
 
 - Fixed snippets
