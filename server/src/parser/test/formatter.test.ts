@@ -385,7 +385,7 @@ call_some_func(
       eq(format(input), input);
     });
 
-    it('preserves comments inside deeply nested table/function declarations', () => {
+    it.skip('preserves comments inside deeply nested table/function declarations', () => {
       const input = `
 local player = {
   update = function (this)
