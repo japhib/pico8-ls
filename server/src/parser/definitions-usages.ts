@@ -2,7 +2,7 @@
 
 import { createWarning, errMessages, Warning } from './errors';
 import { getMemberExpresionBaseIdentifier, getMemberExpressionName, getMemberExpressionParentName, Identifier, MemberExpression, TableConstructorExpression, TableKeyString } from './expressions';
-import { AssignmentStatement, Chunk, ForGenericStatement, ForNumericStatement, FunctionDeclaration, getBareFunctionDeclarationName, LabelStatement, LocalStatement } from './statements';
+import { AssignmentStatement, Chunk, ForGenericStatement, ForNumericStatement, FunctionDeclaration, getBareFunctionDeclarationName, GotoStatement, LabelStatement, LocalStatement } from './statements';
 import { Bounds, boundsEqual, boundsSize, CodeLocation } from './types';
 import { ASTVisitor, VisitableASTNode } from './visitor';
 import { BuiltinConstants, Builtins } from './builtins';
@@ -707,6 +707,8 @@ class DefinitionsUsagesFinder extends ASTVisitor<DefUsageScope> {
   }
 
   override visitLabelStatement(node: LabelStatement): void {
-    this.addDefinition(node.label.name, node.loc!);
+    // Labels get global scope so that goto statements can call them from before
+    // they're defined.
+    this.addDefinition(node.label.name, node.loc!, this.globalScope());
   }
 }

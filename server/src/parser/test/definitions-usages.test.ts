@@ -570,5 +570,24 @@ end`;
       eq(usages[1].start.filename.path, 'main.p8');
     });
   });
+
+  it('doesn\'t error on a goto statement referencing a label that comes afterwards', () => {
+    const { errors, warnings } = parse(`
+-- Note this has to be wrapped in a function to trigger
+function some_fun()
+  for i=1,10 do
+    for j=1,10 do
+      if true then
+        goto outside
+      end
+    end
+  end
+  ::outside::
+end
+`.trim());
+
+    deepEquals(errors, []);
+    deepEquals(warnings, []);
+  });
 });
 
