@@ -7,16 +7,16 @@ import {
 } from 'vscode-languageserver/node';
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import Parser from './parser/parser';
-import { Bounds } from './parser/types';
+import { Bounds, boundsToString } from './parser/types';
 import { CodeSymbolType, CodeSymbol } from './parser/symbols';
 import {
   DefinitionsUsages, DefinitionsUsagesLookup, DefUsageScope, findDefinitionsUsages,
 } from './parser/definitions-usages';
-import { ParseError, Warning } from './parser/errors';
+import { isParseError, ParseError, Warning } from './parser/errors';
 import { Builtins, BuiltinFunctionInfo } from './parser/builtins';
 import { isIdentifierPart } from './parser/lexer';
 import ResolvedFile, { FileResolver, pathToFileURL } from './parser/file-resolver';
-import { Chunk, Include } from './parser/statements';
+import { Include } from './parser/statements';
 import Formatter from './parser/formatter';
 import {
   findProjects, getProjectFiles, iterateProject, ParsedDocumentsMap, Project, ProjectDocument, ProjectDocumentNode,
@@ -485,7 +485,12 @@ function parseTextDocument(textDocument: TextDocument): ProjectDocument | undefi
 
     return { textDocument, chunk, errors };
   } catch(e) {
-    console.error(e);
+    if (isParseError(e)) {
+      console.error(`ParseError: ${e.stack ? e.stack : e.message}\nBounds: ${boundsToString(e.bounds)}`);
+    } else {
+      console.error(e);
+    }
+
     return undefined;
   }
 }

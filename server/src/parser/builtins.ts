@@ -888,6 +888,7 @@ Builtins['?'] = Builtins.print;
 
 // The symbols you get by typing shift+A, etc all the way to shift+Z
 export const BuiltinConstants: Set<string> = new Set<string>([
+  '_ENV',
   '█',
   '▒',
   '🐱',

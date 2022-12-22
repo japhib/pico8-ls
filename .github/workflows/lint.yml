@@ -1,0 +1,11 @@
+name: Lint
+on: push
+jobs:
+  build:
+    runs-on: ubunut-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Install modules
+      run: npm install
+    - name: Run ESLint
+      run: eslint ./client/src ./server/src --ext .ts

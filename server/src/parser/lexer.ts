@@ -465,6 +465,7 @@ export default class Lexer {
   // Find the string literal by matching the delimiter marks used.
 
   scanStringLiteral(): Token {
+    // which quote, either single or double quote
     const delimiter = this.input.charCodeAt(this.index++);
 
     let stringStart = this.index;
@@ -739,18 +740,9 @@ export default class Lexer {
       return this.input.charAt(this.index++);
 
     // P8SCII control codes to ignore, see: https://pico-8.fandom.com/wiki/P8SCII
-    case '0':
-    case '1':
-    case '*':
-    case '#':
-    case '-':
-    case '|':
-    case '+':
-    case '^':
-    case 'a':
-    case 'b':
-    case 'v':
-    case 'f':
+    case '0': case '1': case '2': case '3': case '4': case '5': case '6': case '7':
+    case '8': case '9': case '*': case '#': case '-': case '|': case '+': case '^':
+    case 'a': case 'b': case 'v': case 'f':
       return this.input.charAt(this.index++);
     }
 

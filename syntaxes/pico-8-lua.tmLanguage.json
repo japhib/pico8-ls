@@ -286,6 +286,10 @@
           "name": "constant.character.escape.unicode.lua"
         },
         {
+          "match": "\\\\\\d{1,4}",
+          "name": "constant.character.escape.p8scii.number"
+        },
+        {
           "match": "\\\\.",
           "name": "invalid.illegal.character.escape.lua"
         }
