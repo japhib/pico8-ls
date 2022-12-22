@@ -49,6 +49,11 @@ to understand how to develop VS Code language server extension.
 
 # Changelog
 
+## 0.4.10 (12/22/2022)
+
+- Add snippets for pico-8 glyphs ([#30](https://github.com/japhib/pico8-ls/issues/30)) - thanks to [@mika76](https://github.com/mika76) for the contribution!
+- Fix for labels being marked undefined unless defined before goto ([#32](https://github.com/japhib/pico8-ls/issues/32))
+
 ## 0.4.9 (12/17/2022)
 
 - Add `reset` and `info` built-in function calls ([#36](https://github.com/japhib/pico8-ls/pull/36)) - thanks to [@miguno](https://github.com/miguno) for the contribution!
