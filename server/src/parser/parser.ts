@@ -407,9 +407,12 @@ export default class Parser {
       case 'local':    this.lexerNext(); return this.parseLocalStatement(flowContext);
       case 'if':       this.lexerNext(); return this.parseIfStatement(flowContext);
       case 'return':   this.lexerNext(); return this.parseReturnStatement(flowContext);
-      case 'function': this.lexerNext();
+      case 'function': {
+        const docComment = this.token.docComment;
+        this.lexerNext();
         const name = this.parseFunctionName();
-        return this.parseFunctionDeclaration(name, false);
+        return this.parseFunctionDeclaration(name, false, docComment);
+      }
       case 'while':    this.lexerNext(); return this.parseWhileStatement(flowContext);
       case 'for':      this.lexerNext(); return this.parseForStatement(flowContext);
       case 'repeat':   this.lexerNext(); return this.parseRepeatStatement(flowContext);
@@ -931,7 +934,7 @@ export default class Parser {
   //     funcdecl ::= '(' [parlist] ')' block 'end'
   //     parlist ::= Name {',' Name} | [',' '...'] | '...'
 
-  parseFunctionDeclaration(name: Identifier | MemberExpression | null, isLocal: boolean): FunctionDeclaration {
+  parseFunctionDeclaration(name: Identifier | MemberExpression | null, isLocal: boolean, docComment?: string): FunctionDeclaration {
     const flowContext = new FlowContext();
     flowContext.pushScope();
 
@@ -982,7 +985,7 @@ export default class Parser {
     this.destroyScope();
 
     isLocal = isLocal || false;
-    return this.finishNode(AST.functionStatement(name, parameters, isLocal, body));
+    return this.finishNode(AST.functionStatement(name, parameters, isLocal, body, docComment));
   }
 
   // Parse the name as identifiers and member expressions.

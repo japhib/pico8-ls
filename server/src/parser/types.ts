@@ -1,6 +1,6 @@
 import ResolvedFile from './file-resolver';
 import * as path from 'path';
-import { Comment_ } from './expressions';
+import { Comment_, DocComment } from './expressions';
 
 export type CodeLocation = {
   line: number,
@@ -93,5 +93,5 @@ export type ASTNode = {
   loc?: Bounds,
 
   // Any comments right before this node in the AST
-  comments?: Comment_[],
+  comments?: (Comment_ | DocComment)[],
 };

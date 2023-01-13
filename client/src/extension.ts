@@ -32,7 +32,7 @@ export function activate(context: ExtensionContext): void {
 
 // Get options for running Node language server
 function getServerOptions(context: ExtensionContext): ServerOptions {
-  const serverModule = context.asAbsolutePath(path.join('server', 'out-min', 'main.js'));
+  const serverModule = context.asAbsolutePath(path.join('server', 'out', 'server.js'));
 
   // --inspect=6009: runs the server in Node's Inspector mode so VS Code can attach to the server for debugging
   const debugOptions = {

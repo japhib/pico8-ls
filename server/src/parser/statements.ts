@@ -1,5 +1,5 @@
 import { ParseError } from './errors';
-import { Comment_, Expression, Identifier, VarargLiteral, Variable, MemberExpression, getMemberExpressionName, Whitespace } from './expressions';
+import { Comment_, Expression, Identifier, VarargLiteral, Variable, MemberExpression, getMemberExpressionName, Whitespace, DocComment } from './expressions';
 import ResolvedFile from './file-resolver';
 import { CodeSymbol } from './symbols';
 import { ASTNode } from './types';
@@ -118,6 +118,7 @@ export type FunctionDeclaration = ASTNode & {
   isLocal: boolean,
   parameters: FunctionParameter[],
   block: Block,
+  docComment?: string
 };
 
 export const AnonymousFunctionName = '<anonymous function>';
@@ -164,7 +165,7 @@ export type Chunk = {
   block: Block,
   errors: ParseError[],
   symbols: CodeSymbol[],
-  comments?: Comment_[],
+  comments?: (Comment_ | DocComment)[],
   globals?: Identifier[],
   includes?: Include[],
 };

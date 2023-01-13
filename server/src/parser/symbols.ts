@@ -1,19 +1,24 @@
 /* eslint-disable @typescript-eslint/no-unsafe-call */
 
 import { getMemberExpressionName, Identifier, MemberExpression, TableConstructorExpression, TableKeyString } from './expressions';
-import { AssignmentStatement, Chunk, ForGenericStatement, ForNumericStatement, FunctionDeclaration, getFunctionDeclarationName, LabelStatement, LocalStatement } from './statements';
+import { AssignmentStatement, Chunk, FunctionDeclaration, getFunctionDeclarationName, LabelStatement, LocalStatement } from './statements';
 import { Bounds } from './types';
 import { ASTVisitor } from './visitor';
 
 export enum CodeSymbolType {
   Function = 'Function',
   LocalVariable = 'LocalVariable',
+  LocalTable = 'LocalTable',
+  LocalArray = 'LocalArray',
   GlobalVariable = 'GlobalVariable',
+  GlobalTable = 'GlobalTable',
+  GlobalArray = 'GlobalArray',
   Label = 'Label',
 }
 
 export type CodeSymbol = {
   name: string,
+  sig: string,
   detail: string | undefined,
   type: CodeSymbolType,
 
@@ -28,6 +33,7 @@ export type CodeSymbol = {
   selectionLoc: Bounds,
 
   children: CodeSymbol[],
+  params?: string[]
 };
 
 export function findSymbols(chunk: Chunk): CodeSymbol[] {
@@ -43,6 +49,13 @@ class SymbolScope {
     this.parent = parent;
     this.self = self;
   }
+}
+
+enum VariableType {
+  Plain = 0,
+  Function = 1,
+  Table = 2,
+  Array = 3,
 }
 
 class SymbolFinder extends ASTVisitor<SymbolScope> {
@@ -87,19 +100,21 @@ class SymbolFinder extends ASTVisitor<SymbolScope> {
   }
 
   private addSymbol(name: string,
+    sig:string | undefined,
     detail: string | undefined,
     type: CodeSymbolType,
     loc: Bounds,
     selectionLoc: Bounds,
     addToLocalScope: boolean,
     parentOverride?: CodeSymbol,
+    params?:string[],
   ): CodeSymbol {
     if (!name) {
       // This is validated by the client and causes the whole request to fail
       throw new Error('name cannot be falsey! ' + JSON.stringify({ detail, type, loc }));
     }
 
-    const symbol: CodeSymbol = { name, detail, type, loc, selectionLoc, children: [] };
+    const symbol: CodeSymbol = { name, sig: sig ?? name, detail, type, loc, selectionLoc, children: [], params };
 
     const parent = parentOverride || this.getCurrentParent();
     if (parent && addToLocalScope) {
@@ -143,14 +158,25 @@ class SymbolFinder extends ASTVisitor<SymbolScope> {
         throw new Error('Unreachable');
       } // sanity check
     }
+    const name = getFunctionDeclarationName(statement);
+    const sig = name + this.getFunctionSignature(statement);
+    const detail = statement.docComment;
+
+    const params =statement.parameters
+      .filter((p): p is Identifier=>p.type=='Identifier')
+      .map(p => p.name);
 
     const sym = this.addSymbol(
-      getFunctionDeclarationName(statement),
-      this.getFunctionSignature(statement),
+      name,
+      sig,
+      detail,
       CodeSymbolType.Function,
       statement.loc!,
       statement.identifier ? statement.identifier.loc! : statement.loc!,
-      this.getCurrentParent() !== undefined);
+      this.getCurrentParent() !== undefined,
+      undefined,
+      params,
+    );
 
     return new SymbolScope(sym, self);
   }
@@ -187,18 +213,18 @@ class SymbolFinder extends ASTVisitor<SymbolScope> {
     return functionSignature;
   }
 
-  override visitIdentifier(node: Identifier): void {
-    // We only care about identifiers when they are the parameters of a function declaration.
-    if (this.topNode() && this.topNode().node.type === 'FunctionDeclaration') {
-      this.addSymbol(
-        node.name,
-        undefined,
-        CodeSymbolType.LocalVariable,
-        node.loc!,
-        node.loc!,
-        true);
-    }
-  }
+  // override visitIdentifier(node: Identifier): void {
+  //   // We only care about identifiers when they are the parameters of a function declaration.
+  //   if (this.topNode() && this.topNode().node.type === 'FunctionDeclaration') {
+  //     this.addSymbol(
+  //       node.name,
+  //       undefined,
+  //       CodeSymbolType.LocalVariable,
+  //       node.loc!,
+  //       node.loc!,
+  //       true);
+  //   }
+  // }
 
   override visitAssignmentStatement(statement: AssignmentStatement) {
     this.findSymbolsInAssignment(statement);
@@ -213,12 +239,27 @@ class SymbolFinder extends ASTVisitor<SymbolScope> {
       const variable = statement.variables[i];
 
       // check initializer to see if it's actually a function
-      const isFunction = statement.init[i] && statement.init[i].type === 'FunctionDeclaration';
+      let vtype = VariableType.Plain;
+
+      // isFunction
+      if (statement.init[i] && statement.init[i].type === 'FunctionDeclaration') {
+        vtype = VariableType.Function;
+      }
+      // isTable
+      if (statement.init[i] && statement.init[i].type === 'TableConstructorExpression') {
+        vtype = VariableType.Table;
+
+        // isArray
+        if ((<TableConstructorExpression>statement.init[i]).fields.length > 0
+          && (<TableConstructorExpression>statement.init[i]).fields.every(f => f.type === 'TableValue')) {
+          vtype = VariableType.Array;
+        }
+      }
 
       if (variable.type === 'Identifier') {
-        this.addSymbolForSimpleAssignment(variable, statement, isFunction);
+        this.addSymbolForSimpleAssignment(variable, statement, vtype);
       } else if (variable.type === 'MemberExpression') {
-        this.addSymbolForMemberExpressionAssignment(variable, statement as AssignmentStatement, isFunction);
+        this.addSymbolForMemberExpressionAssignment(variable, statement as AssignmentStatement, vtype);
       }
 
       // Else, no-op. Don't create symbols for stuff like:
@@ -226,20 +267,30 @@ class SymbolFinder extends ASTVisitor<SymbolScope> {
     }
   }
 
-  private addSymbolForSimpleAssignment(variable: Identifier, statement: AssignmentStatement | LocalStatement, isFunction: boolean) {
+  private addSymbolForSimpleAssignment(variable: Identifier, statement: AssignmentStatement | LocalStatement, variableType: VariableType) {
     const name = variable.name;
 
     const varLocal = statement.type === 'LocalStatement' || this.isSymbolInLocalScope(name);
-
     // Get variable type
     let varType = varLocal ? CodeSymbolType.LocalVariable : CodeSymbolType.GlobalVariable;
+    let varStr = varLocal ? '(local ' : '(global ';
     // override variable type if it's a function
-    if (isFunction) {
+    if (variableType == VariableType.Function) {
       varType = CodeSymbolType.Function;
+      varStr += 'function)';
+    } else if (variableType == VariableType.Table) {
+      varType = varLocal ? CodeSymbolType.LocalTable : CodeSymbolType.GlobalTable;
+      varStr += 'table)';
+    } else if (variableType == VariableType.Array) {
+      varType = varLocal ? CodeSymbolType.LocalArray : CodeSymbolType.GlobalArray;
+      varStr += 'array)';
+    } else {
+      varStr += 'variable)';
     }
 
     this.addSymbol(
       name,
+      `${varStr} ${name}`,
       undefined,
       varType,
       statement.loc!,
@@ -247,7 +298,7 @@ class SymbolFinder extends ASTVisitor<SymbolScope> {
       varLocal);
   }
 
-  private addSymbolForMemberExpressionAssignment(memberExpression: MemberExpression, statement: AssignmentStatement, isFunction: boolean) {
+  private addSymbolForMemberExpressionAssignment(memberExpression: MemberExpression, statement: AssignmentStatement, variableType: VariableType) {
     // Figure out what the base is so we can see if it's in local scope
     let baseName: string;
     let base = memberExpression.base;
@@ -272,22 +323,34 @@ class SymbolFinder extends ASTVisitor<SymbolScope> {
       symbolName = symbolName.replace(/\bself\b/, scopedSelf);
     }
 
-    const isLocal = this.isSymbolInLocalScope(baseName);
+    const varLocal = this.isSymbolInLocalScope(baseName);
 
     // Get variable type
-    let varType = isLocal ? CodeSymbolType.LocalVariable : CodeSymbolType.GlobalVariable;
+    let varType = varLocal ? CodeSymbolType.LocalVariable : CodeSymbolType.GlobalVariable;
     // override variable type if it's a function
-    if (isFunction) {
+    let varStr = varLocal ? '(local ' : '(global ';
+    // override variable type if it's a function
+    if (variableType == VariableType.Function) {
       varType = CodeSymbolType.Function;
+      varStr += 'function)';
+    } else if (variableType == VariableType.Table) {
+      varType = varLocal ? CodeSymbolType.LocalTable : CodeSymbolType.GlobalTable;
+      varStr += 'table)';
+    } else if (variableType == VariableType.Array) {
+      varType = varLocal ? CodeSymbolType.LocalArray : CodeSymbolType.GlobalArray;
+      varStr += 'array)';
+    } else {
+      varStr += 'variable)';
     }
 
     this.addSymbol(
       symbolName,
+      `${varStr} ${symbolName}`,
       undefined,
       varType,
       statement.loc!,
       memberExpression.loc!,
-      isLocal);
+      varLocal);
   }
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -308,43 +371,45 @@ class SymbolFinder extends ASTVisitor<SymbolScope> {
     this.addSymbol(
       node.key.name,
       undefined,
-      CodeSymbolType.LocalVariable,
-      node.loc!,
-      node.loc!,
-      true);
-  }
-
-  override visitForGenericStatement(node: ForGenericStatement): SymbolScope {
-    // Add symbols for variables created in the for statement
-    for (const variable of node.variables) {
-      this.addSymbol(
-        variable.name,
-        undefined,
-        CodeSymbolType.LocalVariable,
-        variable.loc!,
-        variable.loc!,
-        true);
-    }
-
-    return this.createDefaultScope();
-  }
-
-  override visitForNumericStatement(node: ForNumericStatement): SymbolScope {
-    // Add symbols for the variable created in the for statement
-    this.addSymbol(
-      node.variable.name,
       undefined,
       CodeSymbolType.LocalVariable,
-      node.variable.loc!,
-      node.variable.loc!,
+      node.loc!,
+      node.loc!,
       true);
-
-    return this.createDefaultScope();
   }
+
+  // override visitForGenericStatement(node: ForGenericStatement): SymbolScope {
+  //   // Add symbols for variables created in the for statement
+  //   for (const variable of node.variables) {
+  //     this.addSymbol(
+  //       variable.name,
+  //       undefined,
+  //       CodeSymbolType.LocalVariable,
+  //       variable.loc!,
+  //       variable.loc!,
+  //       true);
+  //   }
+
+  //   return this.createDefaultScope();
+  // }
+
+  // override visitForNumericStatement(node: ForNumericStatement): SymbolScope {
+  //   // Add symbols for the variable created in the for statement
+  //   this.addSymbol(
+  //     node.variable.name,
+  //     undefined,
+  //     CodeSymbolType.LocalVariable,
+  //     node.variable.loc!,
+  //     node.variable.loc!,
+  //     true);
+
+  //   return this.createDefaultScope();
+  // }
 
   override visitLabelStatement(node: LabelStatement): void {
     this.addSymbol(
       node.label.name,
+      undefined,
       undefined,
       CodeSymbolType.Label,
       node.loc!,
