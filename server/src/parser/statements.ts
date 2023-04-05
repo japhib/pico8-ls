@@ -154,7 +154,7 @@ export type StatementWithBody = WhileStatement | DoStatement
   | RepeatStatement | ForNumericStatement | ForGenericStatement | FunctionDeclaration | GeneralIfClause;
 
 export function isStatementWithBody(statement: any): statement is StatementWithBody {
-  return statement.block !== undefined;
+  return !!statement && statement.block !== undefined;
 }
 
 export type Include = { stmt: IncludeStatement, resolvedFile: ResolvedFile };

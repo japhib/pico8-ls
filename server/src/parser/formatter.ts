@@ -15,7 +15,6 @@ import { ASTNode, boundsCompare, BoundsCompareResult } from './types';
 import Operators from './operators';
 import * as util from 'util';
 import { isP8BeginningOfCodeSection, isP8EndOfCodeSection } from './lexer';
-import { logObj } from './util';
 
 export type FormatterOptions = {
   // Size of a tab in spaces.
@@ -43,7 +42,7 @@ export interface LSPosition {
 export type FormatResult = {
   formattedText: string,
   formattedRange: LSRange
-}
+};
 
 const defaultOptions: FormatterOptions = Object.freeze({
   tabSize: 2,
@@ -79,13 +78,18 @@ export default class Formatter {
   }
 
   formatChunk(chunk: Chunk, originalText: string, isPlainLuaFile: boolean): FormatResult | undefined {
+    if (chunk.errors.length > 0) {
+      console.error('can\'t format - errors are present!');
+      return undefined;
+    }
+
     let formatRange: LSRange;
     if (isPlainLuaFile) {
       // it's a lua file, format the whole thing
       formatRange = {
         start: { line: 0, character: 0 },
-        end: { line: Number.MAX_VALUE, character: 0 }  
-      }
+        end: { line: Number.MAX_VALUE, character: 0 },
+      };
     } else {
       // it's a p8 file w/ header & data sections
       const _formatRange = this.formatBoundsFromOriginalText(originalText);
@@ -113,13 +117,14 @@ export default class Formatter {
     return {
       formattedText: formatted,
       formattedRange: formatRange,
-    }
+    };
   }
 
   formatBoundsFromOriginalText(originalText: string): LSRange | undefined {
     const lines = originalText.split('\n').map(s => s.trim());
 
-    let startLine, endLine;
+    let startLine;
+    let endLine = Number.MAX_VALUE;
     let inLua = false;
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
@@ -139,16 +144,13 @@ export default class Formatter {
     }
 
     return {
-      start: { line: startLine as uinteger, character: 0 },
-      end: { line: endLine as uinteger, character: 0 }
-    }
+      start: { line: startLine, character: 0 },
+      end: { line: endLine as uinteger, character: 0 },
+    };
   }
 
   insertWhitespaceIntoBlock(block: Block): void {
     this.insertWhitespaceIntoArray(block.body);
-
-    console.log('result')
-    logObj(block);
   }
 
   insertWhitespaceIntoArray(body: (Statement | Expression)[]): void {
@@ -203,6 +205,10 @@ export default class Formatter {
   }
 
   maybeRecurseToInsertWhitespace(node: ASTNode): void {
+    if (!node) {
+      return;
+    }
+
     if (isStatementWithBody(node)) {
       this.insertWhitespaceIntoBlock(node.block);
       return;

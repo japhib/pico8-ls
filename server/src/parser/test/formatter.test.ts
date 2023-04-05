@@ -1,17 +1,38 @@
 import { deepEquals, getTestFileContents, parse } from './test-utils';
 import { strictEqual as eq } from 'assert';
-import Formatter from '../formatter';
-import structuredClone from '@ungap/structured-clone';
+import Formatter, { FormatResult } from '../formatter';
 
 function formatLua(text: string): string {
   const chunk = parse(text);
+
+  // should be no errors
+  deepEquals(chunk.errors, []);
+
   const formatter = new Formatter();
   const result = formatter.formatChunk(chunk, text, true);
   return result!.formattedText;
 }
 
+function formatRaw(text: string, isPlainLuaFile: boolean): FormatResult | undefined {
+  const chunk = parse(text);
+
+  // should be no errors
+  deepEquals(chunk.errors, []);
+
+  const formatter = new Formatter();
+  const result = formatter.formatChunk(chunk, text, isPlainLuaFile);
+  return result;
+}
+
 // TODO: add a test for `opts = opts or {}` to not add parentheses around `{}`
 describe('Formatter', () => {
+  it('declines to format chunk when errors present', () => {
+    const text = 'a b c';
+    const chunk = parse(text);
+    const formatter = new Formatter();
+    eq(formatter.formatChunk(chunk, text, true), undefined);
+  });
+
   describe('Formats entire files', () => {
     // TODO: write proper tests for the final implementation
     it.skip('formats low.p8', () => {
@@ -415,7 +436,7 @@ local player = {
     });
   });
 
-  describe.only('preserve single blank lines', () => {
+  describe('preserve single blank lines', () => {
     it('keeps single blank lines between lines with code', () => {
       const input = `
 local a = "aaa"
@@ -450,10 +471,10 @@ end`.trim();
       eq(formatLua(input), input);
     });
 
-    it.only('keeps single blank lines within a function returned from another function', () => {
+    it('keeps single blank lines within a function returned from another function', () => {
       const input = `
 function f1()
-  return function f2()
+  return function()
     local a = 'aaa'
 
     -- some comment
@@ -495,4 +516,75 @@ local b = "bbb"
 local x, y = 111, 222`.trim());
     });
   });
+
+  describe.only('Range returned by formatter', () => {
+    it('is correct for lua files', () => {
+      const text = `
+function a()
+  print('hi!')
+end
+
+a()
+`.trim();
+      const result = formatRaw(text, true);
+      deepEquals(result!.formattedRange, {
+        start: { line: 0, character: 0 },
+        end: { line: Number.MAX_VALUE, character: 0 }
+      })
+    })
+
+    it('is correct for pico-8 files', () => {
+      const text = `
+pico-8 cartridge // http://www.pico-8.com
+version 29
+__lua__
+
+function a()
+  print('hi!')
+end
+
+a()
+
+__gfx__
+000000000000000000000000
+000000000000000000000000
+`.trim();
+      const result = formatRaw(text, false);
+      deepEquals(result!.formattedRange, {
+        start: { line: 3, character: 0 },
+        end: { line: 10, character: 0 }
+      })
+    })
+
+    it('is correct for pico-8 files lacking end tag', () => {
+      const text = `
+pico-8 cartridge // http://www.pico-8.com
+version 29
+__lua__
+
+function a()
+  print('hi!')
+end
+
+a()
+`.trim();
+      const result = formatRaw(text, false);
+      deepEquals(result!.formattedRange, {
+        start: { line: 3, character: 0 },
+        end: { line: Number.MAX_VALUE, character: 0 }
+      })
+    })
+
+    it('declines to format pico-8 files lacking lua code section', () => {
+      const text = `
+pico-8 cartridge // http://www.pico-8.com
+version 29
+__gfx__
+000000000000000000000000
+000000000000000000000000
+`.trim();
+      const result = formatRaw(text, false);
+      eq(result, undefined);
+    })
+  })
 });

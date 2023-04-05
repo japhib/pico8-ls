@@ -128,7 +128,7 @@ function _deepEqualsArray(actual: any[], expected: any[], currLocStr: string, op
 function _deepEqualsObject(actual: any, expected: any, currLocStr: string, options: DeepEqualsOptions): DeepEqualsResult {
   const keysToCheck = Object.keys(expected).filter(key => !(options.objectKeyOmitFn?.(key)));
   for (const key of keysToCheck) {
-    const subResult = _deepEquals(actual[key], expected[key], `${currLocStr}.${key}`, options);
+    const subResult = _deepEquals(actual && actual[key], expected[key], `${currLocStr}.${key}`, options);
     if (!subResult.matches) {
       return subResult;
     }

@@ -721,7 +721,7 @@ connection.onSignatureHelp((params: SignatureHelpParams) => {
   };
 });
 
-const formatterSupportedLanguages = ['pico-8', 'pico-8-lua'];
+const formatterSupportedLanguages = [ 'pico-8', 'pico-8-lua' ];
 
 connection.onDocumentFormatting((params: DocumentFormattingParams) => {
   const textDocument = documentTextCache.get(params.textDocument.uri);

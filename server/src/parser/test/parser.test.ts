@@ -112,6 +112,61 @@ describe('Parser', () => {
     });
   });
 
+  it('parses function that returns another function', () => {
+    const { block } = parse(`
+function f(x)
+  return function()
+    print(x + 1)
+  end
+end
+`.trim());
+
+    deepEquals(block, {
+      type: 'Block',
+      body: [{
+        type: 'FunctionDeclaration',
+        isLocal: false,
+        identifier: {
+          type: 'Identifier',
+          name: 'f',
+          loc: bounds(1, 9, 1, 10),
+        },
+        parameters: [{
+          type: 'Identifier',
+          name: 'x',
+          loc: bounds(1, 11, 1, 12),
+        }],
+        block: {
+          type: 'Block',
+          body: [{
+            type: 'ReturnStatement',
+            arguments: [{
+              type: 'FunctionDeclaration',
+              isLocal: false,
+              parameters: [],
+              block: {
+                type: 'Block',
+                body: [{
+                  type: 'CallStatement',
+                  expression: {
+                    type: 'CallExpression',
+                    base: { type: 'Identifier', name: 'print' },
+                    arguments: [{
+                      type: 'BinaryExpression',
+                      operator: '+',
+                      left: { type: 'Identifier', name: 'x' },
+                      right: { type: 'NumericLiteral', value: 1 },
+                    }],
+                  },
+                }],
+              },
+            }],
+          }],
+        },
+      }],
+    });
+  });
+
   it('parses function declaration with multiple args', () => {
     deepEqualsAST('function fn(x, y, z) return end', [{
       type: 'FunctionDeclaration',
@@ -256,11 +311,13 @@ end`.trim();
     const { block: { body }, errors } = parse('?"hi"');
     deepEquals(errors, []);
     deepEquals(body, [
-      { type: 'CallStatement', expression: {
-        type: 'CallExpression',
-        base: { type: 'Identifier', name: '?' },
-        arguments: [{ type: 'StringLiteral', value: 'hi' }],
-      } },
+      {
+        type: 'CallStatement', expression: {
+          type: 'CallExpression',
+          base: { type: 'Identifier', name: '?' },
+          arguments: [{ type: 'StringLiteral', value: 'hi' }],
+        },
+      },
     ]);
   });
 
@@ -455,18 +512,20 @@ end`;
   it('parses a complicated member expression', () => {
     const { block: { body } } = parse('getInstance().field = "blah"');
     deepEquals(body, [
-      { type: 'AssignmentStatement', variables: [
-        {
-          type: 'MemberExpression',
-          base: {
-            type: 'CallExpression',
-            base: { type: 'Identifier', name: 'getInstance' },
-            arguments: [],
+      {
+        type: 'AssignmentStatement', variables: [
+          {
+            type: 'MemberExpression',
+            base: {
+              type: 'CallExpression',
+              base: { type: 'Identifier', name: 'getInstance' },
+              arguments: [],
+            },
+            indexer: '.',
+            identifier: { type: 'Identifier', name: 'field' },
           },
-          indexer: '.',
-          identifier: { type: 'Identifier', name: 'field' },
-        },
-      ], init: [{ type: 'StringLiteral', value: 'blah' }] },
+        ], init: [{ type: 'StringLiteral', value: 'blah' }],
+      },
     ]);
   });
 
