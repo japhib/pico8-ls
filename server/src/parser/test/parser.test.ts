@@ -199,7 +199,7 @@ object.remainder_y = 0;
 `.trim();
     const result = parse(text);
     deepEquals(result.errors, []);
-  })
+  });
 
   it('parses call statement', () => {
     deepEqualsAST('print("hi")', [{

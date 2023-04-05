@@ -9,7 +9,7 @@
 
 export default class Operators {
 
-  static fakeMaxPrecedenceOperator = ';';
+  static fakeMaxPrecedenceOperator = '\x01';
   static maxPrecedenceValue = 99;
   static minPrecedenceValue = 0;
 
@@ -19,7 +19,7 @@ export default class Operators {
 
     if (1 === length) {
       switch (charCode) {
-      case 59: return Operators.maxPrecedenceValue; // # (fake one, a "guard")
+      case 1: return Operators.maxPrecedenceValue; // (fake one, a "guard")
       case 94: return 12; // ^ (exponentiation)
       case 42: case 47: case 37: case 92: return 10; // * / % \
       case 43: case 45: return 9; // + -
