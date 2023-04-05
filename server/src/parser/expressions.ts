@@ -59,10 +59,11 @@ export type TableValue = ASTNode & {
   value: Expression,
 };
 
-export type GeneralTableField = TableKey | TableKeyString | TableValue;
+export type GeneralTableField = TableKey | TableKeyString | TableValue | Whitespace;
+export type GeneralTableField_NoWhitespace = TableKey | TableKeyString | TableValue;
 
 const generalTableFieldTypes = Object.freeze([ 'TableKey', 'TableKeyString', 'TableValue' ]);
-export function isGeneralTableField(node: ASTNode): node is GeneralTableField {
+export function isGeneralTableField(node: ASTNode): node is GeneralTableField_NoWhitespace {
   return node && generalTableFieldTypes.includes(node.type);
 }
 

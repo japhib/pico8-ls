@@ -284,7 +284,7 @@ local a = {
    some purpose:]]
   some_key = 111,
   -- some_key = 222,
-  another_key = 333,
+  another_key = 333
   -- another_key = 444,
 }
 -- comment after a table constructor`.trim();
@@ -453,12 +453,12 @@ local player = {
           -- which, incredibly, has ANOTHER nested table inside of it
           incremented = a + 1
         }
-      end,
+      end
       -- last comment
     }
 
     -- comment at end of function
-  end,
+  end
   -- comment at end of table
 }`.trim();
       eq(formatLua(input), input);
@@ -527,6 +527,35 @@ if true then
 
   printh("inside if statement")
 end`.trim();
+      eq(formatLua(input), input);
+    });
+
+    it('preserves blank lines inside a table constructor', () => {
+      const input = `
+camera_modes = {
+  -- 1: Intro
+  function(px, py)
+    if px < 42 then
+      camera_target_x = 0
+    else
+      camera_target_x = max(40, min(level.width * 8 - 128, px - 48))
+    end
+  end,
+
+  -- 2: Intro 2
+  function(px, py)
+    if px < 120 then
+      camera_target_x = 0
+    end
+  end,
+
+  other_key = 'blah',
+
+  -- last stuff
+  [hi] = 123
+  -- trailing comment
+}`.trim();
+
       eq(formatLua(input), input);
     });
 

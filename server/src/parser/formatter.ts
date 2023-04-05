@@ -164,7 +164,7 @@ export default class Formatter {
     this.insertWhitespaceIntoArray(block.body);
   }
 
-  insertWhitespaceIntoArray(body: (Statement | Expression)[]): void {
+  insertWhitespaceIntoArray(body: (Statement | Expression | GeneralTableField)[]): void {
     let prevStatement = body[0];
 
     for (let i = 1; i < body.length; i++) {
@@ -263,7 +263,7 @@ export default class Formatter {
         return;
 
       case 'TableConstructorExpression':
-        (node as TableConstructorExpression).fields.forEach(field => this.maybeRecurseToInsertWhitespace(field));
+        this.insertWhitespaceIntoArray((node as TableConstructorExpression).fields);
         return;
     }
   }
@@ -499,6 +499,7 @@ export default class Formatter {
       case 'TableKeyString': ret += this.visitTableKeyString(node); break;
       case 'TableValue': ret += this.visitTableValue(node); break;
       case 'Comment': ret += this.visitComment(node); break;
+      case 'Whitespace': ret += this.visitWhitespace(node); break;
       default: throw new Error('Unexpected table field type: ' + (node as any).type);
     }
 
@@ -839,14 +840,30 @@ export default class Formatter {
           this.increaseDepth();
         }
 
-        let first = true;
-        for (const f of node.fields) {
-          if (!first) {
-            ret += ',' + (multiline ? '' : ' ');
-          }
-          first = false;
+        let preCommaSlice = null;
+        let removeCommaIfOnlyWhitespace = false;
+        for (let i = 0; i < node.fields.length; i++) {
+          const f = node.fields[i];
           ret += newlineFunc();
           ret += this.visitGeneralTableField(f);
+
+          if (f.type !== 'Whitespace' && (f as any).type !== 'Comment') {
+            // Flag that helps us to remove a trailing comma if there's whitespace/commas afterwards
+            removeCommaIfOnlyWhitespace = false;
+          }
+
+          const isLast = i === node.fields.length - 1;
+          if (!isLast && f.type !== 'Whitespace') {
+            const toAdd = ',' + (multiline ? '' : ' ');
+            // Save location of this last comma, so we can slice it out later if needed
+            preCommaSlice = [ret.length, ret.length + toAdd.length];
+            removeCommaIfOnlyWhitespace = true;
+            ret += toAdd;
+          }
+        }
+
+        if (removeCommaIfOnlyWhitespace) {
+          ret = ret.slice(0, preCommaSlice![0]) + ret.slice(preCommaSlice![1]);
         }
 
         if (multiline) {
