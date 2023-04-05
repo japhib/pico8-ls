@@ -3,11 +3,11 @@ import * as path from 'path';
 import * as util from 'util';
 import { fail } from 'assert';
 import Lexer from '../lexer';
-import Parser from '../parser';
+import Parser, { ParserOptions } from '../parser';
 import { Token, TokenType, TokenValue } from '../tokens';
 import { Bounds } from '../types';
 import ResolvedFile, { FileResolver } from '../file-resolver';
-import { DefinitionsUsagesResult, DefUsageScope, findDefinitionsUsages } from '../definitions-usages';
+import { DefinitionsUsagesResult, DefsUsagesOptions, DefUsageScope, findDefinitionsUsages } from '../definitions-usages';
 import { Chunk } from '../statements';
 
 export function getTestFileContents(filename: string): string {
@@ -28,16 +28,12 @@ export function getLexedTokens(input: string): Token[] {
   return tokens;
 }
 
-export function parse(
-  input: string,
-  dontAddGlobalSymbols?: boolean,
-  includeFileResolver?: FileResolver,
-  injectedGlobalScope?: DefUsageScope,
-  filename?: string,
-): Chunk & DefinitionsUsagesResult {
-  filename = filename || 'main_test_file';
-  const chunk = new Parser(new ResolvedFile(filename, filename), input, includeFileResolver, dontAddGlobalSymbols).parseChunk();
-  const defUsResult = findDefinitionsUsages(chunk, dontAddGlobalSymbols, injectedGlobalScope);
+export type TestParseOptions = ParserOptions & DefsUsagesOptions & { filename?: string }
+
+export function parse(input: string, opts: TestParseOptions = {}): Chunk & DefinitionsUsagesResult {
+  const filename = opts?.filename || 'main_test_file';
+  const chunk = new Parser(new ResolvedFile(filename, filename), input, opts).parseChunk();
+  const defUsResult = findDefinitionsUsages(chunk, opts);
   return {
     ...chunk,
     ...defUsResult,
@@ -187,5 +183,27 @@ export class MockFileResolver implements FileResolver {
 
   private defaultLoadFileContents(_filepath: string): string {
     return '';
+  }
+}
+
+type FilesystemMap = { [filename: string]: string };
+
+export class TestFilesResolver implements FileResolver {
+  files: FilesystemMap;
+
+  constructor(files: FilesystemMap) {
+    this.files = files;
+  }
+
+  doesFileExist(filepath: string): boolean {
+    return !!this.files[filepath];
+  }
+
+  isFile(filepath: string): boolean {
+    return !!this.files[filepath];
+  }
+
+  loadFileContents(filepath: string): string {
+    return this.files[filepath];
   }
 }

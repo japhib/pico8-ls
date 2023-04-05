@@ -186,6 +186,21 @@ end
     }]);
   });
 
+  it('parses statements ending in semicolon', () => {
+    // This is a snippet from Celeste 2 that gave some parser issues. Semicolons
+    // are supposed to be fine ... idk why PICO-8 allows them exactly but they
+    // shouldn't mess up parsing.
+    const text = `
+object = {}
+object.speed_x = 0;
+object.speed_y = 0;
+object.remainder_x = 0;
+object.remainder_y = 0;
+`.trim();
+    const result = parse(text);
+    deepEquals(result.errors, []);
+  })
+
   it('parses call statement', () => {
     deepEqualsAST('print("hi")', [{
       type: 'CallStatement',
@@ -603,16 +618,16 @@ __gfx__
       const fileResolver = new MockFileResolver();
       fileResolver.loadFileContents = () => 'local a = 1';
 
-      const { block: { body }, errors } = parse('#include other_file.lua', false, fileResolver);
+      const { block: { body }, errors } = parse('#include other_file.lua', { includeFileResolver: fileResolver });
       deepEquals(errors, []);
-      deepEquals(body, [{ type: 'LocalStatement' }]);
+      deepEquals(body, [{ type: 'IncludeStatement' }, { type: 'LocalStatement' }]);
     });
 
     it('returns error when include statement refers to a file that doesn\'t exist', () => {
       const fileResolver = new MockFileResolver();
       fileResolver.doesFileExist = () => false;
 
-      const { errors } = parse('#include other_file.lua', false, fileResolver);
+      const { errors } = parse('#include other_file.lua', { includeFileResolver: fileResolver });
       deepEquals(errors, [{ type: 'ParseError' }]);
     });
 
@@ -620,7 +635,7 @@ __gfx__
       const fileResolver = new MockFileResolver();
       fileResolver.isFile = () => false;
 
-      const { errors } = parse('#include other_file.lua', false, fileResolver);
+      const { errors } = parse('#include other_file.lua', { includeFileResolver: fileResolver });
       deepEquals(errors, [{ type: 'ParseError' }]);
     });
 
@@ -638,16 +653,16 @@ __gfx__
       const fileResolver = new MockFileResolver();
       fileResolver.loadFileContents = () => 'a';
 
-      const { block: { body }, errors } = parse('#include other_file.lua\n= 1', false, fileResolver);
+      const { block: { body }, errors } = parse('#include other_file.lua\n= 1', { includeFileResolver: fileResolver });
       deepEquals(errors, []);
-      deepEquals(body, [{ type: 'AssignmentStatement' }]);
+      deepEquals(body, [{ type: 'IncludeStatement' }, { type: 'AssignmentStatement' }]);
     });
 
     it('contains no warnings for symbols defined in included files', () => {
       const fileResolver = new MockFileResolver();
       fileResolver.loadFileContents = () => 'local a = 5';
 
-      const { errors, warnings } = parse('#include other_file.lua \n print(a)', false, fileResolver);
+      const { errors, warnings } = parse('#include other_file.lua \n print(a)', { includeFileResolver: fileResolver });
       deepEquals(errors, []);
       deepEquals(warnings, []);
     });

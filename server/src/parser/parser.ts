@@ -49,6 +49,11 @@ import Operators from './operators';
 
 export type Scope = string[];
 
+export type ParserOptions = {
+  dontAddGlobalSymbols?: boolean,
+  includeFileResolver?: FileResolver,
+}
+
 export default class Parser {
   includeFileResolver: FileResolver;
 
@@ -87,9 +92,9 @@ export default class Parser {
   includes: Include[] = [];
 
   // eslint-disable-next-line @typescript-eslint/ban-types
-  constructor(filename: ResolvedFile, input: string, includeFileResolver?: FileResolver, dontAddGlobalSymbols?: boolean) {
-    this.includeFileResolver = includeFileResolver || new RealFileResolver();
-    this.dontAddGlobalSymbols = !!dontAddGlobalSymbols;
+  constructor(filename: ResolvedFile, input: string, options: ParserOptions = {}) {
+    this.includeFileResolver = options?.includeFileResolver || new RealFileResolver();
+    this.dontAddGlobalSymbols = !!options?.dontAddGlobalSymbols;
 
     this.lexerStack = [{
       lexer: new Lexer(input, filename),
@@ -135,7 +140,7 @@ export default class Parser {
   // -----------------
 
   // Wrap up the node object.
-  finishNode<T>(node: T, greedy?: boolean): T {
+  finishNode<T extends ASTNode>(node: T, greedy?: boolean): T {
     // Pop a `Marker` off the location-array and attach its location data.
     const location = this.popLocation();
 
@@ -151,6 +156,9 @@ export default class Parser {
       location.complete(endingToken.bounds.end);
       location.bless(node as any as ASTNode);
     }
+
+    node.included = this.isInIncludedFile();
+
     return node;
   }
 
@@ -304,6 +312,9 @@ export default class Parser {
           if (this.lexerStack.some(l => l.lexer.filename.equals(resolvedInclude))) {
             this.errors.push(this.getIncludeStatementError(statement, 'Circular #includes detected!'));
           } else {
+            // Push include statement on there
+            block.push(statement);
+            
             // Load the file
             this.includeFile(statement, resolvedInclude);
           }

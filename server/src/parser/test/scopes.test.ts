@@ -24,7 +24,7 @@ end
 
 function fn2()
 end`;
-    const { scopes } = parse(code, true);
+    const { scopes } = parse(code, { dontAddGlobalSymbols: true });
     deepEquals(scopes, {
       type: DefUsagesScopeType.Global,
       children: [
@@ -60,7 +60,7 @@ end
 function fn2()
   local d
 end`;
-    const { scopes } = parse(code, true);
+    const { scopes } = parse(code, { dontAddGlobalSymbols: true });
     // Lookup symbols inside first function call
     deepEquals(scopes?.lookupScopeFor(codeLoc(3, 2)).allSymbols(), [ 'b', 'a', 'fn', 'fn2' ]);
     // Lookup scope inside while loop

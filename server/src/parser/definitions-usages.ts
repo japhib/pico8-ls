@@ -108,8 +108,13 @@ export class DefinitionsUsagesLookup {
   }
 }
 
-export function findDefinitionsUsages(chunk: Chunk, dontAddGlobalSymbols?: boolean, injectedGlobalScope?: DefUsageScope): DefinitionsUsagesResult {
-  return new DefinitionsUsagesFinder(chunk, dontAddGlobalSymbols, injectedGlobalScope).findDefinitionsUsages();
+export type DefsUsagesOptions = {
+  dontAddGlobalSymbols?: boolean,
+  injectedGlobalScope?: DefUsageScope
+}
+
+export function findDefinitionsUsages(chunk: Chunk, opts: DefsUsagesOptions = {}): DefinitionsUsagesResult {
+  return new DefinitionsUsagesFinder(chunk, opts).findDefinitionsUsages();
 }
 
 export enum DefUsagesScopeType {
@@ -238,11 +243,11 @@ class DefinitionsUsagesFinder extends ASTVisitor<DefUsageScope> {
   // is #include'd by another file)
   injectedGlobalScope: DefUsageScope | undefined;
 
-  constructor(chunk: Chunk, dontAddGlobalSymbols?: boolean, injectedGlobalScope?: DefUsageScope) {
+  constructor(chunk: Chunk, opts: DefsUsagesOptions = {}) {
     super();
     this.chunk = chunk;
-    this.dontAddGlobalSymbols = !!dontAddGlobalSymbols;
-    this.injectedGlobalScope = injectedGlobalScope;
+    this.dontAddGlobalSymbols = !!opts.dontAddGlobalSymbols;
+    this.injectedGlobalScope = opts.injectedGlobalScope;
   }
 
   // External entry point

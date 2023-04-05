@@ -192,7 +192,7 @@ export type StringCallExpression = ASTNode & {
 
 export type Expression = TableConstructorExpression | BinaryExpression | LogicalExpression | UnaryExpression
   | MemberExpression | IndexExpression | CallExpression | TableCallExpression | StringCallExpression | Literal
-  | Identifier | FunctionDeclaration;
+  | Identifier | FunctionDeclaration | Whitespace;
 
 export type Comment_ = ASTNode & {
   type: 'Comment',

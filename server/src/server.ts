@@ -264,7 +264,7 @@ function refreshNodeContents(node: ProjectDocumentNode) {
 function processDefUsages(document: ProjectDocument, injectedGlobalScope?: DefUsageScope) {
   try {
     const uri = document.textDocument.uri;
-    const { warnings, definitionsUsages, scopes } = findDefinitionsUsages(document.chunk, false, injectedGlobalScope);
+    const { warnings, definitionsUsages, scopes } = findDefinitionsUsages(document.chunk, { injectedGlobalScope });
 
     // set some stuff in lookup tables
     documentDefUsage.set(uri, definitionsUsages);
@@ -469,7 +469,7 @@ function parseTextDocument(textDocument: TextDocument): ProjectDocument | undefi
     // parse document
     const text = textDocument.getText();
     documentTextCache.set(textDocument.uri, textDocument);
-    const parser = new Parser(ResolvedFile.fromFileURL(textDocument.uri), text, fileResolver);
+    const parser = new Parser(ResolvedFile.fromFileURL(textDocument.uri), text, { includeFileResolver: fileResolver });
     const chunk = parser.parse();
     const { errors, symbols, includes } = chunk;
 
@@ -741,7 +741,6 @@ connection.onDocumentFormatting((params: DocumentFormattingParams) => {
     console.error(`Can't format document when there are parsing errors! (document: "${textDocument.uri}"`);
     return null;
   }
-  parsedDocuments.set(textDocument.uri, parsedDocument);
 
   // Actually format it
   const formatResult = new Formatter(params.options).formatChunk(parsedDocument.chunk, textDocument.getText(), textDocument.languageId === 'pico-8-lua');

@@ -92,7 +92,7 @@ function do_the_thing() print('hi') end`;
 
     // lookup on the `a` in `b = a`
     const { definitions, usages } = definitionsUsages.lookup(2, 4)!;
-    deepEquals(definitions, [ bounds(1, 6, 1, 7) ]);
+    deepEquals(definitions, [bounds(1, 6, 1, 7)]);
     deepEquals(usages, [
       bounds(1, 6, 1, 7),
       bounds(2, 4, 2, 5),
@@ -152,8 +152,8 @@ end`);
 
     // Find defs/usages of x
     const { definitions, usages } = definitionsUsages.lookup(1, 17)!;
-    deepEquals(definitions, [ bounds(1, 17, 1, 18) ]);
-    deepEquals(usages, [ bounds(1, 17, 1, 18), bounds(2, 8, 2, 9) ]);
+    deepEquals(definitions, [bounds(1, 17, 1, 18)]);
+    deepEquals(usages, [bounds(1, 17, 1, 18), bounds(2, 8, 2, 9)]);
   });
 
   it('find definition/usages for function parameters assigned to member expression', () => {
@@ -165,8 +165,8 @@ end`);
 
     // Find defs/usages of x
     const { definitions, usages } = definitionsUsages.lookup(1, 15)!;
-    deepEquals(definitions, [ bounds(1, 15, 1, 16) ]);
-    deepEquals(usages, [ bounds(1, 15, 1, 16), bounds(2, 13, 2, 14) ]);
+    deepEquals(definitions, [bounds(1, 15, 1, 16)]);
+    deepEquals(usages, [bounds(1, 15, 1, 16), bounds(2, 13, 2, 14)]);
   });
 
   describe('member expressions', () => {
@@ -179,7 +179,7 @@ end`);
       // Find defs/usages of a
       {
         const { definitions, usages } = definitionsUsages.lookup(1, 0)!;
-        deepEquals(definitions, [ bounds(1, 0, 1, 1) ]);
+        deepEquals(definitions, [bounds(1, 0, 1, 1)]);
         deepEquals(usages, [
           // a = {}
           bounds(1, 0, 1, 1),
@@ -191,18 +191,18 @@ end`);
         // Go to definition from the other locations of a.
         // Make sure to do "go to definition" from the 'a' part of the member expressions 'a.b',
         // so it takes you to the definition of 'a'.
-        deepEquals(getDefinitions(definitionsUsages, 1, 0), [ bounds(1, 0, 1, 1) ]);
-        deepEquals(getDefinitions(definitionsUsages, 1, 1), [ bounds(1, 0, 1, 1) ]);
-        deepEquals(getDefinitions(definitionsUsages, 2, 0), [ bounds(1, 0, 1, 1) ]);
-        deepEquals(getDefinitions(definitionsUsages, 2, 1), [ bounds(1, 0, 1, 1) ]);
-        deepEquals(getDefinitions(definitionsUsages, 3, 6), [ bounds(1, 0, 1, 1) ]);
-        deepEquals(getDefinitions(definitionsUsages, 3, 7), [ bounds(1, 0, 1, 1) ]);
+        deepEquals(getDefinitions(definitionsUsages, 1, 0), [bounds(1, 0, 1, 1)]);
+        deepEquals(getDefinitions(definitionsUsages, 1, 1), [bounds(1, 0, 1, 1)]);
+        deepEquals(getDefinitions(definitionsUsages, 2, 0), [bounds(1, 0, 1, 1)]);
+        deepEquals(getDefinitions(definitionsUsages, 2, 1), [bounds(1, 0, 1, 1)]);
+        deepEquals(getDefinitions(definitionsUsages, 3, 6), [bounds(1, 0, 1, 1)]);
+        deepEquals(getDefinitions(definitionsUsages, 3, 7), [bounds(1, 0, 1, 1)]);
       }
 
       // Find defs/usages of a.b
       {
         const { definitions, usages } = definitionsUsages.lookup(2, 2)!;
-        deepEquals(definitions, [ bounds(2, 0, 2, 3) ]);
+        deepEquals(definitions, [bounds(2, 0, 2, 3)]);
         deepEquals(usages, [
           // a.b = "1" (just b)
           bounds(2, 0, 2, 3),
@@ -210,10 +210,10 @@ end`);
           bounds(3, 6, 3, 9),
         ]);
         // Go to definition from all points around "b" in a.b
-        deepEquals(getDefinitions(definitionsUsages, 2, 2), [ bounds(2, 0, 2, 3) ]);
-        deepEquals(getDefinitions(definitionsUsages, 2, 3), [ bounds(2, 0, 2, 3) ]);
-        deepEquals(getDefinitions(definitionsUsages, 3, 8), [ bounds(2, 0, 2, 3) ]);
-        deepEquals(getDefinitions(definitionsUsages, 3, 9), [ bounds(2, 0, 2, 3) ]);
+        deepEquals(getDefinitions(definitionsUsages, 2, 2), [bounds(2, 0, 2, 3)]);
+        deepEquals(getDefinitions(definitionsUsages, 2, 3), [bounds(2, 0, 2, 3)]);
+        deepEquals(getDefinitions(definitionsUsages, 3, 8), [bounds(2, 0, 2, 3)]);
+        deepEquals(getDefinitions(definitionsUsages, 3, 9), [bounds(2, 0, 2, 3)]);
       }
     });
 
@@ -238,7 +238,7 @@ end`);
 
       // on the x part of v.x
       const { definitions, usages } = definitionsUsages.lookup(2, 11)!;
-      deepEquals(definitions, [ bounds(6, 2, 6, 5) ]);
+      deepEquals(definitions, [bounds(6, 2, 6, 5)]);
       deepEquals(usages, [
         // v.x = x
         bounds(6, 2, 6, 5),
@@ -262,7 +262,7 @@ end`);
 
       // on the x part of self.x
       const { definitions, usages } = definitionsUsages.lookup(3, 15)!;
-      deepEquals(definitions, [ bounds(7, 2, 7, 8) ]);
+      deepEquals(definitions, [bounds(7, 2, 7, 8)]);
       deepEquals(usages, [
         // self.x = x
         bounds(7, 2, 7, 8),
@@ -283,7 +283,7 @@ a.b.c.d = {}`);
       // a
       {
         const { definitions, usages } = definitionsUsages.lookup(2, 0)!;
-        deepEquals(definitions, [ bounds(2, 0, 2, 1) ]);
+        deepEquals(definitions, [bounds(2, 0, 2, 1)]);
         deepEquals(usages, [
           bounds(2, 0, 2, 1),
           bounds(3, 0, 3, 1),
@@ -296,7 +296,7 @@ a.b.c.d = {}`);
       {
         const { symbolName, definitions, usages } = definitionsUsages.lookup(3, 2)!;
         eq(symbolName, 'a.b');
-        deepEquals(definitions, [ bounds(3, 0, 3, 3) ]);
+        deepEquals(definitions, [bounds(3, 0, 3, 3)]);
         deepEquals(usages, [
           bounds(3, 0, 3, 3),
           bounds(4, 0, 4, 3),
@@ -308,7 +308,7 @@ a.b.c.d = {}`);
       {
         const { symbolName, definitions, usages } = definitionsUsages.lookup(4, 4)!;
         eq(symbolName, 'a.b.c');
-        deepEquals(definitions, [ bounds(4, 0, 4, 5) ]);
+        deepEquals(definitions, [bounds(4, 0, 4, 5)]);
         deepEquals(usages, [
           bounds(4, 0, 4, 5),
           bounds(5, 0, 5, 5),
@@ -319,7 +319,7 @@ a.b.c.d = {}`);
       {
         const { symbolName, definitions, usages } = definitionsUsages.lookup(5, 6)!;
         eq(symbolName, 'a.b.c.d');
-        deepEquals(definitions, [ bounds(5, 0, 5, 7) ]);
+        deepEquals(definitions, [bounds(5, 0, 5, 7)]);
         deepEquals(usages, [
           bounds(5, 0, 5, 7),
         ]);
@@ -343,31 +343,31 @@ a.b.c.self_fn = function() self.mem = 0 end`);
       // "self" on "self.mem" (line 3) takes you to `a`
       {
         const { definitions } = definitionsUsages.lookup(3, 25)!;
-        deepEquals(definitions, [ bounds(2, 0, 2, 1) ]);
+        deepEquals(definitions, [bounds(2, 0, 2, 1)]);
       }
 
       // "a.mem"
       {
         const { symbolName, definitions, usages } = definitionsUsages.lookup(3, 30)!;
         eq(symbolName, 'a.mem'); // instead of self.mem
-        deepEquals(definitions, [ bounds(3, 23, 3, 31) ]);
-        deepEquals(usages, [ bounds(3, 23, 3, 31), bounds(4, 0, 4, 5) ]);
+        deepEquals(definitions, [bounds(3, 23, 3, 31)]);
+        deepEquals(usages, [bounds(3, 23, 3, 31), bounds(4, 0, 4, 5)]);
       }
 
       // "a.b.mem"
       {
         const { symbolName, definitions, usages } = definitionsUsages.lookup(6, 32)!;
         eq(symbolName, 'a.b.mem');
-        deepEquals(definitions, [ bounds(6, 25, 6, 33) ]);
-        deepEquals(usages, [ bounds(6, 25, 6, 33), bounds(7, 0, 7, 7) ]);
+        deepEquals(definitions, [bounds(6, 25, 6, 33)]);
+        deepEquals(usages, [bounds(6, 25, 6, 33), bounds(7, 0, 7, 7)]);
       }
 
       // "a.b.c.mem"
       {
         const { symbolName, definitions, usages } = definitionsUsages.lookup(10, 34)!;
         eq(symbolName, 'a.b.c.mem');
-        deepEquals(definitions, [ bounds(10, 27, 10, 35) ]);
-        deepEquals(usages, [ bounds(10, 27, 10, 35), bounds(9, 0, 9, 9) ]);
+        deepEquals(definitions, [bounds(10, 27, 10, 35)]);
+        deepEquals(usages, [bounds(10, 27, 10, 35), bounds(9, 0, 9, 9)]);
       }
     });
 
@@ -385,23 +385,23 @@ a.b.mem()`);
       // "self" on "self.mem" (line 3) takes you to `a`
       {
         const { definitions } = definitionsUsages.lookup(3, 23)!;
-        deepEquals(definitions, [ bounds(2, 0, 2, 1) ]);
+        deepEquals(definitions, [bounds(2, 0, 2, 1)]);
       }
 
       // "a.mem"
       {
         const { symbolName, definitions, usages } = definitionsUsages.lookup(3, 28)!;
         eq(symbolName, 'a.mem'); // instead of self.mem
-        deepEquals(definitions, [ bounds(3, 21, 3, 29) ]);
-        deepEquals(usages, [ bounds(3, 21, 3, 29), bounds(4, 0, 4, 5) ]);
+        deepEquals(definitions, [bounds(3, 21, 3, 29)]);
+        deepEquals(usages, [bounds(3, 21, 3, 29), bounds(4, 0, 4, 5)]);
       }
 
       // "a.b.mem"
       {
         const { symbolName, definitions, usages } = definitionsUsages.lookup(6, 30)!;
         eq(symbolName, 'a.b.mem');
-        deepEquals(definitions, [ bounds(6, 23, 6, 31) ]);
-        deepEquals(usages, [ bounds(6, 23, 6, 31), bounds(7, 0, 7, 7) ]);
+        deepEquals(definitions, [bounds(6, 23, 6, 31)]);
+        deepEquals(usages, [bounds(6, 23, 6, 31), bounds(7, 0, 7, 7)]);
       }
     });
 
@@ -425,31 +425,31 @@ a.b.c.mem()
       // "self" on "self.mem" (line 2) takes you to `a`
       {
         const { definitions } = definitionsUsages.lookup(2, 24)!;
-        deepEquals(definitions, [ bounds(1, 0, 1, 1) ]);
+        deepEquals(definitions, [bounds(1, 0, 1, 1)]);
       }
 
       // "a.mem"
       {
         const { symbolName, definitions, usages } = definitionsUsages.lookup(2, 29)!;
         eq(symbolName, 'a.mem'); // instead of self.mem
-        deepEquals(definitions, [ bounds(2, 23, 2, 31) ]);
-        deepEquals(usages, [ bounds(2, 23, 2, 31), bounds(10, 0, 10, 5) ]);
+        deepEquals(definitions, [bounds(2, 23, 2, 31)]);
+        deepEquals(usages, [bounds(2, 23, 2, 31), bounds(10, 0, 10, 5)]);
       }
 
       // "a.b.mem"
       {
         const { symbolName, definitions, usages } = definitionsUsages.lookup(4, 31)!;
         eq(symbolName, 'b.mem');
-        deepEquals(definitions, [ bounds(4, 25, 4, 33) ]);
-        deepEquals(usages, [ bounds(4, 25, 4, 33), bounds(11, 0, 11, 7) ]);
+        deepEquals(definitions, [bounds(4, 25, 4, 33)]);
+        deepEquals(usages, [bounds(4, 25, 4, 33), bounds(11, 0, 11, 7)]);
       }
 
       // "a.b.c.mem"
       {
         const { symbolName, definitions, usages } = definitionsUsages.lookup(6, 33)!;
         eq(symbolName, 'c.mem');
-        deepEquals(definitions, [ bounds(6, 27, 6, 35) ]);
-        deepEquals(usages, [ bounds(6, 27, 6, 35), bounds(12, 0, 12, 9) ]);
+        deepEquals(definitions, [bounds(6, 27, 6, 35)]);
+        deepEquals(usages, [bounds(6, 27, 6, 35), bounds(12, 0, 12, 9)]);
       }
     });
   });
@@ -459,14 +459,14 @@ a.b.c.mem()
       const fileResolver = new MockFileResolver();
       fileResolver.loadFileContents = () => 'local a = 5';
 
-      const { warnings, definitionsUsages } = parse('#include other_file.lua\nprint(a)', false, fileResolver);
+      const { warnings, definitionsUsages } = parse('#include other_file.lua\nprint(a)', { includeFileResolver: fileResolver });
       deepEquals(warnings, []);
 
       const { symbolName, definitions, usages } = definitionsUsages.lookup(2, 6)!;
       eq(symbolName, 'a');
 
       // The definition in 'other_file.lua'
-      deepEquals(definitions, [ bounds(1, 6, 1, 7) ] );
+      deepEquals(definitions, [bounds(1, 6, 1, 7)]);
       eq(definitions[0].start.filename.path, 'other_file.lua');
 
       // Usages:
@@ -484,14 +484,14 @@ a.b.c.mem()
       const fileResolver = new MockFileResolver();
       fileResolver.loadFileContents = () => 'print(a)';
 
-      const { warnings, definitionsUsages } = parse('local a = 5\n#include other_file.lua', false, fileResolver);
+      const { warnings, definitionsUsages } = parse('local a = 5\n#include other_file.lua', { includeFileResolver: fileResolver });
       deepEquals(warnings, []);
 
       const { symbolName, definitions, usages } = definitionsUsages.lookup(1, 6)!;
       eq(symbolName, 'a');
 
       // The main definition
-      deepEquals(definitions, [ bounds(1, 6, 1, 7) ] );
+      deepEquals(definitions, [bounds(1, 6, 1, 7)]);
       eq(definitions[0].start.filename.path, 'main_test_file');
 
       // Usages:
@@ -515,16 +515,23 @@ end`;
       const fileResolver = new MockFileResolver();
       fileResolver.loadFileContents = () => includedFileContents;
 
-      const { scopes } = parse('#include other_file.lua\nlocal a = 5', false, fileResolver, undefined, 'main.p8');
+      const { scopes } = parse('#include other_file.lua\nlocal a = 5', {
+        includeFileResolver: fileResolver,
+        filename: 'main.p8'
+      });
 
-      const { warnings, definitionsUsages } = parse(includedFileContents, false, fileResolver, scopes, 'other_file.lua');
+      const { warnings, definitionsUsages } = parse(includedFileContents, {
+        includeFileResolver: fileResolver,
+        injectedGlobalScope: scopes,
+        filename: 'other_file.lua'
+      });
       deepEquals(warnings, []);
 
       const { symbolName, definitions, usages } = definitionsUsages.lookup(3, 9)!;
       eq(symbolName, 'a');
 
       // The definition in the including file
-      deepEquals(definitions, [ bounds(2, 6, 2, 7) ] );
+      deepEquals(definitions, [bounds(2, 6, 2, 7)]);
       eq(definitions[0].start.filename.path, 'main.p8');
 
       // Usages:
@@ -547,9 +554,16 @@ end`;
       const fileResolver = new MockFileResolver();
       fileResolver.loadFileContents = () => includedFileContents;
 
-      const { scopes } = parse('#include other_file.lua\nprint(a)', false, fileResolver, undefined, 'main.p8');
+      const { scopes } = parse('#include other_file.lua\nprint(a)', {
+        includeFileResolver: fileResolver,
+        filename: 'main.p8'
+      });
 
-      const { warnings, definitionsUsages } = parse(includedFileContents, false, fileResolver, scopes, 'other_file.lua');
+      const { warnings, definitionsUsages } = parse(includedFileContents, {
+        includeFileResolver: fileResolver,
+        injectedGlobalScope: scopes,
+        filename: 'other_file.lua'
+      });
       deepEquals(warnings, []);
 
       const { symbolName, definitions, usages } = definitionsUsages.lookup(1, 6)!;
@@ -557,7 +571,7 @@ end`;
 
       // The definition in other_file.lua
       // TODO fix duplicates
-      deepEquals(definitions, [ bounds(1, 6, 1, 7), bounds(1, 6, 1, 7) ] );
+      deepEquals(definitions, [bounds(1, 6, 1, 7), bounds(1, 6, 1, 7)]);
       eq(definitions[0].start.filename.path, 'other_file.lua');
 
       // Usages:

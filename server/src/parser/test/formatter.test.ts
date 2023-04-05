@@ -1,9 +1,10 @@
-import { deepEquals, getTestFileContents, parse } from './test-utils';
+import { TestFilesResolver, TestParseOptions, deepEquals, getTestFileContents, parse } from './test-utils';
 import { strictEqual as eq } from 'assert';
 import Formatter, { FormatResult } from '../formatter';
+import { FileResolver } from '../file-resolver';
 
-function formatLua(text: string): string {
-  const chunk = parse(text);
+function formatLua(text: string, opts: TestParseOptions = {}): string {
+  const chunk = parse(text, opts);
 
   // should be no errors
   deepEquals(chunk.errors, []);
@@ -116,7 +117,35 @@ a = -a`.trim());
     });
 
     it('doesn\'t inline #include statements', () => {
-      // TODO
+      const fileResolver = new TestFilesResolver({
+        'lib.lua': 'function lib_fn(x)\nprint(x)\nend'
+      })
+
+      const input = `
+#include lib.lua
+
+function some_fn()
+  lib_fn('hi!')
+end
+`.trim();
+      const formatted = formatLua(input, { includeFileResolver: fileResolver });
+      eq(formatted, input);
+    });
+
+    it('doesn\'t put in several newlines for #include-ing a file with a lot of statements', () => {
+      const fileResolver = new TestFilesResolver({
+        'lib.lua': 'print("a")\nprint("a")\nprint("a")\nprint("a")\nprint("a")\nprint("a")\nprint("a")\nprint("a")\n'
+      })
+
+      const input = `
+#include lib.lua
+
+function some_fn()
+  lib_fn('hi!')
+end
+`.trim();
+      const formatted = formatLua(input, { includeFileResolver: fileResolver });
+      eq(formatted, input);
     });
 
     it('handles local statements even without initializer', () => {
@@ -455,6 +484,8 @@ end
 function f2()
   printh("inside f2")
 end`.trim();
+      const actual = formatLua(input);
+      console.log('actual: ', actual)
       eq(formatLua(input), input);
     });
 
@@ -517,7 +548,7 @@ local x, y = 111, 222`.trim());
     });
   });
 
-  describe.only('Range returned by formatter', () => {
+  describe('Range returned by formatter', () => {
     it('is correct for lua files', () => {
       const text = `
 function a()
