@@ -415,7 +415,7 @@ local player = {
     });
   });
 
-  describe('preserve single blank lines', () => {
+  describe.only('preserve single blank lines', () => {
     it('keeps single blank lines between lines with code', () => {
       const input = `
 local a = "aaa"
@@ -446,6 +446,21 @@ function f1()
   local b = 'bbb'
 
   printh("inside f1")
+end`.trim();
+      eq(formatLua(input), input);
+    });
+
+    it.only('keeps single blank lines within a function returned from another function', () => {
+      const input = `
+function f1()
+  return function f2()
+    local a = 'aaa'
+
+    -- some comment
+    local b = 'bbb'
+
+    printh("inside f1")
+  end
 end`.trim();
       eq(formatLua(input), input);
     });

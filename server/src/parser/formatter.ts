@@ -6,15 +6,16 @@ import {
 } from './statements';
 import {
   BinaryExpression, BooleanLiteral, CallExpression, Comment_, Expression, GeneralTableField,
-  Identifier, IndexExpression, LogicalExpression, MemberExpression, NilLiteral, NumericLiteral,
+  Identifier, IndexExpression, isGeneralTableField, LogicalExpression, MemberExpression, NilLiteral, NumericLiteral,
   StringCallExpression, StringLiteral, TableCallExpression, TableConstructorExpression, TableKey,
   TableKeyString, TableValue, UnaryExpression, VarargLiteral, Whitespace,
 } from './expressions';
 import { uinteger } from 'vscode-languageserver-types';
-import { ASTNode, Bounds, boundsCompare, BoundsCompareResult } from './types';
+import { ASTNode, boundsCompare, BoundsCompareResult } from './types';
 import Operators from './operators';
 import * as util from 'util';
 import { isP8BeginningOfCodeSection, isP8EndOfCodeSection } from './lexer';
+import { logObj } from './util';
 
 export type FormatterOptions = {
   // Size of a tab in spaces.
@@ -96,7 +97,7 @@ export default class Formatter {
     }
 
     this.insertComments(chunk);
-    this.insertWhitespace(chunk);
+    this.insertWhitespaceIntoBlock(chunk.block);
 
     // Most of the formatting work happens here
     let formatted = chunk.block.body.map(s => this.visitStatement(s)).join('\n');
@@ -143,10 +144,20 @@ export default class Formatter {
     }
   }
 
-  insertWhitespace(chunk: Chunk): void {
-    for (let i = 1; i < chunk.block.body.length; i++) {
-      const currStatement = chunk.block.body[i];
-      const prevStatement = chunk.block.body[i-1];
+  insertWhitespaceIntoBlock(block: Block): void {
+    this.insertWhitespaceIntoArray(block.body);
+
+    console.log('result')
+    logObj(block);
+  }
+
+  insertWhitespaceIntoArray(body: (Statement | Expression)[]): void {
+    // For loops starts at 2nd element
+    this.maybeRecurseToInsertWhitespace(body[0]);
+
+    for (let i = 1; i < body.length; i++) {
+      const currStatement = body[i];
+      const prevStatement = body[i-1];
 
       const currStmtStartLine = currStatement.loc!.start.line;
       const prevStmtEndLine = prevStatement.loc!.end.line;
@@ -159,7 +170,7 @@ export default class Formatter {
         const newlines = currStmtStartLine - prevStmtEndLine - 1;
 
         // Insert a whitespace node
-        chunk.block.body.splice(i, 0, {
+        body.splice(i, 0, {
           type: 'Whitespace',
           count: newlines,
 
@@ -184,7 +195,48 @@ export default class Formatter {
         // current position (otherwise we'd check the current node again, since
         // its index is now i+1)
         i++;
+
+        // Recurse into members
+        this.maybeRecurseToInsertWhitespace(currStatement);
       }
+    }
+  }
+
+  maybeRecurseToInsertWhitespace(node: ASTNode): void {
+    if (isStatementWithBody(node)) {
+      this.insertWhitespaceIntoBlock(node.block);
+      return;
+    }
+
+    if (isGeneralTableField(node)) {
+      // Recurse into table members
+      this.maybeRecurseToInsertWhitespace(node.value);
+      return;
+    }
+
+    switch (node.type) {
+    case 'IfStatement':
+      // Check each clause of the if statement
+      (node as IfStatement).clauses
+        .map(clause => clause.block)
+        .forEach(block => this.insertWhitespaceIntoBlock(block));
+      return;
+
+    case 'ReturnStatement':
+      // check each returned expression
+      this.insertWhitespaceIntoArray((node as ReturnStatement).arguments);
+      return;
+
+    case 'AssignmentStatement':
+    case 'LocalStatement':
+      // check each initializer and assigned expression
+      this.insertWhitespaceIntoArray((node as LocalStatement).init);
+      this.insertWhitespaceIntoArray((node as LocalStatement).variables);
+      return;
+
+    case 'TableConstructorExpression':
+      (node as TableConstructorExpression).fields.forEach(field => this.maybeRecurseToInsertWhitespace(field));
+      return;
     }
   }
 
@@ -239,9 +291,9 @@ export default class Formatter {
       return;
     }
 
-    if (['TableKey', 'TableKeyString', 'TableValue'].includes(node.type)) {
+    if (isGeneralTableField(node)) {
       // Recurse into table members
-      this.insertCommentIntoNode(comment, (node as GeneralTableField).value);
+      this.insertCommentIntoNode(comment, node.value);
       return;
     }
 

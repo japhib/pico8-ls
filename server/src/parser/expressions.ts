@@ -61,6 +61,11 @@ export type TableValue = ASTNode & {
 
 export type GeneralTableField = TableKey | TableKeyString | TableValue;
 
+const generalTableFieldTypes = Object.freeze(['TableKey', 'TableKeyString', 'TableValue']);
+export function isGeneralTableField(node: ASTNode): node is GeneralTableField {
+  return generalTableFieldTypes.includes(node.type);
+}
+
 export type TableConstructorExpression = ASTNode & {
   type: 'TableConstructorExpression',
   fields: GeneralTableField[],
