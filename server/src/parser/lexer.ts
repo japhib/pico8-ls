@@ -1011,7 +1011,11 @@ function isKeyword(id: string): boolean {
   return false;
 }
 
-function isP8EndOfCodeSection(value: string): boolean {
+export function isP8BeginningOfCodeSection(value: string): boolean {
+  return value === '__lua__';
+}
+
+export function isP8EndOfCodeSection(value: string): boolean {
   return value === '__gfx__'
     || value === '__label__'
     || value === '__gff__'

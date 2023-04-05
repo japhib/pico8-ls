@@ -56,8 +56,7 @@ connection.onInitialize((params: InitializeParams) => {
       completionProvider: { triggerCharacters: [ '.', ':' ], resolveProvider: true },
       hoverProvider: true,
       signatureHelpProvider: { triggerCharacters: [ '(' ], retriggerCharacters: [ ',' ] },
-      // TODO: uncomment this piece of configuration once formatting is ready for release
-      // documentFormattingProvider: true,
+      documentFormattingProvider: true,
     },
   };
 
@@ -722,33 +721,39 @@ connection.onSignatureHelp((params: SignatureHelpParams) => {
   };
 });
 
+const formatterSupportedLanguages = ['pico-8', 'pico-8-lua'];
+
 connection.onDocumentFormatting((params: DocumentFormattingParams) => {
   const textDocument = documentTextCache.get(params.textDocument.uri);
   if (!textDocument) {
     return null;
   }
 
-  if (textDocument.languageId !== 'pico-8-lua') {
-    // TODO: For now we support separate Lua files (".lua") only, but it would be great to support all file types
-    //       handled by this extension (which means to support ".p8" files as well, identified by "pico-8" language ID).
+  // Make sure the document language is supported for formatting
+  if (!formatterSupportedLanguages.includes(textDocument.languageId)) {
+    console.log('Unsupported language for formatter: ' + textDocument.languageId);
     return null;
   }
 
+  // Refresh document contents
   const parsedDocument = parseTextDocument(textDocument);
   if (!parsedDocument || (parsedDocument.errors && parsedDocument.errors.length > 0)) {
     console.error(`Can't format document when there are parsing errors! (document: "${textDocument.uri}"`);
     return null;
   }
-
   parsedDocuments.set(textDocument.uri, parsedDocument);
+
+  // Actually format it
+  const formatResult = new Formatter(params.options).formatChunk(parsedDocument.chunk, textDocument.getText(), textDocument.languageId === 'pico-8-lua');
+  if (!formatResult) {
+    // Couldn't format, for whatever reason
+    return null;
+  }
 
   return [
     TextEdit.replace(
-      Range.create(
-        textDocument.positionAt(0),
-        textDocument.positionAt(Number.MAX_VALUE),
-      ),
-      new Formatter(params.options).formatChunk(parsedDocument.chunk),
+      formatResult.formattedRange,
+      formatResult.formattedText,
     ),
   ];
 });

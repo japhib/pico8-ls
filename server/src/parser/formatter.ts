@@ -11,9 +11,10 @@ import {
   TableKeyString, TableValue, UnaryExpression, VarargLiteral, Whitespace,
 } from './expressions';
 import { uinteger } from 'vscode-languageserver-types';
-import { ASTNode, boundsCompare, BoundsCompareResult } from './types';
+import { ASTNode, Bounds, boundsCompare, BoundsCompareResult } from './types';
 import Operators from './operators';
 import * as util from 'util';
+import { isP8BeginningOfCodeSection, isP8EndOfCodeSection } from './lexer';
 
 export type FormatterOptions = {
   // Size of a tab in spaces.
@@ -27,6 +28,21 @@ export type FormatterOptions = {
   // Trim all newlines after the final newline at the end of the file.
   trimFinalNewlines?: boolean,
 };
+
+// Range/Position declarations taken from vscode-languageserver-node declarations.
+// We don't need to use full Bounds declaration here.
+export interface LSRange {
+  start: LSPosition;
+  end: LSPosition;
+}
+export interface LSPosition {
+  line: uinteger;
+  character: uinteger;
+}
+export type FormatResult = {
+  formattedText: string,
+  formattedRange: LSRange
+}
 
 const defaultOptions: FormatterOptions = Object.freeze({
   tabSize: 2,
@@ -61,7 +77,24 @@ export default class Formatter {
     this.tab = this.options.insertSpaces ? ' '.repeat(this.options.tabSize) : '\t';
   }
 
-  formatChunk(chunk: Chunk): string {
+  formatChunk(chunk: Chunk, originalText: string, isPlainLuaFile: boolean): FormatResult | undefined {
+    let formatRange: LSRange;
+    if (isPlainLuaFile) {
+      // it's a lua file, format the whole thing
+      formatRange = {
+        start: { line: 0, character: 0 },
+        end: { line: Number.MAX_VALUE, character: 0 }  
+      }
+    } else {
+      // it's a p8 file w/ header & data sections
+      const _formatRange = this.formatBoundsFromOriginalText(originalText);
+      if (!_formatRange) {
+        // lua section not found -- format nothing!
+        return undefined;
+      }
+      formatRange = _formatRange;
+    }
+
     this.insertComments(chunk);
     this.insertWhitespace(chunk);
 
@@ -70,7 +103,44 @@ export default class Formatter {
 
     // Before returning, trim all trailing spaces from lines
     formatted = formatted.split('\n').map(line => line.trimRight()).join('\n');
-    return formatted;
+
+    if (!isPlainLuaFile) {
+      // Add whitespace buffer at beginning and end
+      formatted = '\n' + formatted + '\n\n';
+    }
+
+    return {
+      formattedText: formatted,
+      formattedRange: formatRange,
+    }
+  }
+
+  formatBoundsFromOriginalText(originalText: string): LSRange | undefined {
+    const lines = originalText.split('\n').map(s => s.trim());
+
+    let startLine, endLine;
+    let inLua = false;
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+
+      if (!inLua && isP8BeginningOfCodeSection(line)) {
+        startLine = i + 1; // +1: start the line *after* the __lua__ declaration
+        inLua = true;
+      } else if (inLua && isP8EndOfCodeSection(line)) {
+        endLine = i;
+        break;
+      }
+    }
+
+    if (!startLine) {
+      // Lua code section not found!
+      return undefined;
+    }
+
+    return {
+      start: { line: startLine as uinteger, character: 0 },
+      end: { line: endLine as uinteger, character: 0 }
+    }
   }
 
   insertWhitespace(chunk: Chunk): void {
@@ -162,10 +232,16 @@ export default class Formatter {
     return true;
   }
 
-  insertCommentIntoNode(comment: Comment_, node: ASTNode) {
+  insertCommentIntoNode(comment: Comment_, node: ASTNode): void {
     if (isStatementWithBody(node)) {
       // This comment is contained in the body of the current statement. Recurse into it.
       this.insertComment(comment, node.block.body, true);
+      return;
+    }
+
+    if (['TableKey', 'TableKeyString', 'TableValue'].includes(node.type)) {
+      // Recurse into table members
+      this.insertCommentIntoNode(comment, (node as GeneralTableField).value);
       return;
     }
 
