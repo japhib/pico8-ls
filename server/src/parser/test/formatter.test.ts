@@ -36,12 +36,12 @@ describe('Formatter', () => {
 
   describe('Formats entire files', () => {
     // TODO: write proper tests for the final implementation
-    it.skip('formats low.p8', () => {
+    it('formats low.p8', () => {
       const formatted = formatLua(getTestFileContents('low.p8'));
       console.log(formatted);
     });
 
-    it.skip('formats low.lua', () => {
+    it('formats low.lua', () => {
       const formatted = formatLua(getTestFileContents('low.lua'));
       console.log(formatted);
     });
@@ -164,6 +164,17 @@ local function some_fn()
 end`.trim());
     });
 
+    it('preserves single line function declarations', () => {
+      let input = `local function some_fn() end`;
+      eq(formatLua(input), input);
+
+      input = `function some_fn() print('hi') a += 1 end`;
+      eq(formatLua(input), input);
+
+      input = `map({ 1, 2, 3 }, function(a) return a + 1 end)`;
+      eq(formatLua(input), input);
+    });
+
     describe('handles parentheses correctly', () => {
 
       it('preserves parentheses when their inner expression is called as a function', () => {
@@ -250,6 +261,21 @@ f = some_var_1 * some_var_2 * some_var_3
 g = some_var_1 - some_var_2 - some_var_3
 h = some_var_1 / some_var_2 / some_var_3`.trim());
       });
+    });
+
+    it('pads begin/end of single-line table constructors', () => {
+      const input = `a = {1, 2, 3}`;
+      eq(formatLua(input), `a = { 1, 2, 3 }`);
+    });
+
+    it('leaves empty tables as {}', () => {
+      const input = `a = {}`;
+      eq(formatLua(input), `a = {}`);
+    });
+
+    it('formats single-line if statement', () => {
+      const input = `if (false) print('hi')`;
+      eq(formatLua(input), input);
     });
   });
 
@@ -463,6 +489,64 @@ local player = {
 }`.trim();
       eq(formatLua(input), input);
     });
+
+    it('formats single-line if statements with comments', () => {
+      // Snippet from low.p8 (Low Knight) that gave some trouble
+      const input = `
+function guy:render(p)
+  -- dead?
+  if (self.state=="despawned") return
+  -- flicker?
+  if (self.immune_lasts and g_time%4<2) return
+  -- render body and head
+  spr_render(self)
+end
+`.trim();
+      eq(formatLua(input), `
+function guy:render(p)
+  -- dead?
+  if (self.state == "despawned") return
+  -- flicker?
+  if (self.immune_lasts and g_time % 4 < 2) return
+  -- render body and head
+  spr_render(self)
+end
+`.trim());
+    });
+
+    it('formats single-line if statement with comment at end', () => {
+      const input = `if (false) print('hi') -- a comment`;
+      eq(formatLua(input), input);
+    })
+
+    it('formats single-line if statement with comment at end', () => {
+      const input = `if (false) print('hi') -- a comment\n\nprint('a')`;
+      eq(formatLua(input), input);
+    })
+
+    it('formats single-line if statement with comment afterwards', () => {
+      const input = `if (false) print('hi')\n-- a comment`;
+      eq(formatLua(input), input);
+    })
+
+    it('preserves comments after statements', () => {
+      const input = `print('hi') -- print hi here`;
+      eq(formatLua(input), input);
+    });
+
+    it('preserves comments between function arguments', () => {
+      const input = `
+print(
+  -- first argument
+  'hi',
+
+  -- second arg
+  'hi2',
+  -- empty one??
+  ''
+)`.trim();
+      eq(formatLua(input), input);
+    })
   });
 
   describe('preserve single blank lines', () => {

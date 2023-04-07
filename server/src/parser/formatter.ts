@@ -15,6 +15,7 @@ import { ASTNode, boundsCompare, BoundsCompareResult, boundsToString } from './t
 import Operators from './operators';
 import * as util from 'util';
 import { isP8BeginningOfCodeSection, isP8EndOfCodeSection } from './lexer';
+import { logObj } from './util';
 
 export type FormatterOptions = {
   // Size of a tab in spaces.
@@ -122,7 +123,12 @@ export default class Formatter {
 
     if (!isPlainLuaFile) {
       // Add whitespace buffer at beginning and end
-      formatted = '\n' + formatted + '\n\n';
+      formatted = '\n' + formatted + '\n';
+
+      // add an extra newline if we found an ending tag (__gfx__ for example)
+      if (formatRange.end.line !== Number.MAX_VALUE) {
+        formatted += '\n';
+      }
     }
 
     return {
@@ -161,6 +167,11 @@ export default class Formatter {
   }
 
   insertWhitespaceIntoBlock(block: Block): void {
+    // handle undefined/null arg
+    if (!block) {
+      return;
+    }
+
     this.insertWhitespaceIntoArray(block.body);
   }
 
@@ -286,6 +297,9 @@ export default class Formatter {
       }
 
       const compareResult = boundsCompare(comment.loc!, currNode.loc!);
+
+      // console.log('insertComment, comment:', boundsToString(comment.loc!), 'currNode', currNode.type, boundsToString(currNode.loc!), 'result', compareResult)
+
       if (compareResult === BoundsCompareResult.CONTAINS) {
         this.insertCommentIntoNode(comment, currNode);
         return true;
@@ -453,11 +467,13 @@ export default class Formatter {
     return ret;
   }
 
-  visitGeneralIfClause(node: GeneralIfClause): string {
+  visitGeneralIfClause(node: GeneralIfClause | Comment_ | Whitespace): string {
     switch (node.type) {
       case 'IfClause': return this.visitIfClause(node);
       case 'ElseClause': return this.visitElseClause(node);
       case 'ElseifClause': return this.visitElseifClause(node);
+      case 'Comment': return this.visitComment(node) + this.newline();
+      case 'Whitespace': return this.visitWhitespace(node) + this.newline();
       default: throw new Error('Unexpected if clause type: ' + (node as any).type + ', ' + util.inspect(node, { depth: 99 }));
     }
   }
@@ -591,6 +607,28 @@ export default class Formatter {
   }
 
   visitIfStatement(node: IfStatement): string {
+    if (node.oneLine) {
+      // there may be a comment after the single IfClause
+      const clausesWithoutComments = node.clauses.filter(cl => (cl as any).type !== 'Comment');
+      const comments = node.clauses.filter(cl => (cl as any).type === 'Comment');
+
+      if (clausesWithoutComments.length === 1) {
+        const clause = clausesWithoutComments[0] as IfClause;
+        let ret = `if (${this.visitExpression(clause.condition)})`;
+        // There can be multiple statements inside even a single-line if
+        for (const stmt of clause.block.body) {
+          ret += ' ' + this.visitStatement(clause.block.body[0]);
+        }
+        // Tack on any comments at the end
+        for (const comment of comments) {
+          ret += this.newline() + this.visitComment(comment as any as Comment_);
+        }
+
+        return ret;
+      }
+      // Else, fall through to regular if-statement handling
+    }
+
     if (node.oneLine && node.clauses.length === 1 && node.clauses[0].block.body.length === 1) {
       const clause = node.clauses[0] as IfClause;
       return `if (${this.visitExpression(clause.condition)}) ${this.visitStatement(clause.block.body[0])}`;
@@ -752,6 +790,9 @@ export default class Formatter {
         parentOperator: childContext.parentOperator,
       },
       () => {
+        // Support multiline or single-line functions
+        const multiline = node.loc!.start.line !== node.loc!.end.line;
+
         let ret = '';
         if (node.isLocal) {
           ret += 'local ';
@@ -765,12 +806,12 @@ export default class Formatter {
         this.increaseDepth();
 
         for (const stmt of node.block.body) {
-          ret += this.newline();
+          ret += multiline ? this.newline() : ' ';
           ret += this.visitStatement(stmt);
         }
 
         this.decreaseDepth();
-        ret += this.newline();
+        ret += multiline ? this.newline() : ' ';
         ret += 'end';
 
         return ret;
@@ -833,11 +874,19 @@ export default class Formatter {
         parentOperator: childContext.parentOperator,
       },
       () => {
+        if (!node.fields?.length) {
+          // Special case empty table
+          return '{}';
+        }
+
         let ret = '';
 
         ret += '{';
         if (multiline) {
           this.increaseDepth();
+        } else {
+          // Padding at begin/end of single-line tables
+          ret += ' ';
         }
 
         let preCommaSlice = null;
@@ -875,6 +924,10 @@ export default class Formatter {
           this.decreaseDepth();
         }
         ret += newlineFunc();
+        if (!multiline) {
+          // Padding at begin/end of single-line tables
+          ret += ' ';
+        }
         ret += '}';
         return ret;
       });

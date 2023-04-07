@@ -52,16 +52,16 @@ export function boundsEqual(a: Bounds, b: Bounds): boolean {
 
 export function boundsToString(bounds: Bounds): string {
   if (bounds.start.filename.path !== bounds.end.filename.path) {
-    return `${codeLocationToString(bounds.start)} to ${codeLocationToString(bounds.end)}`;
+    return `${codeLocationToString(bounds.start)} to ${codeLocationToString(bounds.end)} % ${bounds.start.index}-${bounds.end.index}`;
   }
 
   const filenameStr = path.basename(bounds.start.filename.path);
 
   if (bounds.start.line !== bounds.end.line) {
-    return `${filenameStr} ${bounds.start.line}:${bounds.start.column} to ${bounds.end.line}:${bounds.end.column}`;
+    return `${filenameStr} ${bounds.start.line}:${bounds.start.column} to ${bounds.end.line}:${bounds.end.column} % ${bounds.start.index}-${bounds.end.index}`;
   }
 
-  return `${filenameStr} ${bounds.start.line}:${bounds.start.column}-${bounds.end.column}`;
+  return `${filenameStr} ${bounds.start.line}:${bounds.start.column}-${bounds.end.column} % ${bounds.start.index}-${bounds.end.index}`;
 }
 
 export function boundsSize(b: Bounds): number {
