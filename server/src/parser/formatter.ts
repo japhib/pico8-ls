@@ -350,7 +350,7 @@ export default class Formatter {
         return;
 
       case 'TableConstructorExpression':
-        this.insertComment(comment, (node as TableConstructorExpression).fields, false);
+        this.insertComment(comment, (node as TableConstructorExpression).fields, true);
         return;
     }
 
@@ -841,28 +841,33 @@ export default class Formatter {
         }
 
         let preCommaSlice = null;
-        let removeCommaIfOnlyWhitespace = false;
+        let commaConfirmed = true;
         for (let i = 0; i < node.fields.length; i++) {
           const f = node.fields[i];
           ret += newlineFunc();
           ret += this.visitGeneralTableField(f);
 
-          if (f.type !== 'Whitespace' && (f as any).type !== 'Comment') {
+          const isRealTableField = f.type !== 'Whitespace' && (f as any).type !== 'Comment';
+
+          if (isRealTableField) {
             // Flag that helps us to remove a trailing comma if there's whitespace/commas afterwards
-            removeCommaIfOnlyWhitespace = false;
+            commaConfirmed = true;
           }
 
           const isLast = i === node.fields.length - 1;
-          if (!isLast && f.type !== 'Whitespace') {
+          if (!isLast && isRealTableField) {
             const toAdd = ',' + (multiline ? '' : ' ');
             // Save location of this last comma, so we can slice it out later if needed
             preCommaSlice = [ret.length, ret.length + toAdd.length];
-            removeCommaIfOnlyWhitespace = true;
+            commaConfirmed = false;
             ret += toAdd;
           }
         }
 
-        if (removeCommaIfOnlyWhitespace) {
+        if (!commaConfirmed) {
+          // We added a comma earlier but there hasn't been a non-whitespace,
+          // non-comment field between the comma and the end of the table
+          // constructor expression. So we remove out the comma.
           ret = ret.slice(0, preCommaSlice![0]) + ret.slice(preCommaSlice![1]);
         }
 
