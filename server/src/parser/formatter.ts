@@ -366,6 +366,22 @@ export default class Formatter {
       case 'TableConstructorExpression':
         this.insertComment(comment, (node as TableConstructorExpression).fields, true);
         return;
+
+      case 'CallStatement':
+        const callExpression = (node as CallStatement).expression as CallExpression;
+        if (callExpression && callExpression.arguments) {
+          this.insertComment(comment, callExpression.arguments, true);
+          return;
+        }
+        break;
+
+      case 'CallExpression':
+        const callExpression2 = node as CallExpression;
+        if (callExpression2 && callExpression2.arguments) {
+          this.insertComment(comment, callExpression2.arguments, true);
+          return;
+        }
+        return;
     }
 
     // If we got this far, just put it on the node itself
@@ -749,39 +765,18 @@ export default class Formatter {
   }
 
   visitCallExpression(node: CallExpression): string {
-    // first, check if the original function call is on more than one line
-    const startingLine = node.base.loc?.start.line;
-    const multiline = node.arguments.some(a => a.loc!.end.line !== startingLine);
+    // Check if the original function call is on more than one line
+    const multiline = node.arguments.some(a => a.loc!.end.line !== node.base.loc?.start.line);
 
-    let ret = this.visitExpression(node.base, { parentOperator: Operators.fakeMaxPrecedenceOperator });
-    ret += '(';
+    let base = this.visitExpression(node.base, { parentOperator: Operators.fakeMaxPrecedenceOperator });
 
-    if (multiline) {
-      // Increase indent
-      this.increaseDepth();
-      ret += this.newline();
+    let args = this.visitCommaDelimited(
+      node.arguments,
+      this.visitExpression.bind(this),
+      { multiline }
+    );
 
-      // Each argument on a newline
-      let first = true;
-      for (const arg of node.arguments) {
-        if (first) {
-          first = false;
-        } else {
-          ret += ',' + this.newline();
-        }
-
-        ret += this.visitExpression(arg);
-      }
-
-      this.decreaseDepth();
-      // Trailing ')' goes on its own line
-      ret += this.newline();
-    } else {
-      ret += node.arguments.map(a => this.visitExpression(a)).join(', ');
-    }
-
-    ret += ')';
-    return ret;
+    return base + args;
   }
 
   visitFunctionDeclaration(node: FunctionDeclaration, isStatement: boolean, childContext: ChildContext = {}): string {
@@ -864,72 +859,22 @@ export default class Formatter {
   }
 
   visitTableConstructorExpression(node: TableConstructorExpression, childContext: ChildContext = {}): string {
-    // first, check if the original function call is on more than one line
-    const startingLine = node.loc?.start.line;
-    const multiline = node.fields.some(f => f.loc!.end.line !== startingLine);
-    const newlineFunc = multiline ? this.newline.bind(this) : () => '';
-
     return this.wrapWithParenthesesIfNeeded(
-      {
-        parentOperator: childContext.parentOperator,
-      },
+      { parentOperator: childContext.parentOperator },
       () => {
         if (!node.fields?.length) {
           // Special case empty table
           return '{}';
         }
 
-        let ret = '';
+        // Check if the original function call is on more than one line
+        const multiline = node.fields.some(f => f.loc!.end.line !== node.loc?.start.line);
 
-        ret += '{';
-        if (multiline) {
-          this.increaseDepth();
-        } else {
-          // Padding at begin/end of single-line tables
-          ret += ' ';
-        }
-
-        let preCommaSlice = null;
-        let commaConfirmed = true;
-        for (let i = 0; i < node.fields.length; i++) {
-          const f = node.fields[i];
-          ret += newlineFunc();
-          ret += this.visitGeneralTableField(f);
-
-          const isRealTableField = f.type !== 'Whitespace' && (f as any).type !== 'Comment';
-
-          if (isRealTableField) {
-            // Flag that helps us to remove a trailing comma if there's whitespace/commas afterwards
-            commaConfirmed = true;
-          }
-
-          const isLast = i === node.fields.length - 1;
-          if (!isLast && isRealTableField) {
-            const toAdd = ',' + (multiline ? '' : ' ');
-            // Save location of this last comma, so we can slice it out later if needed
-            preCommaSlice = [ret.length, ret.length + toAdd.length];
-            commaConfirmed = false;
-            ret += toAdd;
-          }
-        }
-
-        if (!commaConfirmed) {
-          // We added a comma earlier but there hasn't been a non-whitespace,
-          // non-comment field between the comma and the end of the table
-          // constructor expression. So we remove out the comma.
-          ret = ret.slice(0, preCommaSlice![0]) + ret.slice(preCommaSlice![1]);
-        }
-
-        if (multiline) {
-          this.decreaseDepth();
-        }
-        ret += newlineFunc();
-        if (!multiline) {
-          // Padding at begin/end of single-line tables
-          ret += ' ';
-        }
-        ret += '}';
-        return ret;
+        return this.visitCommaDelimited(
+          node.fields,
+          this.visitGeneralTableField.bind(this),
+          { multiline, paddingForSingleLine: true, curlyBraces: true}
+        );
       });
   }
 
@@ -994,5 +939,73 @@ export default class Formatter {
     }
 
     return expression;
+  }
+
+  // Visit a potentially multiline, comma delimited list of function call args or table
+  // constructor elements, some of which may be comments.
+  // Has special comma-handling logic.
+  private visitCommaDelimited<T extends ASTNode>(
+    fields: (T | Comment_ | Whitespace)[],
+    fieldHandler: (arg: T) => string,
+    opts: {multiline?: boolean, paddingForSingleLine?: boolean, curlyBraces?: boolean}
+  ): string {
+
+    const multiline = !!opts.multiline;
+    const newlineFunc = multiline ? this.newline.bind(this) : () => '';
+
+    // Beginning
+    let ret = opts.curlyBraces ? '{' : '(';
+    if (multiline) {
+      this.increaseDepth();
+    } else if (opts.paddingForSingleLine) {
+      ret += ' ';
+    }
+
+    let preCommaSlice = null;
+    let commaConfirmed = true;
+    for (let i = 0; i < fields.length; i++) {
+      const field = fields[i];
+      ret += newlineFunc();
+
+      const isComment = field.type === 'Comment';
+      const isWhitespace = field.type === 'Whitespace';
+      const isRealField = !isComment && !isWhitespace;
+
+      if (isWhitespace) {
+        ret += this.visitWhitespace(field as Whitespace);
+      } else if (isComment) {
+        ret += this.visitComment(field as Comment_);
+      } else {
+        ret += fieldHandler(field as T);
+        // Flag that helps us to remove a trailing comma if there's whitespace/commas afterwards
+        commaConfirmed = true;
+      }
+
+      const isLast = i === fields.length - 1;
+      if (!isLast && isRealField) {
+        const toAdd = ',' + (multiline ? '' : ' ');
+        // Save location of this last comma, so we can slice it out later if needed
+        preCommaSlice = [ret.length, ret.length + toAdd.length];
+        commaConfirmed = false;
+        ret += toAdd;
+      }
+    }
+
+    if (!commaConfirmed) {
+      // We added a comma earlier but there hasn't been a non-whitespace,
+      // non-comment field between the comma and the end of the table
+      // constructor expression. So we remove out the comma.
+      ret = ret.slice(0, preCommaSlice![0]) + ret.slice(preCommaSlice![1]);
+    }
+
+    // Ending
+    if (multiline) {
+      this.decreaseDepth();
+      ret += newlineFunc();
+    } else if (opts.paddingForSingleLine) {
+      ret += ' ';
+    }
+    ret += opts.curlyBraces ? '}' : ')';
+    return ret;
   }
 }

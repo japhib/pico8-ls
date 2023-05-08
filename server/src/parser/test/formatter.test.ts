@@ -539,11 +539,11 @@ end
 print(
   -- first argument
   'hi',
-
   -- second arg
   'hi2',
   -- empty one??
   ''
+  -- comment at end
 )`.trim();
       eq(formatLua(input), input);
     })

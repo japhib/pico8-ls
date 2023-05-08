@@ -617,7 +617,17 @@ export default class Parser {
     this.destroyScope();
     clauses.push(this.finishNode(AST.ifClause(condition, body), true));
 
+
+
+
+
     marker = this.createLocationMarker();
+
+
+
+
+
+    
     while (this.lexer.consume('elseif')) {
       this.pushLocation(marker);
       condition = this.parseExpectedExpression(flowContext);

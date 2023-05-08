@@ -174,7 +174,7 @@ export type IndexExpression = ASTNode & {
 export type CallExpression = ASTNode & {
   type: 'CallExpression',
   base: Expression,
-  arguments: Expression[],
+  arguments: (Expression | Comment_)[],
 };
 
 // func { argument }
