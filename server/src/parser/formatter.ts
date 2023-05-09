@@ -265,6 +265,19 @@ export default class Formatter {
       case 'TableConstructorExpression':
         this.insertWhitespaceIntoArray((node as TableConstructorExpression).fields);
         return;
+
+      case 'CallExpression':
+        // check each argument
+        this.insertWhitespaceIntoArray((node as CallExpression).arguments);
+        return;
+
+      case 'BinaryExpression':
+      case 'LogicalExpression':
+        // check both left and right
+        const expr = node as BinaryExpression;
+        this.maybeRecurseToInsertWhitespace(expr.left);
+        this.maybeRecurseToInsertWhitespace(expr.right);
+        return;
     }
   }
 
@@ -858,9 +871,15 @@ export default class Formatter {
 
   visitCallExpression(node: CallExpression): string {
     // Check if the original function call is on more than one line
-    const multiline = node.arguments.some(a => a.loc!.end.line !== node.base.loc?.start.line);
+    const multiline = node.arguments.length > 1 && node.arguments.some(a => a.loc!.end.line !== node.base.loc?.start.line);
 
     let base = this.visitExpression(node.base, { parentOperator: Operators.fakeMaxPrecedenceOperator });
+
+    if (node.base.type === 'FunctionDeclaration') {
+      // wrap in parentheses, e.g.
+      //     (function(a) return a+1 end)(5)
+      base = `(${base})`;
+    }
 
     let args = this.visitCommaDelimited(
       node.arguments,
@@ -872,37 +891,31 @@ export default class Formatter {
   }
 
   visitFunctionDeclaration(node: FunctionDeclaration, isStatement: boolean, childContext: ChildContext = {}): string {
-    return this.wrapWithParenthesesIfNeeded(
-      {
-        parentOperator: childContext.parentOperator,
-      },
-      () => {
-        // Support multiline or single-line functions
-        const multiline = node.loc!.start.line !== node.loc!.end.line;
+    // Support multiline or single-line functions
+    const multiline = node.loc!.start.line !== node.loc!.end.line;
 
-        let ret = '';
-        if (node.isLocal) {
-          ret += 'local ';
-        }
-        ret += 'function';
-        if (node.identifier) {
-          ret += ' ' + this.visitExpression(node.identifier);
-        }
-        ret += '(' + node.parameters.map(a => this.visitExpression(a)).join(', ') + ')';
+    let ret = '';
+    if (node.isLocal) {
+      ret += 'local ';
+    }
+    ret += 'function';
+    if (node.identifier) {
+      ret += ' ' + this.visitExpression(node.identifier);
+    }
+    ret += '(' + node.parameters.map(a => this.visitExpression(a)).join(', ') + ')';
 
-        this.increaseDepth();
+    this.increaseDepth();
 
-        for (const stmt of node.block.body) {
-          ret += multiline ? this.newline() : ' ';
-          ret += this.visitStatement(stmt);
-        }
+    for (const stmt of node.block.body) {
+      ret += multiline ? this.newline() : ' ';
+      ret += this.visitStatement(stmt);
+    }
 
-        this.decreaseDepth();
-        ret += multiline ? this.newline() : ' ';
-        ret += 'end';
+    this.decreaseDepth();
+    ret += multiline ? this.newline() : ' ';
+    ret += 'end';
 
-        return ret;
-      });
+    return ret;
   }
 
   visitIdentifier(node: Identifier): string {

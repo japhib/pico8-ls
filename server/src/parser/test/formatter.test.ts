@@ -772,6 +772,65 @@ local b = "bbb"
 -- x and y:
 local x, y = 111, 222`.trim());
     });
+
+    it('keeps single blank lines in functions nested in tables', () => {
+const input = `
+Player = Actor:new({
+  update = function(self)
+    self:control()
+
+    if self:grounded() and abs(self.dx) > 0 then
+      self.sfx_num += 1
+      self.sfx_num %= plr_sfx_frms * 2
+      if self.sfx_num == 0 then sfx(1) end
+      if self.sfx_num == plr_sfx_frms then sfx(2) end
+    else
+      self.sfx_num = plr_sfx_start
+    end
+
+    local was_grounded = self:grounded()
+    Actor.update(self)
+    local is_grounded = self:grounded()
+
+    if is_grounded and not was_grounded then
+      self:add_feet_dust(10)
+    elseif is_grounded and abs(self.dx) > 0 and flr(rnd(3)) == 0 then
+      self:add_feet_dust(1)
+    end
+
+    self:check_items()
+    self:check_dead()
+    self:check_crumbling_platforms()
+
+    if item_disp_time > 0 then item_disp_time -= 1 end
+    if time_display_time > 0 then time_display_time -= 1 end
+
+    -- increment timer
+    if not time_paused then
+      time_frames += 1
+      if time_frames > 30 then
+        time_sec += 1 time_frames -= 30
+      end
+      if time_sec > 60 then
+        time_minutes += 1 time_sec -= 60
+      end
+    end
+  end
+})
+`.trim();
+      eq(formatLua(input), input);
+    });
+
+  it('keeps single blank lines in functions nested in binary expressions', () => {
+    const input = `
+Player = Actor:new(plr or function(self)
+  self:control()
+
+  self:do_something()
+end)
+`.trim();
+      eq(formatLua(input), input);
+    });
   });
 
   describe('Range returned by formatter', () => {
