@@ -35,15 +35,15 @@ describe('Formatter', () => {
   });
 
   describe('Formats entire files', () => {
-    // TODO: write proper tests for the final implementation
+    // TODO: write proper tests for these
     it('formats low.p8', () => {
       const formatted = formatLua(getTestFileContents('low.p8'));
-      console.log(formatted);
+      // console.log(formatted);
     });
 
     it('formats low.lua', () => {
       const formatted = formatLua(getTestFileContents('low.lua'));
-      console.log(formatted);
+      // console.log(formatted);
     });
   });
 
@@ -206,6 +206,7 @@ end)()`.trim());
       });
 
       it('preserves parentheses when a property is accessed by value on their inner expression', () => {
+        // Formatter actually removes parens here, transforming this into invalid Lua ...
         const input = `
 local result = ({
   [123] = "xyz"
@@ -273,8 +274,18 @@ h = some_var_1 / some_var_2 / some_var_3`.trim());
       eq(formatLua(input), `a = {}`);
     });
 
-    it('formats single-line if statement', () => {
+    it('formats special pico-8 single-line if statement', () => {
       const input = `if (false) print('hi')`;
+      eq(formatLua(input), input);
+    });
+
+    it('formats normal lua single-line if statement', () => {
+      const input = `if false then print('hi') end`;
+      eq(formatLua(input), input);
+    });
+
+    it('formats normal lua single-line if/else statement', () => {
+      const input = `if false then print('hi') else print('hey??') end`;
       eq(formatLua(input), input);
     });
   });
@@ -490,6 +501,51 @@ local player = {
       eq(formatLua(input), input);
     });
 
+    it('preserves comments inside complex nested expressions', () => {
+      const input = `
+Actor = {
+  new = function(self, obj, x, y)
+    -- the "or" here on the next line is tripping us up
+    obj = obj or {
+      is_player = false,
+
+      x = x,
+      y = y,
+      dx = 0,
+      dy = 0,
+      xRemainder = 0,
+      yRemainder = 0,
+      friction_x = std_friction,
+      gravity = true,
+      -- time since grounded
+      grounded_time = 100,
+
+      -- half the width/height (radius) in pixels
+      w = 2,
+      h = 3,
+
+      animated = true,
+      -- whether this character has
+      -- an air frame
+      air_frame = true,
+      -- offset for first frame
+      k = 1,
+      -- offset for current frame (from k)
+      frame = 0,
+
+      facing_l = false,
+
+      sfx_num = 0
+    }
+    -- "self" here refers to the Actor prototype object
+    self.__index = self
+    setmetatable(obj, self)
+    return obj
+  end
+}`.trim();
+      eq(formatLua(input), input);
+    });
+
     it('formats single-line if statements with comments', () => {
       // Snippet from low.p8 (Low Knight) that gave some trouble
       const input = `
@@ -519,8 +575,8 @@ end
       eq(formatLua(input), input);
     })
 
-    it('formats single-line if statement with comment at end', () => {
-      const input = `if (false) print('hi') -- a comment\n\nprint('a')`;
+    it('formats statement with comment at end, with another statement afterwards', () => {
+      const input = `print('hi') -- a comment\n\nprint('a')`;
       eq(formatLua(input), input);
     })
 
@@ -546,7 +602,64 @@ print(
   -- comment at end
 )`.trim();
       eq(formatLua(input), input);
-    })
+    });
+
+    it('preserves multiline logical expressions', () => {
+      const input = `
+function grounded(self)
+  return a
+      or b()
+end`.trim();
+      eq(formatLua(input), input);
+    });
+
+    it('preserves large logical expressions interleaved with comments', () => {
+      const input = `
+function grounded(self)
+  -- 0: regular ground
+  return solid(self.x + self.w, self.y + self.h + 1, 0)
+      or solid(self.x - self.w, self.y + self.h + 1, 0)
+      -- 4: crumbly platforms
+      or solid(self.x + self.w, self.y + self.h + 1, 4)
+      or solid(self.x - self.w, self.y + self.h + 1, 4)
+      -- 3: jump-through platforms
+      or solid(self.x + self.w, self.y + self.h + 1, 3) and not solid(self.x + self.w, self.y + self.h, 3)
+      or solid(self.x - self.w, self.y + self.h + 1, 3) and not solid(self.x - self.w, self.y + self.h, 3)
+end`.trim();
+      eq(formatLua(input), input);
+    });
+
+    it('preserves newlines in large logical expressions', () => {
+      const input = `
+function grounded(self)
+  return solid(self.x + self.w, self.y + self.h + 1, 0)
+      or solid(self.x - self.w, self.y + self.h + 1, 0)
+      or solid(self.x + self.w, self.y + self.h + 1, 4)
+      or solid(self.x - self.w, self.y + self.h + 1, 4)
+      or solid(self.x + self.w, self.y + self.h + 1, 3) and not solid(self.x + self.w, self.y + self.h, 3)
+      or solid(self.x - self.w, self.y + self.h + 1, 3) and not solid(self.x - self.w, self.y + self.h, 3)
+end`.trim();
+      eq(formatLua(input), input);
+    });
+
+    it('preserves large nested logical expressions interleaved with comments', () => {
+      const input = `
+function check_dead(self)
+  if not self.dead
+      -- dead by falling off the bottom of the screen
+      and (self.y > level_height * 8 + 4
+        -- dead by touching spikes (the -4 gives it a smaller hitbox, must be touching bottom half of spikes)
+        or solid(self.x + self.w, self.y + self.h, 1) and solid(self.x + self.w, self.y + self.h - 4, 1)
+        or solid(self.x - self.w, self.y + self.h, 1) and solid(self.x - self.w, self.y + self.h - 4, 1)
+        -- dead by touching floating spikes
+        or solid_area(self.x, self.y, self.w, self.h, 2)
+        -- dead by touching an enemy
+        or self:collide_with_enemy()) then
+    plr_dead()
+  end
+end`.trim();
+      eq(formatLua(input), input);
+    });
   });
 
   describe('preserve single blank lines', () => {

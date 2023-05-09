@@ -157,6 +157,12 @@ export function isStatementWithBody(statement: any): statement is StatementWithB
   return !!statement && statement.block !== undefined;
 }
 
+export type StatementWithCondition = IfClause | ElseifClause | WhileStatement;
+
+export function isStatementWithCondition(statement: any): statement is StatementWithCondition {
+  return !!statement && statement.condition !== undefined;
+}
+
 export type Include = { stmt: IncludeStatement, resolvedFile: ResolvedFile };
 
 export type Chunk = {

@@ -1,8 +1,8 @@
 import {
   AssignmentStatement, Block, BreakStatement, CallStatement, Chunk, DoStatement, ElseClause,
   ElseifClause, ForGenericStatement, ForNumericStatement, FunctionDeclaration, GeneralIfClause,
-  GotoStatement, IfClause, IfStatement, IncludeStatement, isStatementWithBody, LabelStatement, LocalStatement,
-  RepeatStatement, ReturnStatement, Statement, WhileStatement,
+  GotoStatement, IfClause, IfStatement, IncludeStatement, isStatementWithBody, isStatementWithCondition, LabelStatement, LocalStatement,
+  RepeatStatement, ReturnStatement, Statement, StatementWithCondition, WhileStatement,
 } from './statements';
 import {
   BinaryExpression, BooleanLiteral, CallExpression, Comment_, Expression, GeneralTableField,
@@ -105,18 +105,7 @@ export default class Formatter {
     this.insertWhitespaceIntoBlock(chunk.block);
 
     // Most of the formatting work happens here
-    let formatted = chunk.block.body
-      .map(s => {
-        // Ignore included statements
-        if (s.included) {
-          return undefined;
-        }
-
-        return this.visitStatement(s);
-      })
-      // filter out `undefined`s from included statements
-      .filter(s => s !== undefined)
-      .join('\n');
+    let formatted = this.visitBlock(chunk.block, '', true, true);
 
     // Before returning, trim all trailing spaces from lines
     formatted = formatted.split('\n').map(line => line.trimRight()).join('\n');
@@ -298,7 +287,7 @@ export default class Formatter {
 
       const compareResult = boundsCompare(comment.loc!, currNode.loc!);
 
-      // console.log('insertComment, comment:', boundsToString(comment.loc!), 'currNode', currNode.type, boundsToString(currNode.loc!), 'result', compareResult)
+      // console.log(`insertComment, (splice:${splice}) comment:`, boundsToString(comment.loc!), 'currNode', currNode.type, boundsToString(currNode.loc!), 'result', compareResult)
 
       if (compareResult === BoundsCompareResult.CONTAINS) {
         this.insertCommentIntoNode(comment, currNode);
@@ -310,11 +299,7 @@ export default class Formatter {
           body.splice(i, 0, comment);
         } else {
           // put it on the node itself
-          if (currNode.comments === undefined) {
-            currNode.comments = [comment];
-          } else {
-            currNode.comments.push(comment);
-          }
+          this.putCommentOnNode(currNode, comment);
         }
         return true;
       }
@@ -331,6 +316,15 @@ export default class Formatter {
   }
 
   insertCommentIntoNode(comment: Comment_, node: ASTNode): void {
+    
+    // console.log('insertCommentIntoNode, comment:', boundsToString(comment.loc!), 'node', node.type, boundsToString(node.loc!));
+
+    // For if/while statements, the comment may be contained in the condition of the statement
+    if (isStatementWithCondition(node)
+        && this.maybeInsertCommentOnNode(comment, (node as StatementWithCondition).condition)) {
+      return;
+    }
+
     if (isStatementWithBody(node)) {
       // This comment is contained in the body of the current statement. Recurse into it.
       this.insertComment(comment, node.block.body, true);
@@ -382,9 +376,44 @@ export default class Formatter {
           return;
         }
         return;
+
+      case 'BinaryExpression':
+      case 'LogicalExpression':
+        const expr = node as BinaryExpression;
+
+        // try both left and right sub-expressions
+        if (this.maybeInsertCommentOnNode(comment, expr.left) ||
+            this.maybeInsertCommentOnNode(comment, expr.right)) {
+          return;
+        }
+        // fall through to put comment on node itself
+        break;
     }
 
     // If we got this far, just put it on the node itself
+    this.putCommentOnNode(node, comment);
+  }
+
+  maybeInsertCommentOnNode(comment: Comment_, currNode: ASTNode): boolean {
+    const compareResult = boundsCompare(comment.loc!, currNode.loc!);
+
+    // console.log('maybeInsertCommentOnNode, comment:', boundsToString(comment.loc!), 'currNode', currNode.type, boundsToString(currNode.loc!), 'result', compareResult)
+
+    if (compareResult === BoundsCompareResult.CONTAINS) {
+      this.insertCommentIntoNode(comment, currNode);
+      return true;
+    }
+    
+    if (compareResult === BoundsCompareResult.BEFORE) {
+      // put it on the node itself
+      this.putCommentOnNode(currNode, comment);
+      return true;
+    }
+
+    return false;
+  }
+
+  putCommentOnNode(node: ASTNode, comment: Comment_): void {
     if (node.comments === undefined) {
       node.comments = [comment];
     } else {
@@ -404,12 +433,12 @@ export default class Formatter {
     return ret;
   }
 
-  increaseDepth() {
-    this.currentIndent++;
+  increaseDepth(amount: number = 1) {
+    this.currentIndent += amount;
   }
 
-  decreaseDepth() {
-    this.currentIndent--;
+  decreaseDepth(amount: number = 1) {
+    this.currentIndent -= amount;
   }
 
   commentsBeforeNode(node: ASTNode, dontIndent?: boolean): string {
@@ -460,21 +489,39 @@ export default class Formatter {
     return ret;
   }
 
-  visitBlock(block: Block, begin?: string, skipEnd?: boolean): string {
+  visitBlock(
+    block: Block,
+    begin?: string, skipEnd?: boolean, topLevel?: boolean): string {
     const stmts = block.body;
 
     let ret = '';
     begin ??= 'do';
-
     ret += begin;
-    this.increaseDepth();
 
-    for (const stmt of stmts) {
-      ret += this.newline();
-      ret += this.visitStatement(stmt);
+    if (!topLevel) this.increaseDepth();
+
+    const body = block.body;
+    for (let i = 0; i < body.length; i++) {
+      const stmt = body[i];
+
+      // Ignore included statements
+      if (stmt.included) {
+        continue;
+      }
+
+      if (i !== 0 || !topLevel) {
+        // Compare with location of previous statement to see if we append a
+        // newline or just a space between them
+        const prev = i > 0 ? body[i - 1] : undefined;
+        const isOnSameLine = prev && !prev.included && prev.loc!.end.line === stmt.loc!.start.line;
+        ret += isOnSameLine ? ' ' : this.newline();
+      }
+
+      // Actually format the statement
+      ret += this.visitStatement(stmt).trimRight();
     }
 
-    this.decreaseDepth();
+    if (!topLevel) this.decreaseDepth();
 
     if (!skipEnd) {
       ret += this.newline();
@@ -501,19 +548,19 @@ export default class Formatter {
     switch (node.type) {
       // TODO: Which other expression should receive childContext as well?
       case 'FunctionDeclaration': ret += this.visitFunctionDeclaration(node, false, childContext); break;
-      case 'BinaryExpression': ret += this.visitBinaryExpression(node, childContext); break;
+      case 'BinaryExpression': ret += this.visitBinaryOrLogicalExpression(node, childContext); break;
       case 'BooleanLiteral': ret += this.visitBooleanLiteral(node); break;
       case 'CallExpression': ret += this.visitCallExpression(node); break;
       case 'IndexExpression': ret += this.visitIndexExpression(node); break;
       case 'Identifier': ret += this.visitIdentifier(node); break;
-      case 'LogicalExpression': ret += this.visitLogicalExpression(node, childContext); break;
+      case 'LogicalExpression': ret += this.visitBinaryOrLogicalExpression(node, childContext); break;
       case 'MemberExpression': ret += this.visitMemberExpression(node); break;
       case 'NilLiteral': ret += this.visitNilLiteral(node); break;
       case 'NumericLiteral': ret += this.visitNumericLiteral(node); break;
       case 'StringCallExpression': ret += this.visitStringCallExpression(node); break;
       case 'StringLiteral': ret += this.visitStringLiteral(node); break;
       case 'TableCallExpression': ret += this.visitTableCallExpression(node); break;
-      case 'TableConstructorExpression': ret += this.visitTableConstructorExpression(node, childContext); break;
+      case 'TableConstructorExpression': ret += this.visitTableConstructorExpression(node); break;
       case 'UnaryExpression': ret += this.visitUnaryExpression(node); break;
       case 'VarargLiteral': ret += this.visitVarargLiteral(node); break;
       default: throw new Error('Unexpected expression type: ' + (node as any).type);
@@ -645,9 +692,20 @@ export default class Formatter {
       // Else, fall through to regular if-statement handling
     }
 
-    if (node.oneLine && node.clauses.length === 1 && node.clauses[0].block.body.length === 1) {
-      const clause = node.clauses[0] as IfClause;
-      return `if (${this.visitExpression(clause.condition)}) ${this.visitStatement(clause.block.body[0])}`;
+    if (this.isSingleLineIfStatement(node)) {
+      if (node.clauses.length === 1) {
+        const clause = node.clauses[0] as IfClause;
+  
+        if (node.oneLine)
+          return `if (${this.visitExpression(clause.condition)}) ${this.visitStatement(clause.block.body[0])}`;
+        else
+          return `if ${this.visitExpression(clause.condition)} then ${this.visitStatement(clause.block.body[0])} end`;
+      } else if (node.clauses.length === 2 && node.clauses[1].type === 'ElseClause') {
+        const ifClause = node.clauses[0] as IfClause;
+        const elseClause = node.clauses[1] as ElseClause;
+
+        return `if ${this.visitExpression(ifClause.condition)} then ${this.visitStatement(ifClause.block.body[0])} else ${this.visitStatement(elseClause.block.body[0])} end`;
+      }
     }
 
     let ret = '';
@@ -656,6 +714,22 @@ export default class Formatter {
     }
     ret += 'end';
     return ret;
+  }
+
+  isSingleLineIfStatement(stmt: IfStatement) {
+    if (stmt.oneLine) return true;
+
+    const startingLine = stmt.loc!.start.line;
+
+    return stmt.clauses.every(cl =>
+      cl.loc!.start.line === startingLine &&
+      cl.loc!.end.line === startingLine &&
+      !cl.comments &&
+      cl.block.body.length === 1 &&
+      cl.block.body.every(stmt =>
+        stmt.loc!.start.line === startingLine &&
+        stmt.loc!.end.line === startingLine &&
+        !stmt.comments));
   }
 
   visitIncludeStatement(node: IncludeStatement): string {
@@ -748,17 +822,35 @@ export default class Formatter {
 
   // ****************************** Expressions *****************************
 
-  visitBinaryExpression(node: BinaryExpression, childContext: ChildContext = {}): string {
+  visitBinaryOrLogicalExpression(node: BinaryExpression | LogicalExpression, childContext: ChildContext = {}): string {
     return this.wrapWithParenthesesIfNeeded(
       {
         isRightSideOfAnExpression: childContext.isRightSideOfAnExpression,
         parentOperator: childContext.parentOperator,
         currentOperator: node.operator,
+        extraIndent: true,
       },
       () => {
         let ret = '';
         ret += this.visitExpression(node.left, { parentOperator: node.operator });
-        ret += ` ${node.operator} `;
+
+        const multiline = node.left.loc!.end.line !== node.right.loc!.start.line;
+        if (multiline) {
+          this.increaseDepth(2);
+          ret += this.newline();
+
+          // Check for a comment on the right node so it goes before the newline
+          if (node.right.comments) {
+            ret += this.commentsBeforeNode(node.right, true);
+            node.right.comments = undefined;
+          }
+
+          this.decreaseDepth(2);
+        } else {
+          ret += ' ';
+        }
+
+        ret += `${node.operator} `;
         ret += this.visitExpression(node.right, { parentOperator: node.operator, isRightSideOfAnExpression: true });
         return ret;
       });
@@ -818,28 +910,24 @@ export default class Formatter {
   }
 
   visitIndexExpression(node: IndexExpression): string {
-    let ret = '';
-    ret += this.visitExpression(node.base, { parentOperator: Operators.fakeMaxPrecedenceOperator });
+    let ret = this.visitExpression(node.base, { parentOperator: Operators.fakeMaxPrecedenceOperator });
+
+    // If TableConstructorExpression is base, must be wrapped in parens.
+    // For example:
+    //
+    //   local result = ({
+    //     [123] = "xyz"
+    //   })[123]
+    //
+    // ^ This results in a syntax error if the parentheses are removed.
+    if (node.base.type === 'TableConstructorExpression') {
+      ret = '(' + ret + ')';
+    }
+
     ret += '[';
     ret += this.visitExpression(node.index);
     ret += ']';
     return ret;
-  }
-
-  visitLogicalExpression(node: LogicalExpression, childContext: ChildContext = {}): string {
-    return this.wrapWithParenthesesIfNeeded(
-      {
-        isRightSideOfAnExpression: childContext.isRightSideOfAnExpression,
-        parentOperator: childContext.parentOperator,
-        currentOperator: node.operator,
-      },
-      () => {
-        let ret = '';
-        ret += this.visitExpression(node.left, { parentOperator: node.operator });
-        ret += ` ${node.operator} `;
-        ret += this.visitExpression(node.right, { parentOperator: node.operator, isRightSideOfAnExpression: true });
-        return ret;
-      });
   }
 
   visitMemberExpression(node: MemberExpression): string {
@@ -858,24 +946,20 @@ export default class Formatter {
     return this.visitExpression(node.base) + ' ' + this.visitTableConstructorExpression(node.arguments);
   }
 
-  visitTableConstructorExpression(node: TableConstructorExpression, childContext: ChildContext = {}): string {
-    return this.wrapWithParenthesesIfNeeded(
-      { parentOperator: childContext.parentOperator },
-      () => {
-        if (!node.fields?.length) {
-          // Special case empty table
-          return '{}';
-        }
+  visitTableConstructorExpression(node: TableConstructorExpression): string {
+    if (!node.fields?.length) {
+      // Special case empty table
+      return '{}';
+    }
 
-        // Check if the original function call is on more than one line
-        const multiline = node.fields.some(f => f.loc!.end.line !== node.loc?.start.line);
+    // Check if the original function call is on more than one line
+    const multiline = node.fields.some(f => f.loc!.end.line !== node.loc?.start.line);
 
-        return this.visitCommaDelimited(
-          node.fields,
-          this.visitGeneralTableField.bind(this),
-          { multiline, paddingForSingleLine: true, curlyBraces: true}
-        );
-      });
+    return this.visitCommaDelimited(
+      node.fields,
+      this.visitGeneralTableField.bind(this),
+      { multiline, paddingForSingleLine: true, curlyBraces: true}
+    );
   }
 
   visitUnaryExpression(node: UnaryExpression): string {
@@ -913,10 +997,11 @@ export default class Formatter {
       parentOperator?: string;
       currentOperator?: string,
       isRightSideOfAnExpression?: boolean,
+      extraIndent?: boolean,
     },
     expressionToWrap: () => string,
   ): string {
-    const expression = expressionToWrap();
+    let shouldWrap = false;
 
     const parentPrecedence = params.parentOperator
       ? Operators.binaryPrecedenceOf(params.parentOperator)
@@ -925,7 +1010,7 @@ export default class Formatter {
       ? Operators.binaryPrecedenceOf(params.currentOperator)
       : Operators.minPrecedenceValue;
     if (currentPrecedence < parentPrecedence) {
-      return `(${expression})`;
+      shouldWrap = true;
     }
 
     if (
@@ -935,10 +1020,13 @@ export default class Formatter {
       // eslint-disable-next-line @typescript-eslint/no-unsafe-call
       Operators.doesNeedParenthesesIfOnTheRightSide(params.parentOperator)
     ) {
-      return `(${expression})`;
+      shouldWrap = true;
     }
 
-    return expression;
+    if (shouldWrap && params.extraIndent) this.increaseDepth();
+    const expression = expressionToWrap();
+    if (shouldWrap && params.extraIndent) this.decreaseDepth();
+    return shouldWrap ? `(${expression})` : expression;
   }
 
   // Visit a potentially multiline, comma delimited list of function call args or table
@@ -963,9 +1051,32 @@ export default class Formatter {
 
     let preCommaSlice = null;
     let commaConfirmed = true;
+    let prevFieldEndingLine = undefined;
     for (let i = 0; i < fields.length; i++) {
       const field = fields[i];
-      ret += newlineFunc();
+
+      // Compare starting line of current field to ending line of previous field
+      // to see whether to add zero, one, or two newlines.
+      if (!prevFieldEndingLine) {
+        ret += newlineFunc();
+      } else {
+        const fieldCurrLine = field.loc!.start.line;
+
+        if (fieldCurrLine === prevFieldEndingLine + 1) {
+          // one newline
+          ret += newlineFunc();
+        } else if (fieldCurrLine > prevFieldEndingLine + 1) {
+          // two or more newlines, condense to two
+          ret += newlineFunc() + newlineFunc();
+        } else {
+          // else, it's on the same line as previous one, so zero newlines.
+          if (multiline) {
+            // Add a space to separate the fields so they don't run together.
+            ret += ' ';
+          }
+        }
+      }
+      prevFieldEndingLine = field.loc!.end.line;
 
       const isComment = field.type === 'Comment';
       const isWhitespace = field.type === 'Whitespace';
