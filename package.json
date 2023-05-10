@@ -23,6 +23,16 @@
 		"Snippets"
 	],
 	"contributes": {
+		"commands": [
+			{
+				"command": "extension.pico8formatFile",
+				"title": "PICO-8 LS: Format File"
+			},
+			{
+				"command": "extension.pico8formatFileSeparateLines",
+				"title": "PICO-8 LS: Format File - Each Statement on Separate Line"
+			}
+		],
 		"configuration": {
 			"type": "object",
 			"title": "PICO-8 LS configuration",

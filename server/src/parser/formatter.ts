@@ -15,19 +15,23 @@ import { ASTNode, boundsCompare, BoundsCompareResult, boundsToString } from './t
 import Operators from './operators';
 import * as util from 'util';
 import { isP8BeginningOfCodeSection, isP8EndOfCodeSection } from './lexer';
-import { logObj } from './util';
 
 export type FormatterOptions = {
   // Size of a tab in spaces.
   tabSize: uinteger,
   // Prefer spaces over tabs.
   insertSpaces: boolean,
-  // Trim trailing whitespaces on a line.
-  trimTrailingWhitespace?: boolean,
-  // Insert a newline character at the end of the file if one does not exist.
-  insertFinalNewline?: boolean,
-  // Trim all newlines after the final newline at the end of the file.
-  trimFinalNewlines?: boolean,
+  // Force each statement to be on a separate line.
+  forceSeparateLines?: boolean,
+
+  // Options provided by VSCode onDocumentFormatting call, but ignored by formatter for now
+
+  // // Trim trailing whitespaces on a line.
+  // trimTrailingWhitespace?: boolean,
+  // // Insert a newline character at the end of the file if one does not exist.
+  // insertFinalNewline?: boolean,
+  // // Trim all newlines after the final newline at the end of the file.
+  // trimFinalNewlines?: boolean,
 };
 
 // Range/Position declarations taken from vscode-languageserver-node declarations.
@@ -514,6 +518,7 @@ export default class Formatter {
     if (!topLevel) this.increaseDepth();
 
     const body = block.body;
+    const forceSeparateLines = !!this.options.forceSeparateLines;
     for (let i = 0; i < body.length; i++) {
       const stmt = body[i];
 
@@ -523,11 +528,15 @@ export default class Formatter {
       }
 
       if (i !== 0 || !topLevel) {
-        // Compare with location of previous statement to see if we append a
-        // newline or just a space between them
-        const prev = i > 0 ? body[i - 1] : undefined;
-        const isOnSameLine = prev && !prev.included && prev.loc!.end.line === stmt.loc!.start.line;
-        ret += isOnSameLine ? ' ' : this.newline();
+        if (forceSeparateLines) {
+          ret += this.newline();
+        } else {
+          // Compare with location of previous statement to see if we append a
+          // newline or just a space between them
+          const prev = i > 0 ? body[i - 1] : undefined;
+          const isOnSameLine = prev && !prev.included && prev.loc!.end.line === stmt.loc!.start.line;
+          ret += isOnSameLine ? ' ' : this.newline();
+        }
       }
 
       // Actually format the statement
@@ -891,8 +900,8 @@ export default class Formatter {
   }
 
   visitFunctionDeclaration(node: FunctionDeclaration, isStatement: boolean, childContext: ChildContext = {}): string {
-    // Support multiline or single-line functions
-    const multiline = node.loc!.start.line !== node.loc!.end.line;
+    // Support multiline or single-line functions (force multiline if options.forceSeparateLines enabled)
+    const multiline = this.options.forceSeparateLines || node.loc!.start.line !== node.loc!.end.line;
 
     let ret = '';
     if (node.isLocal) {

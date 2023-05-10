@@ -1,7 +1,7 @@
 import {
   CompletionItem, CompletionItemTag, createConnection, DefinitionParams, Diagnostic, DiagnosticSeverity,
   DidChangeConfigurationNotification, DocumentFormattingParams, DocumentSymbol, DocumentSymbolParams,
-  HoverParams, InitializeParams, InitializeResult, Location, Position, ProposedFeatures,
+  ExecuteCommandParams, HoverParams, InitializeParams, InitializeResult, Location, Position, ProposedFeatures,
   Range, ReferenceParams, SignatureHelpParams, SignatureInformation, SymbolKind, TextDocumentPositionParams,
   TextDocuments, TextDocumentSyncKind, TextEdit, WorkspaceFolder,
 } from 'vscode-languageserver/node';
@@ -17,7 +17,7 @@ import { Builtins, BuiltinFunctionInfo } from './parser/builtins';
 import { isIdentifierPart } from './parser/lexer';
 import ResolvedFile, { FileResolver, pathToFileURL } from './parser/file-resolver';
 import { Include } from './parser/statements';
-import Formatter from './parser/formatter';
+import Formatter, { FormatterOptions } from './parser/formatter';
 import {
   findProjects, getProjectFiles, iterateProject, ParsedDocumentsMap, Project, ProjectDocument, ProjectDocumentNode,
 } from './projects';
@@ -57,6 +57,12 @@ connection.onInitialize((params: InitializeParams) => {
       hoverProvider: true,
       signatureHelpProvider: { triggerCharacters: [ '(' ], retriggerCharacters: [ ',' ] },
       documentFormattingProvider: true,
+      executeCommandProvider: {
+        commands: [
+          "pico8formatFile",
+          "pico8formatFileSeparateLines"
+        ]
+      }
     },
   };
 
@@ -721,41 +727,63 @@ connection.onSignatureHelp((params: SignatureHelpParams) => {
   };
 });
 
+connection.onDocumentFormatting(async (params: DocumentFormattingParams) => {
+  const formatResult = executeCommand_formatDocument(params.textDocument.uri, params.options);
+  return formatResult ? [formatResult] : null;
+});
+
+connection.onExecuteCommand((params: ExecuteCommandParams) => {
+  switch (params.command) {
+    // Both these commands trigger a format operation -- the difference should be expressed in the FormatterOptions.
+    case 'pico8formatFile':
+    case 'pico8formatFileSeparateLines':
+      return executeCommand_formatDocument(params.arguments![0] as string, params.arguments![1] as FormatterOptions);
+    default:
+      console.error(`onExecuteCommand received unexpected command: ${params.command}`);
+      break;
+  }
+});
+
 const formatterSupportedLanguages = [ 'pico-8', 'pico-8-lua' ];
 
-connection.onDocumentFormatting((params: DocumentFormattingParams) => {
-  const textDocument = documentTextCache.get(params.textDocument.uri);
+function executeCommand_formatDocument(documentUri: string, opts: FormatterOptions): TextEdit | null {
+  const textDocument = documentTextCache.get(documentUri);
   if (!textDocument) {
+    console.error('Can\'t find textDocument at uri ' + documentUri);
     return null;
   }
 
   // Make sure the document language is supported for formatting
   if (!formatterSupportedLanguages.includes(textDocument.languageId)) {
-    console.log('Unsupported language for formatter: ' + textDocument.languageId);
+    console.error('Unsupported language for formatter: ' + textDocument.languageId);
     return null;
   }
 
   // Refresh document contents
   const parsedDocument = parseTextDocument(textDocument);
   if (!parsedDocument || (parsedDocument.errors && parsedDocument.errors.length > 0)) {
-    console.error(`Can't format document when there are parsing errors! (document: "${textDocument.uri}"`);
+    console.error(`Can't format document when there are parsing errors! (document: "${textDocument.uri}")`);
     return null;
   }
 
   // Actually format it
-  const formatResult = new Formatter(params.options).formatChunk(parsedDocument.chunk, textDocument.getText(), textDocument.languageId === 'pico-8-lua');
+  const formatResult = new Formatter(opts).formatChunk(
+    parsedDocument.chunk,
+    textDocument.getText(),
+    textDocument.languageId === 'pico-8-lua'
+  );
+
   if (!formatResult) {
     // Couldn't format, for whatever reason
+    console.error('Unknown error formatting document');
     return null;
   }
 
-  return [
-    TextEdit.replace(
-      formatResult.formattedRange,
-      formatResult.formattedText,
-    ),
-  ];
-});
+  return TextEdit.replace(
+    formatResult.formattedRange,
+    formatResult.formattedText,
+  );
+}
 
 // Make the text document manager listen on the connection
 // for open, change and close text document events
