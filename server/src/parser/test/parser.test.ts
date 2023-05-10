@@ -559,6 +559,11 @@ __gfx__
     eq(errors.length, 0, 'Unexpected errors: ' + errors.map(e => `[${e.bounds.start.line}:${e.bounds.end.column}] ${e.message}`).join(','));
   });
 
+  it('parses minified pico-8 code without errors', () => {
+    const { errors } = parse(getTestFileContents('tweettweetjam.p8'));
+    eq(errors.length, 0, 'Unexpected errors: ' + errors.map(e => `[${e.bounds.start.line}:${e.bounds.end.column}] ${e.message}`).join(','));
+  });
+
   it('parses a binary literal', () => {
     const { block: { body }, errors } = parse('a = 0b0101101001011010.1');
     deepEquals(errors, []);
@@ -667,4 +672,6 @@ __gfx__
       deepEquals(warnings, []);
     });
   });
+
+  
 });
