@@ -49,6 +49,14 @@ to understand how to develop VS Code language server extension.
 
 # Changelog
 
+## 0.5.0 (5/18/2023)
+
+- Formatter has been released! Thanks to [@beetrootpaul](https://github.com/beetrootpaul) for major contributions in this feature.
+- Closes [#26](https://github.com/japhib/pico8-ls/issues/26)
+- Formatter is accessible through regular "Format Document" feature (Alt + Shift + F by default)
+- Also accessible through Command Palette, with `PICO-8 LS: Format File - Each Statement on Separate Line` command. This version of the formatter will ensure that each statement is on a separate line, as opposed to the normal one which will keep statements on the same line.
+- Works on both `.lua` and `.p8` files!
+
 ## 0.4.10 (12/22/2022)
 
 - Add snippets for pico-8 glyphs ([#30](https://github.com/japhib/pico8-ls/issues/30)) - thanks to [@mika76](https://github.com/mika76) for the contribution!

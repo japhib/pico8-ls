@@ -5,7 +5,7 @@
 	"author": "JanPaul Bergeson",
 	"publisher": "PollywogGames",
 	"license": "MIT",
-	"version": "0.4.10",
+	"version": "0.5.0",
 	"repository": {
 		"type": "git",
 		"url": "https://github.com/japhib/pico8-ls"
