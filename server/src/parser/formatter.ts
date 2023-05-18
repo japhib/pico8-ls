@@ -2,7 +2,7 @@ import {
   AssignmentStatement, Block, BreakStatement, CallStatement, Chunk, DoStatement, ElseClause,
   ElseifClause, ForGenericStatement, ForNumericStatement, FunctionDeclaration, GeneralIfClause,
   GotoStatement, IfClause, IfStatement, IncludeStatement, isStatementWithBody, isStatementWithCondition, LabelStatement, LocalStatement,
-  RepeatStatement, ReturnStatement, Statement, StatementWithCondition, WhileStatement,
+  RepeatStatement, ReturnStatement, Statement, WhileStatement,
 } from './statements';
 import {
   BinaryExpression, BooleanLiteral, CallExpression, Comment_, Expression, GeneralTableField,
@@ -11,7 +11,7 @@ import {
   TableKeyString, TableValue, UnaryExpression, VarargLiteral, Whitespace,
 } from './expressions';
 import { uinteger } from 'vscode-languageserver-types';
-import { ASTNode, boundsCompare, BoundsCompareResult, boundsToString } from './types';
+import { ASTNode, boundsCompare, BoundsCompareResult } from './types';
 import Operators from './operators';
 import * as util from 'util';
 import { isP8BeginningOfCodeSection, isP8EndOfCodeSection } from './lexer';
@@ -155,7 +155,7 @@ export default class Formatter {
 
     return {
       start: { line: startLine, character: 0 },
-      end: { line: endLine as uinteger, character: 0 },
+      end: { line: endLine, character: 0 },
     };
   }
 
@@ -247,41 +247,41 @@ export default class Formatter {
     }
 
     switch (node.type) {
-      case 'IfStatement':
-        // Check each clause of the if statement
-        (node as IfStatement).clauses
-          .map(clause => clause.block)
-          .forEach(block => this.insertWhitespaceIntoBlock(block));
-        return;
+    case 'IfStatement':
+      // Check each clause of the if statement
+      (node as IfStatement).clauses
+        .map(clause => clause.block)
+        .forEach(block => this.insertWhitespaceIntoBlock(block));
+      return;
 
-      case 'ReturnStatement':
-        // check each returned expression
-        this.insertWhitespaceIntoArray((node as ReturnStatement).arguments);
-        return;
+    case 'ReturnStatement':
+      // check each returned expression
+      this.insertWhitespaceIntoArray((node as ReturnStatement).arguments);
+      return;
 
-      case 'AssignmentStatement':
-      case 'LocalStatement':
-        // check each initializer and assigned expression
-        this.insertWhitespaceIntoArray((node as LocalStatement).init);
-        this.insertWhitespaceIntoArray((node as LocalStatement).variables);
-        return;
+    case 'AssignmentStatement':
+    case 'LocalStatement':
+      // check each initializer and assigned expression
+      this.insertWhitespaceIntoArray((node as LocalStatement).init);
+      this.insertWhitespaceIntoArray((node as LocalStatement).variables);
+      return;
 
-      case 'TableConstructorExpression':
-        this.insertWhitespaceIntoArray((node as TableConstructorExpression).fields);
-        return;
+    case 'TableConstructorExpression':
+      this.insertWhitespaceIntoArray((node as TableConstructorExpression).fields);
+      return;
 
-      case 'CallExpression':
-        // check each argument
-        this.insertWhitespaceIntoArray((node as CallExpression).arguments);
-        return;
+    case 'CallExpression':
+      // check each argument
+      this.insertWhitespaceIntoArray((node as CallExpression).arguments);
+      return;
 
-      case 'BinaryExpression':
-      case 'LogicalExpression':
-        // check both left and right
-        const expr = node as BinaryExpression;
-        this.maybeRecurseToInsertWhitespace(expr.left);
-        this.maybeRecurseToInsertWhitespace(expr.right);
-        return;
+    case 'BinaryExpression':
+    case 'LogicalExpression':
+      // check both left and right
+      const expr = node as BinaryExpression;
+      this.maybeRecurseToInsertWhitespace(expr.left);
+      this.maybeRecurseToInsertWhitespace(expr.right);
+      return;
     }
   }
 
@@ -333,12 +333,12 @@ export default class Formatter {
   }
 
   insertCommentIntoNode(comment: Comment_, node: ASTNode): void {
-    
+
     // console.log('insertCommentIntoNode, comment:', boundsToString(comment.loc!), 'node', node.type, boundsToString(node.loc!));
 
     // For if/while statements, the comment may be contained in the condition of the statement
     if (isStatementWithCondition(node)
-        && this.maybeInsertCommentOnNode(comment, (node as StatementWithCondition).condition)) {
+        && this.maybeInsertCommentOnNode(comment, (node ).condition)) {
       return;
     }
 
@@ -355,56 +355,56 @@ export default class Formatter {
     }
 
     switch (node.type) {
-      case 'IfStatement':
-        // Check each clause of the if statement
-        this.insertComment(comment, (node as IfStatement).clauses, false);
+    case 'IfStatement':
+      // Check each clause of the if statement
+      this.insertComment(comment, (node as IfStatement).clauses, false);
+      return;
+
+    case 'ReturnStatement':
+      // check each returned expression
+      this.insertComment(comment, (node as ReturnStatement).arguments, false);
+      return;
+
+    case 'AssignmentStatement':
+    case 'LocalStatement':
+      // check each initializer and assigned expression
+      const init = this.insertComment(comment, (node as LocalStatement).init, false, true);
+      if (!init) {
+        this.insertComment(comment, (node as LocalStatement).variables, false);
+      }
+      return;
+
+    case 'TableConstructorExpression':
+      this.insertComment(comment, (node as TableConstructorExpression).fields, true);
+      return;
+
+    case 'CallStatement':
+      const callExpression = (node as CallStatement).expression as CallExpression;
+      if (callExpression && callExpression.arguments) {
+        this.insertComment(comment, callExpression.arguments, true);
         return;
+      }
+      break;
 
-      case 'ReturnStatement':
-        // check each returned expression
-        this.insertComment(comment, (node as ReturnStatement).arguments, false);
+    case 'CallExpression':
+      const callExpression2 = node as CallExpression;
+      if (callExpression2 && callExpression2.arguments) {
+        this.insertComment(comment, callExpression2.arguments, true);
         return;
+      }
+      return;
 
-      case 'AssignmentStatement':
-      case 'LocalStatement':
-        // check each initializer and assigned expression
-        const init = this.insertComment(comment, (node as LocalStatement).init, false, true);
-        if (!init) {
-          this.insertComment(comment, (node as LocalStatement).variables, false);
-        }
-        return;
+    case 'BinaryExpression':
+    case 'LogicalExpression':
+      const expr = node as BinaryExpression;
 
-      case 'TableConstructorExpression':
-        this.insertComment(comment, (node as TableConstructorExpression).fields, true);
-        return;
-
-      case 'CallStatement':
-        const callExpression = (node as CallStatement).expression as CallExpression;
-        if (callExpression && callExpression.arguments) {
-          this.insertComment(comment, callExpression.arguments, true);
-          return;
-        }
-        break;
-
-      case 'CallExpression':
-        const callExpression2 = node as CallExpression;
-        if (callExpression2 && callExpression2.arguments) {
-          this.insertComment(comment, callExpression2.arguments, true);
-          return;
-        }
-        return;
-
-      case 'BinaryExpression':
-      case 'LogicalExpression':
-        const expr = node as BinaryExpression;
-
-        // try both left and right sub-expressions
-        if (this.maybeInsertCommentOnNode(comment, expr.left) ||
+      // try both left and right sub-expressions
+      if (this.maybeInsertCommentOnNode(comment, expr.left) ||
             this.maybeInsertCommentOnNode(comment, expr.right)) {
-          return;
-        }
-        // fall through to put comment on node itself
-        break;
+        return;
+      }
+      // fall through to put comment on node itself
+      break;
     }
 
     // If we got this far, just put it on the node itself
@@ -420,7 +420,7 @@ export default class Formatter {
       this.insertCommentIntoNode(comment, currNode);
       return true;
     }
-    
+
     if (compareResult === BoundsCompareResult.BEFORE) {
       // put it on the node itself
       this.putCommentOnNode(currNode, comment);
@@ -432,7 +432,7 @@ export default class Formatter {
 
   putCommentOnNode(node: ASTNode, comment: Comment_): void {
     if (node.comments === undefined) {
-      node.comments = [comment];
+      node.comments = [ comment ];
     } else {
       node.comments.push(comment);
     }
@@ -482,24 +482,24 @@ export default class Formatter {
     let ret = this.commentsBeforeNode(node);
 
     switch (node.type) {
-      case 'AssignmentStatement': ret += this.visitAssignmentStatement(node); break;
-      case 'BreakStatement': ret += this.visitBreakStatement(node); break;
-      case 'CallStatement': ret += this.visitCallStatement(node); break;
-      case 'DoStatement': ret += this.visitDoStatement(node); break;
-      case 'ForGenericStatement': ret += this.visitForGenericStatement(node); break;
-      case 'ForNumericStatement': ret += this.visitForNumericStatement(node); break;
-      case 'FunctionDeclaration': ret += this.visitFunctionDeclaration(node, true); break;
-      case 'GotoStatement': ret += this.visitGotoStatement(node); break;
-      case 'IfStatement': ret += this.visitIfStatement(node); break;
-      case 'IncludeStatement': ret += this.visitIncludeStatement(node); break;
-      case 'LabelStatement': ret += this.visitLabelStatement(node); break;
-      case 'LocalStatement': ret += this.visitLocalStatement(node); break;
-      case 'RepeatStatement': ret += this.visitRepeatStatement(node); break;
-      case 'ReturnStatement': ret += this.visitReturnStatement(node); break;
-      case 'WhileStatement': ret += this.visitWhileStatement(node); break;
-      case 'Comment': ret += this.visitComment(node); break;
-      case 'Whitespace': ret += this.visitWhitespace(node); break;
-      default: throw new Error('Unexpected statement type: ' + (node as any).type);
+    case 'AssignmentStatement': ret += this.visitAssignmentStatement(node); break;
+    case 'BreakStatement': ret += this.visitBreakStatement(node); break;
+    case 'CallStatement': ret += this.visitCallStatement(node); break;
+    case 'DoStatement': ret += this.visitDoStatement(node); break;
+    case 'ForGenericStatement': ret += this.visitForGenericStatement(node); break;
+    case 'ForNumericStatement': ret += this.visitForNumericStatement(node); break;
+    case 'FunctionDeclaration': ret += this.visitFunctionDeclaration(node); break;
+    case 'GotoStatement': ret += this.visitGotoStatement(node); break;
+    case 'IfStatement': ret += this.visitIfStatement(node); break;
+    case 'IncludeStatement': ret += this.visitIncludeStatement(node); break;
+    case 'LabelStatement': ret += this.visitLabelStatement(node); break;
+    case 'LocalStatement': ret += this.visitLocalStatement(node); break;
+    case 'RepeatStatement': ret += this.visitRepeatStatement(node); break;
+    case 'ReturnStatement': ret += this.visitReturnStatement(node); break;
+    case 'WhileStatement': ret += this.visitWhileStatement(node); break;
+    case 'Comment': ret += this.visitComment(node); break;
+    case 'Whitespace': ret += this.visitWhitespace(node); break;
+    default: throw new Error('Unexpected statement type: ' + (node as any).type);
     }
 
     this.currentIndent = prevIndent;
@@ -509,13 +509,14 @@ export default class Formatter {
   visitBlock(
     block: Block,
     begin?: string, skipEnd?: boolean, topLevel?: boolean): string {
-    const stmts = block.body;
 
     let ret = '';
     begin ??= 'do';
     ret += begin;
 
-    if (!topLevel) this.increaseDepth();
+    if (!topLevel) {
+      this.increaseDepth();
+    }
 
     const body = block.body;
     const forceSeparateLines = !!this.options.forceSeparateLines;
@@ -543,7 +544,9 @@ export default class Formatter {
       ret += this.visitStatement(stmt).trimRight();
     }
 
-    if (!topLevel) this.decreaseDepth();
+    if (!topLevel) {
+      this.decreaseDepth();
+    }
 
     if (!skipEnd) {
       ret += this.newline();
@@ -552,14 +555,14 @@ export default class Formatter {
     return ret;
   }
 
-  visitGeneralIfClause(node: GeneralIfClause | Comment_ | Whitespace): string {
+  visitGeneralIfClause(node: GeneralIfClause | Comment_ | Whitespace): string {
     switch (node.type) {
-      case 'IfClause': return this.visitIfClause(node);
-      case 'ElseClause': return this.visitElseClause(node);
-      case 'ElseifClause': return this.visitElseifClause(node);
-      case 'Comment': return this.visitComment(node) + this.newline();
-      case 'Whitespace': return this.visitWhitespace(node) + this.newline();
-      default: throw new Error('Unexpected if clause type: ' + (node as any).type + ', ' + util.inspect(node, { depth: 99 }));
+    case 'IfClause': return this.visitIfClause(node);
+    case 'ElseClause': return this.visitElseClause(node);
+    case 'ElseifClause': return this.visitElseifClause(node);
+    case 'Comment': return this.visitComment(node) + this.newline();
+    case 'Whitespace': return this.visitWhitespace(node) + this.newline();
+    default: throw new Error('Unexpected if clause type: ' + (node as any).type + ', ' + util.inspect(node, { depth: 99 }));
     }
   }
 
@@ -568,24 +571,24 @@ export default class Formatter {
     let ret = this.commentsBeforeNode(node);
 
     switch (node.type) {
-      // TODO: Which other expression should receive childContext as well?
-      case 'FunctionDeclaration': ret += this.visitFunctionDeclaration(node, false, childContext); break;
-      case 'BinaryExpression': ret += this.visitBinaryOrLogicalExpression(node, childContext); break;
-      case 'BooleanLiteral': ret += this.visitBooleanLiteral(node); break;
-      case 'CallExpression': ret += this.visitCallExpression(node); break;
-      case 'IndexExpression': ret += this.visitIndexExpression(node); break;
-      case 'Identifier': ret += this.visitIdentifier(node); break;
-      case 'LogicalExpression': ret += this.visitBinaryOrLogicalExpression(node, childContext); break;
-      case 'MemberExpression': ret += this.visitMemberExpression(node); break;
-      case 'NilLiteral': ret += this.visitNilLiteral(node); break;
-      case 'NumericLiteral': ret += this.visitNumericLiteral(node); break;
-      case 'StringCallExpression': ret += this.visitStringCallExpression(node); break;
-      case 'StringLiteral': ret += this.visitStringLiteral(node); break;
-      case 'TableCallExpression': ret += this.visitTableCallExpression(node); break;
-      case 'TableConstructorExpression': ret += this.visitTableConstructorExpression(node); break;
-      case 'UnaryExpression': ret += this.visitUnaryExpression(node); break;
-      case 'VarargLiteral': ret += this.visitVarargLiteral(node); break;
-      default: throw new Error('Unexpected expression type: ' + (node as any).type);
+    // TODO: Which other expression should receive childContext as well?
+    case 'FunctionDeclaration': ret += this.visitFunctionDeclaration(node); break;
+    case 'BinaryExpression': ret += this.visitBinaryOrLogicalExpression(node, childContext); break;
+    case 'BooleanLiteral': ret += this.visitBooleanLiteral(node); break;
+    case 'CallExpression': ret += this.visitCallExpression(node); break;
+    case 'IndexExpression': ret += this.visitIndexExpression(node); break;
+    case 'Identifier': ret += this.visitIdentifier(node); break;
+    case 'LogicalExpression': ret += this.visitBinaryOrLogicalExpression(node, childContext); break;
+    case 'MemberExpression': ret += this.visitMemberExpression(node); break;
+    case 'NilLiteral': ret += this.visitNilLiteral(node); break;
+    case 'NumericLiteral': ret += this.visitNumericLiteral(node); break;
+    case 'StringCallExpression': ret += this.visitStringCallExpression(node); break;
+    case 'StringLiteral': ret += this.visitStringLiteral(node); break;
+    case 'TableCallExpression': ret += this.visitTableCallExpression(node); break;
+    case 'TableConstructorExpression': ret += this.visitTableConstructorExpression(node); break;
+    case 'UnaryExpression': ret += this.visitUnaryExpression(node); break;
+    case 'VarargLiteral': ret += this.visitVarargLiteral(node); break;
+    default: throw new Error('Unexpected expression type: ' + (node as any).type);
     }
 
     this.currentIndent = prevIndent;
@@ -596,12 +599,12 @@ export default class Formatter {
     let ret = this.commentsBeforeNode(node, true);
 
     switch (node.type) {
-      case 'TableKey': ret += this.visitTableKey(node); break;
-      case 'TableKeyString': ret += this.visitTableKeyString(node); break;
-      case 'TableValue': ret += this.visitTableValue(node); break;
-      case 'Comment': ret += this.visitComment(node); break;
-      case 'Whitespace': ret += this.visitWhitespace(node); break;
-      default: throw new Error('Unexpected table field type: ' + (node as any).type);
+    case 'TableKey': ret += this.visitTableKey(node); break;
+    case 'TableKeyString': ret += this.visitTableKeyString(node); break;
+    case 'TableValue': ret += this.visitTableValue(node); break;
+    case 'Comment': ret += this.visitComment(node); break;
+    case 'Whitespace': ret += this.visitWhitespace(node); break;
+    default: throw new Error('Unexpected table field type: ' + (node as any).type);
     }
 
     return ret;
@@ -702,7 +705,7 @@ export default class Formatter {
         let ret = `if (${this.visitExpression(clause.condition)})`;
         // There can be multiple statements inside even a single-line if
         for (const stmt of clause.block.body) {
-          ret += ' ' + this.visitStatement(clause.block.body[0]);
+          ret += ' ' + this.visitStatement(stmt);
         }
         // Tack on any comments at the end
         for (const comment of comments) {
@@ -717,14 +720,15 @@ export default class Formatter {
     if (this.isSingleLineIfStatement(node)) {
       if (node.clauses.length === 1) {
         const clause = node.clauses[0] as IfClause;
-  
-        if (node.oneLine)
+
+        if (node.oneLine) {
           return `if (${this.visitExpression(clause.condition)}) ${this.visitStatement(clause.block.body[0])}`;
-        else
+        } else {
           return `if ${this.visitExpression(clause.condition)} then ${this.visitStatement(clause.block.body[0])} end`;
+        }
       } else if (node.clauses.length === 2 && node.clauses[1].type === 'ElseClause') {
         const ifClause = node.clauses[0] as IfClause;
-        const elseClause = node.clauses[1] as ElseClause;
+        const elseClause = node.clauses[1] ;
 
         return `if ${this.visitExpression(ifClause.condition)} then ${this.visitStatement(ifClause.block.body[0])} else ${this.visitStatement(elseClause.block.body[0])} end`;
       }
@@ -739,7 +743,9 @@ export default class Formatter {
   }
 
   isSingleLineIfStatement(stmt: IfStatement) {
-    if (stmt.oneLine) return true;
+    if (stmt.oneLine) {
+      return true;
+    }
 
     const startingLine = stmt.loc!.start.line;
 
@@ -892,16 +898,16 @@ export default class Formatter {
       base = `(${base})`;
     }
 
-    let args = this.visitCommaDelimited(
+    const args = this.visitCommaDelimited(
       node.arguments,
       this.visitExpression.bind(this),
-      { multiline, noParens: questionShorthand }
+      { multiline, noParens: questionShorthand },
     );
 
     return base + args;
   }
 
-  visitFunctionDeclaration(node: FunctionDeclaration, isStatement: boolean, childContext: ChildContext = {}): string {
+  visitFunctionDeclaration(node: FunctionDeclaration): string {
     // Support multiline or single-line functions (force multiline if options.forceSeparateLines enabled)
     const multiline = this.options.forceSeparateLines || node.loc!.start.line !== node.loc!.end.line;
 
@@ -982,7 +988,7 @@ export default class Formatter {
     return this.visitCommaDelimited(
       node.fields,
       this.visitGeneralTableField.bind(this),
-      { multiline, paddingForSingleLine: true, curlyBraces: true}
+      { multiline, paddingForSingleLine: true, curlyBraces: true },
     );
   }
 
@@ -1047,9 +1053,13 @@ export default class Formatter {
       shouldWrap = true;
     }
 
-    if (shouldWrap && params.extraIndent) this.increaseDepth();
+    if (shouldWrap && params.extraIndent) {
+      this.increaseDepth();
+    }
     const expression = expressionToWrap();
-    if (shouldWrap && params.extraIndent) this.decreaseDepth();
+    if (shouldWrap && params.extraIndent) {
+      this.decreaseDepth();
+    }
     return shouldWrap ? `(${expression})` : expression;
   }
 
@@ -1059,7 +1069,7 @@ export default class Formatter {
   private visitCommaDelimited<T extends ASTNode>(
     fields: (T | Comment_ | Whitespace)[],
     fieldHandler: (arg: T) => string,
-    opts: {multiline?: boolean, paddingForSingleLine?: boolean, curlyBraces?: boolean, noParens?: boolean}
+    opts: { multiline?: boolean, paddingForSingleLine?: boolean, curlyBraces?: boolean, noParens?: boolean },
   ): string {
 
     const multiline = !!opts.multiline;
@@ -1124,7 +1134,7 @@ export default class Formatter {
       if (!isLast && isRealField) {
         const toAdd = ',' + (multiline ? '' : ' ');
         // Save location of this last comma, so we can slice it out later if needed
-        preCommaSlice = [ret.length, ret.length + toAdd.length];
+        preCommaSlice = [ ret.length, ret.length + toAdd.length ];
         commaConfirmed = false;
         ret += toAdd;
       }

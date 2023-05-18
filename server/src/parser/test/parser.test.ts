@@ -332,20 +332,20 @@ end
     deepEquals(errors, []);
 
     deepEquals(body, [{
-        type: 'IfStatement',
-        oneLine: true,
-        clauses: [
-          {
-            type: 'IfClause',
-            condition: {},
-            block: {}
-          },
-          {
-            type: 'ElseClause',
-            block: {}
-          }
-        ]
-      }]);
+      type: 'IfStatement',
+      oneLine: true,
+      clauses: [
+        {
+          type: 'IfClause',
+          condition: {},
+          block: {},
+        },
+        {
+          type: 'ElseClause',
+          block: {},
+        },
+      ],
+    }]);
   });
 
   it('parses a PICO-8 "print" operator (?)', () => {
@@ -711,5 +711,4 @@ __gfx__
     });
   });
 
-  
 });

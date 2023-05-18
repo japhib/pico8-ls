@@ -52,7 +52,7 @@ export type Scope = string[];
 export type ParserOptions = {
   dontAddGlobalSymbols?: boolean,
   includeFileResolver?: FileResolver,
-}
+};
 
 export default class Parser {
   includeFileResolver: FileResolver;
@@ -314,7 +314,7 @@ export default class Parser {
           } else {
             // Push include statement on there
             block.push(statement);
-            
+
             // Load the file
             this.includeFile(statement, resolvedInclude);
           }
@@ -641,7 +641,7 @@ export default class Parser {
     this.destroyScope();
     clauses.push(this.finishNode(AST.ifClause(condition, body), true));
     marker = this.createLocationMarker();
-    
+
     while (this.lexer.consume('elseif')) {
       this.pushLocation(marker);
       condition = this.parseExpectedExpression(flowContext);

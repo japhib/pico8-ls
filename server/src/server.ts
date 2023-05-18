@@ -59,10 +59,10 @@ connection.onInitialize((params: InitializeParams) => {
       documentFormattingProvider: true,
       executeCommandProvider: {
         commands: [
-          "pico8formatFile",
-          "pico8formatFileSeparateLines"
-        ]
-      }
+          'pico8formatFile',
+          'pico8formatFileSeparateLines',
+        ],
+      },
     },
   };
 
@@ -727,20 +727,20 @@ connection.onSignatureHelp((params: SignatureHelpParams) => {
   };
 });
 
-connection.onDocumentFormatting(async (params: DocumentFormattingParams) => {
+connection.onDocumentFormatting((params: DocumentFormattingParams) => {
   const formatResult = executeCommand_formatDocument(params.textDocument.uri, params.options);
-  return formatResult ? [formatResult] : null;
+  return formatResult ? [ formatResult ] : null;
 });
 
 connection.onExecuteCommand((params: ExecuteCommandParams) => {
   switch (params.command) {
-    // Both these commands trigger a format operation -- the difference should be expressed in the FormatterOptions.
-    case 'pico8formatFile':
-    case 'pico8formatFileSeparateLines':
-      return executeCommand_formatDocument(params.arguments![0] as string, params.arguments![1] as FormatterOptions);
-    default:
-      console.error(`onExecuteCommand received unexpected command: ${params.command}`);
-      break;
+  // Both these commands trigger a format operation -- the difference should be expressed in the FormatterOptions.
+  case 'pico8formatFile':
+  case 'pico8formatFileSeparateLines':
+    return executeCommand_formatDocument(params.arguments![0] as string, params.arguments![1] as FormatterOptions);
+  default:
+    console.error(`onExecuteCommand received unexpected command: ${params.command}`);
+    break;
   }
 });
 
@@ -770,7 +770,7 @@ function executeCommand_formatDocument(documentUri: string, opts: FormatterOptio
   const formatResult = new Formatter(opts).formatChunk(
     parsedDocument.chunk,
     textDocument.getText(),
-    textDocument.languageId === 'pico-8-lua'
+    textDocument.languageId === 'pico-8-lua',
   );
 
   if (!formatResult) {

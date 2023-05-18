@@ -111,7 +111,7 @@ export class DefinitionsUsagesLookup {
 export type DefsUsagesOptions = {
   dontAddGlobalSymbols?: boolean,
   injectedGlobalScope?: DefUsageScope
-}
+};
 
 export function findDefinitionsUsages(chunk: Chunk, opts: DefsUsagesOptions = {}): DefinitionsUsagesResult {
   return new DefinitionsUsagesFinder(chunk, opts).findDefinitionsUsages();

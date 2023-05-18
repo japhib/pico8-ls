@@ -7,7 +7,7 @@ import Parser, { ParserOptions } from '../parser';
 import { Token, TokenType, TokenValue } from '../tokens';
 import { Bounds } from '../types';
 import ResolvedFile, { FileResolver } from '../file-resolver';
-import { DefinitionsUsagesResult, DefsUsagesOptions, DefUsageScope, findDefinitionsUsages } from '../definitions-usages';
+import { DefinitionsUsagesResult, DefsUsagesOptions, findDefinitionsUsages } from '../definitions-usages';
 import { Chunk } from '../statements';
 
 export function getTestFileContents(filename: string): string {
@@ -28,7 +28,7 @@ export function getLexedTokens(input: string): Token[] {
   return tokens;
 }
 
-export type TestParseOptions = ParserOptions & DefsUsagesOptions & { filename?: string }
+export type TestParseOptions = ParserOptions & DefsUsagesOptions & { filename?: string };
 
 export function parse(input: string, opts: TestParseOptions = {}): Chunk & DefinitionsUsagesResult {
   const filename = opts?.filename || 'main_test_file';

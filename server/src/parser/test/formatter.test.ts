@@ -1,7 +1,6 @@
 import { TestFilesResolver, TestParseOptions, deepEquals, getTestFileContents, parse } from './test-utils';
 import { strictEqual as eq } from 'assert';
 import Formatter, { FormatResult } from '../formatter';
-import { FileResolver } from '../file-resolver';
 
 function formatLua(text: string, opts: TestParseOptions = {}): string {
   const chunk = parse(text, opts);
@@ -37,12 +36,12 @@ describe('Formatter', () => {
   describe('Formats entire files', () => {
     // TODO: write proper tests for these
     it('formats low.p8', () => {
-      const formatted = formatLua(getTestFileContents('low.p8'));
+      const _formatted = formatLua(getTestFileContents('low.p8'));
       // console.log(formatted);
     });
 
     it('formats low.lua', () => {
-      const formatted = formatLua(getTestFileContents('low.lua'));
+      const _formatted = formatLua(getTestFileContents('low.lua'));
       // console.log(formatted);
     });
   });
@@ -118,8 +117,8 @@ a = -a`.trim());
 
     it('doesn\'t inline #include statements', () => {
       const fileResolver = new TestFilesResolver({
-        'lib.lua': 'function lib_fn(x)\nprint(x)\nend'
-      })
+        'lib.lua': 'function lib_fn(x)\nprint(x)\nend',
+      });
 
       const input = `
 #include lib.lua
@@ -134,8 +133,8 @@ end
 
     it('doesn\'t put in several newlines for #include-ing a file with a lot of statements', () => {
       const fileResolver = new TestFilesResolver({
-        'lib.lua': 'print("a")\nprint("a")\nprint("a")\nprint("a")\nprint("a")\nprint("a")\nprint("a")\nprint("a")\n'
-      })
+        'lib.lua': 'print("a")\nprint("a")\nprint("a")\nprint("a")\nprint("a")\nprint("a")\nprint("a")\nprint("a")\n',
+      });
 
       const input = `
 #include lib.lua
@@ -165,13 +164,13 @@ end`.trim());
     });
 
     it('preserves single line function declarations', () => {
-      let input = `local function some_fn() end`;
+      let input = 'local function some_fn() end';
       eq(formatLua(input), input);
 
-      input = `function some_fn() print('hi') a += 1 end`;
+      input = 'function some_fn() print(\'hi\') a += 1 end';
       eq(formatLua(input), input);
 
-      input = `map({ 1, 2, 3 }, function(a) return a + 1 end)`;
+      input = 'map({ 1, 2, 3 }, function(a) return a + 1 end)';
       eq(formatLua(input), input);
     });
 
@@ -265,37 +264,37 @@ h = some_var_1 / some_var_2 / some_var_3`.trim());
     });
 
     it('pads begin/end of single-line table constructors', () => {
-      const input = `a = {1, 2, 3}`;
-      eq(formatLua(input), `a = { 1, 2, 3 }`);
+      const input = 'a = {1, 2, 3}';
+      eq(formatLua(input), 'a = { 1, 2, 3 }');
     });
 
     it('leaves empty tables as {}', () => {
-      const input = `a = {}`;
-      eq(formatLua(input), `a = {}`);
+      const input = 'a = {}';
+      eq(formatLua(input), 'a = {}');
     });
 
     it('formats special pico-8 single-line if statement', () => {
-      const input = `if (false) print('hi')`;
+      const input = 'if (false) print(\'hi\')';
       eq(formatLua(input), input);
     });
 
     it('formats normal lua single-line if statement', () => {
-      const input = `if false then print('hi') end`;
+      const input = 'if false then print(\'hi\') end';
       eq(formatLua(input), input);
     });
 
     it('formats normal lua single-line if/else statement', () => {
-      const input = `if false then print('hi') else print('hey??') end`;
+      const input = 'if false then print(\'hi\') else print(\'hey??\') end';
       eq(formatLua(input), input);
     });
 
     it('does not add parentheses around ? (print) shorthand', () => {
-      const input = `?'hi'`;
+      const input = '?\'hi\'';
       eq(formatLua(input), input);
     });
 
     it('does not add parentheses around ? (print) shorthand with multiple arguments', () => {
-      const input = `?'hi', 2, 3`;
+      const input = '?\'hi\', 2, 3';
       eq(formatLua(input), input);
     });
   });
@@ -581,22 +580,22 @@ end
     });
 
     it('formats single-line if statement with comment at end', () => {
-      const input = `if (false) print('hi') -- a comment`;
+      const input = 'if (false) print(\'hi\') -- a comment';
       eq(formatLua(input), input);
-    })
+    });
 
     it('formats statement with comment at end, with another statement afterwards', () => {
-      const input = `print('hi') -- a comment\n\nprint('a')`;
+      const input = 'print(\'hi\') -- a comment\n\nprint(\'a\')';
       eq(formatLua(input), input);
-    })
+    });
 
     it('formats single-line if statement with comment afterwards', () => {
-      const input = `if (false) print('hi')\n-- a comment`;
+      const input = 'if (false) print(\'hi\')\n-- a comment';
       eq(formatLua(input), input);
-    })
+    });
 
     it('preserves comments after statements', () => {
-      const input = `print('hi') -- print hi here`;
+      const input = 'print(\'hi\') -- print hi here';
       eq(formatLua(input), input);
     });
 
@@ -692,7 +691,7 @@ function f2()
   printh("inside f2")
 end`.trim();
       const actual = formatLua(input);
-      console.log('actual: ', actual)
+      console.log('actual: ', actual);
       eq(formatLua(input), input);
     });
 
@@ -784,7 +783,7 @@ local x, y = 111, 222`.trim());
     });
 
     it('keeps single blank lines in functions nested in tables', () => {
-const input = `
+      const input = `
 Player = Actor:new({
   update = function(self)
     self:control()
@@ -831,8 +830,8 @@ Player = Actor:new({
       eq(formatLua(input), input);
     });
 
-  it('keeps single blank lines in functions nested in binary expressions', () => {
-    const input = `
+    it('keeps single blank lines in functions nested in binary expressions', () => {
+      const input = `
 Player = Actor:new(plr or function(self)
   self:control()
 
@@ -855,9 +854,9 @@ a()
       const result = formatRaw(text, true);
       deepEquals(result!.formattedRange, {
         start: { line: 0, character: 0 },
-        end: { line: Number.MAX_VALUE, character: 0 }
-      })
-    })
+        end: { line: Number.MAX_VALUE, character: 0 },
+      });
+    });
 
     it('is correct for pico-8 files', () => {
       const text = `
@@ -878,9 +877,9 @@ __gfx__
       const result = formatRaw(text, false);
       deepEquals(result!.formattedRange, {
         start: { line: 3, character: 0 },
-        end: { line: 10, character: 0 }
-      })
-    })
+        end: { line: 10, character: 0 },
+      });
+    });
 
     it('is correct for pico-8 files lacking end tag', () => {
       const text = `
@@ -897,9 +896,9 @@ a()
       const result = formatRaw(text, false);
       deepEquals(result!.formattedRange, {
         start: { line: 3, character: 0 },
-        end: { line: Number.MAX_VALUE, character: 0 }
-      })
-    })
+        end: { line: Number.MAX_VALUE, character: 0 },
+      });
+    });
 
     it('declines to format pico-8 files lacking lua code section', () => {
       const text = `
@@ -911,6 +910,6 @@ __gfx__
 `.trim();
       const result = formatRaw(text, false);
       eq(result, undefined);
-    })
-  })
+    });
+  });
 });

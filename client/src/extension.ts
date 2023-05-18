@@ -2,7 +2,6 @@ import * as path from 'path';
 import { ExtensionContext, Position, Range, TextEdit, TextEditorEdit, commands, languages, window, workspace } from 'vscode';
 import { CloseAction, ErrorAction, ExecuteCommandParams, LanguageClient, LanguageClientOptions, Message, ServerOptions, TransportKind } from 'vscode-languageclient/node';
 import SemanticTokenProvider, { legend } from './semantic-token-provider';
-import { inspect } from 'util';
 
 // Should stay in sync with FormatterOptions in server/src/parser/formatter.ts
 type FormatterOptions = {
@@ -92,7 +91,7 @@ function getClientOptions(): LanguageClientOptions {
 }
 
 function registerFormattingCommand(client: LanguageClient, context: ExtensionContext, commandName: string, forceSeparateLines: boolean): void {
-  const disposable = commands.registerCommand("extension." + commandName, async () => {
+  const disposable = commands.registerCommand('extension.' + commandName, async () => {
     const editor = window.activeTextEditor;
     if (!editor) {
       return;
@@ -103,21 +102,21 @@ function registerFormattingCommand(client: LanguageClient, context: ExtensionCon
     const opts: FormatterOptions = {
       tabSize: Number(editor.options.tabSize) || 4,
       insertSpaces: !!editor.options.insertSpaces,
-      forceSeparateLines: forceSeparateLines
+      forceSeparateLines: forceSeparateLines,
     };
 
     const params: ExecuteCommandParams = {
       command: commandName,
       arguments: [
         uri.toString(),
-        opts
-      ]
+        opts,
+      ],
     };
 
     const result: TextEdit = await client.sendRequest(
       'workspace/executeCommand',
-      params
-    ) as TextEdit;
+      params,
+    ) ;
 
     if (result.range && result.newText) {
       await editor.edit((editBuilder: TextEditorEdit) => {
@@ -126,7 +125,7 @@ function registerFormattingCommand(client: LanguageClient, context: ExtensionCon
         editBuilder.replace(editRange, result.newText);
       });
     } else {
-      window.showErrorMessage(`Invalid formatting result from language server backend. Please report an issue on GitHub.`);
+      void window.showErrorMessage('Invalid formatting result from language server backend. Please report an issue on GitHub.');
     }
   });
   context.subscriptions.push(disposable);
