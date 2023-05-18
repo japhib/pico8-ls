@@ -288,6 +288,16 @@ h = some_var_1 / some_var_2 / some_var_3`.trim());
       const input = `if false then print('hi') else print('hey??') end`;
       eq(formatLua(input), input);
     });
+
+    it('does not add parentheses around ? (print) shorthand', () => {
+      const input = `?'hi'`;
+      eq(formatLua(input), input);
+    });
+
+    it('does not add parentheses around ? (print) shorthand with multiple arguments', () => {
+      const input = `?'hi', 2, 3`;
+      eq(formatLua(input), input);
+    });
   });
 
   describe('preserves comments', () => {

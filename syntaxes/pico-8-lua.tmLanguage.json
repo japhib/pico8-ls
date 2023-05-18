@@ -54,19 +54,19 @@
       ]
     },
     {
-      "match": "(?<![\\w\\d.])0[xX][0-9A-Fa-f]+(?![pPeE.0-9])",
+      "match": "(?<![\\w\\d.])0[xX][0-9A-Fa-f]+",
       "name": "constant.numeric.integer.hexadecimal.lua"
     },
     {
-      "match": "(?<![\\w\\d.])0[xX][0-9A-Fa-f]+(\\.[0-9A-Fa-f]+)?([eE]-?\\d*)?([pP][-+]\\d+)?",
+      "match": "(?<![\\w\\d.])0[xX][0-9A-Fa-f]+(\\.[0-9A-Fa-f]+)?",
       "name": "constant.numeric.float.hexadecimal.lua"
     },
     {
-      "match": "(?<![\\w\\d.])\\d+(?![pPeE.0-9])",
+      "match": "(?<![\\w\\d.])\\d+",
       "name": "constant.numeric.integer.lua"
     },
     {
-      "match": "(?<![\\w\\d.])\\d+(\\.\\d+)?([eE]-?\\d*)?",
+      "match": "(?<![\\w\\d.])\\d+(\\.\\d+)?",
       "name": "constant.numeric.float.lua"
     },
     {

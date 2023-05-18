@@ -572,7 +572,7 @@ export default class Parser {
     if (!this.lexer.consume('then')) {
       if (canBeOneLiner) {
         // Handle special PICO-8 one-line if statement
-        this.lexer.withSignificantNewline(() => {
+        this.lexer.withSignificantNewline((cancelSignificantNewline) => {
           // pseudo-block for the if statement contents
           marker = this.createLocationMarker();
           this.pushLocation(marker);
@@ -589,18 +589,42 @@ export default class Parser {
           clauses.push(this.finishNode(AST.ifClause(condition, this.finishNode(AST.block([ statement ]), true))));
 
           if (this.lexer.consume('else')) {
+            let multilineElse = false;
+            if (this.lexer.consumeTokenType(TokenType.Newline)) {
+              // Weird escape hatch here into multi-line `else` block.
+              // Example:
+              //
+              //   if(v.x<-130) del(b,v) else
+              //     v.x-=2
+              //   end
+              cancelSignificantNewline();
+              multilineElse = true;
+            }
+
             marker = this.createLocationMarker();
             this.pushLocation(marker);
             this.createScope();
             flowContext.pushScope();
-            const elseStatement = this.parseStatement(flowContext);
-            if (!elseStatement) {
-              errors.raiseUnexpectedToken('statement', this.token);
+
+            let elseBlock: Block;
+            if (multilineElse) {
+              // For a multi-line `else`, it can contain multiple statements and
+              // ends with an `end` so just parse it like a regular block.
+              elseBlock = this.parseBlock(flowContext);
+              this.lexer.expect('end');
+            } else {
+              // Otherwise, can only be a single statement.
+              const elseStatement = this.parseStatement(flowContext);
+              if (!elseStatement) {
+                errors.raiseUnexpectedToken('statement', this.token);
+              }
+              // Stick it in a block
+              elseBlock = AST.block([ statement ]), true;
             }
 
             flowContext.popScope();
             this.destroyScope();
-            clauses.push(this.finishNode(AST.elseClause(this.finishNode(AST.block([ statement ]), true))));
+            clauses.push(this.finishNode(AST.elseClause(this.finishNode(elseBlock))));
           }
         });
 
@@ -616,17 +640,7 @@ export default class Parser {
     flowContext.popScope();
     this.destroyScope();
     clauses.push(this.finishNode(AST.ifClause(condition, body), true));
-
-
-
-
-
     marker = this.createLocationMarker();
-
-
-
-
-
     
     while (this.lexer.consume('elseif')) {
       this.pushLocation(marker);

@@ -106,10 +106,14 @@ export default class Lexer {
     }
   }
 
-  withSignificantNewline(func: (() => void)) {
+  withSignificantNewline(func: ((cancelSignificantNewline: () => void) => void)) {
+    const cancelSignificantNewline = (() => {
+      this.newlineSignificant = false;
+    }).bind(this);
+
     this.newlineSignificant = true;
     try {
-      func();
+      func(cancelSignificantNewline);
     } finally {
       // This goes in 'finally' so it doesn't corrupt the state if there's
       // an error during parsing
@@ -651,30 +655,9 @@ export default class Lexer {
       }
     }
 
-    // Exponent part is optional.
-    let foundExponent = false;
-    if ([ 'e', 'E' ].includes(this.input.charAt(this.index))) {
-      foundExponent = true;
-      ++this.index;
-
-      // Sign part is optional.
-      if ([ '+', '-' ].includes(this.input.charAt(this.index))) {
-        ++this.index;
-      }
-
-      // An exponent is required to contain at least one decimal digit.
-      if (!isDecDigit(this.input.charCodeAt(this.index))) {
-        this.raiseErr(errMessages.malformedNumber, this.input.slice(this.tokenStart, this.index));
-      }
-
-      while (isDecDigit(this.input.charCodeAt(this.index))) {
-        ++this.index;
-      }
-    }
-
     return {
       value: parseFloat(this.input.slice(this.tokenStart, this.index)),
-      hasFractionPart: foundFraction || foundExponent,
+      hasFractionPart: foundFraction,
     };
   }
 
@@ -923,6 +906,14 @@ export default class Lexer {
 
   consume(value: TokenValue) {
     if (value === this.token?.value) {
+      this.next();
+      return true;
+    }
+    return false;
+  }
+
+  consumeTokenType(ttype: TokenType) {
+    if (this.token?.type === ttype) {
       this.next();
       return true;
     }

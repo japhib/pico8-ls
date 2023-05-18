@@ -320,6 +320,34 @@ end`.trim();
     ]);
   });
 
+  it('parses PICO-8 one-line if statement with significant newline and multiline `else`', () => {
+    const input = `
+if(v.x<-130) del(b,v) else
+  v.x-=2
+end
+`.trim();
+
+    const { errors, block: { body } } = parse(input);
+
+    deepEquals(errors, []);
+
+    deepEquals(body, [{
+        type: 'IfStatement',
+        oneLine: true,
+        clauses: [
+          {
+            type: 'IfClause',
+            condition: {},
+            block: {}
+          },
+          {
+            type: 'ElseClause',
+            block: {}
+          }
+        ]
+      }]);
+  });
+
   it('parses a PICO-8 "print" operator (?)', () => {
     // This is the same as print("hi")
     // (Note the argument must be on the same line as the ?)
@@ -559,8 +587,18 @@ __gfx__
     eq(errors.length, 0, 'Unexpected errors: ' + errors.map(e => `[${e.bounds.start.line}:${e.bounds.end.column}] ${e.message}`).join(','));
   });
 
-  it('parses minified pico-8 code without errors', () => {
-    const { errors } = parse(getTestFileContents('tweettweetjam.p8'));
+  it('parses minified pico-8 code without errors - fly', () => {
+    const { errors } = parse(getTestFileContents('tweettweetjam-fly.p8'));
+    eq(errors.length, 0, 'Unexpected errors: ' + errors.map(e => `[${e.bounds.start.line}:${e.bounds.end.column}] ${e.message}`).join(','));
+  });
+
+  it('parses minified pico-8 code without errors - hop', () => {
+    const { errors } = parse(getTestFileContents('tweettweetjam-hop.p8'));
+    eq(errors.length, 0, 'Unexpected errors: ' + errors.map(e => `[${e.bounds.start.line}:${e.bounds.end.column}] ${e.message}`).join(','));
+  });
+
+  it('parses minified pico-8 code without errors - xtris', () => {
+    const { errors } = parse(getTestFileContents('tweettweetjam-tet.p8'));
     eq(errors.length, 0, 'Unexpected errors: ' + errors.map(e => `[${e.bounds.start.line}:${e.bounds.end.column}] ${e.message}`).join(','));
   });
 

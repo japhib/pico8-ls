@@ -12,7 +12,7 @@ yd,y=0,123if(btnp(4))yd=-7end
 for k,v in pairs(b)do
 if(v.x<-130)del(b,v)else
 v.x-=2end
-end
+end end
 function _draw()cls(7)for k,v in pairs(b)do
 if(v.x==10 or v.x==9)c+=1
 rectfill(v.x,127,v.x+5,127+v.h,14)end

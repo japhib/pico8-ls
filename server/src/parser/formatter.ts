@@ -884,6 +884,8 @@ export default class Formatter {
 
     let base = this.visitExpression(node.base, { parentOperator: Operators.fakeMaxPrecedenceOperator });
 
+    const questionShorthand: boolean = node.base.type === 'Identifier' && node.base.name === '?';
+
     if (node.base.type === 'FunctionDeclaration') {
       // wrap in parentheses, e.g.
       //     (function(a) return a+1 end)(5)
@@ -893,7 +895,7 @@ export default class Formatter {
     let args = this.visitCommaDelimited(
       node.arguments,
       this.visitExpression.bind(this),
-      { multiline }
+      { multiline, noParens: questionShorthand }
     );
 
     return base + args;
@@ -1057,14 +1059,18 @@ export default class Formatter {
   private visitCommaDelimited<T extends ASTNode>(
     fields: (T | Comment_ | Whitespace)[],
     fieldHandler: (arg: T) => string,
-    opts: {multiline?: boolean, paddingForSingleLine?: boolean, curlyBraces?: boolean}
+    opts: {multiline?: boolean, paddingForSingleLine?: boolean, curlyBraces?: boolean, noParens?: boolean}
   ): string {
 
     const multiline = !!opts.multiline;
     const newlineFunc = multiline ? this.newline.bind(this) : () => '';
 
     // Beginning
-    let ret = opts.curlyBraces ? '{' : '(';
+    let ret = '';
+    if (!opts.noParens) {
+      ret = opts.curlyBraces ? '{' : '(';
+    }
+
     if (multiline) {
       this.increaseDepth();
     } else if (opts.paddingForSingleLine) {
@@ -1138,7 +1144,11 @@ export default class Formatter {
     } else if (opts.paddingForSingleLine) {
       ret += ' ';
     }
-    ret += opts.curlyBraces ? '}' : ')';
+
+    if (!opts.noParens) {
+      ret += opts.curlyBraces ? '}' : ')';
+    }
+
     return ret;
   }
 }
