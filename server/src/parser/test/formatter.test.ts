@@ -594,6 +594,11 @@ end
       eq(formatLua(input), input);
     });
 
+    it('formats single-line if statement with "else" into regular if statement', () => {
+      const input = 'if (false) print(\'hi\') else a()';
+      eq(formatLua(input), 'if false then print(\'hi\') else a() end');
+    });
+
     it('preserves comments after statements', () => {
       const input = 'print(\'hi\') -- print hi here';
       eq(formatLua(input), input);

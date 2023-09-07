@@ -320,6 +320,29 @@ end`.trim();
     ]);
   });
 
+  it('parses one-line if statement with else', () => {
+    const input = 'if (false) a() else b = 1';
+    const { errors, block: { body } } = parse(input);
+
+    deepEquals(errors, []);
+
+    deepEquals(body, [{
+      type: 'IfStatement',
+      oneLine: true,
+      clauses: [
+        {
+          type: 'IfClause',
+          condition: {},
+          block: { body: [{ type: 'CallStatement' }] },
+        },
+        {
+          type: 'ElseClause',
+          block: { body: [{ type: 'AssignmentStatement' }] },
+        },
+      ],
+    }]);
+  });
+
   it('parses PICO-8 one-line if statement with significant newline and multiline `else`', () => {
     const input = `
 if(v.x<-130) del(b,v) else

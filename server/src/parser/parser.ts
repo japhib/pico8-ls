@@ -619,7 +619,7 @@ export default class Parser {
                 errors.raiseUnexpectedToken('statement', this.token);
               }
               // Stick it in a block
-              elseBlock = AST.block([ statement ]), true;
+              elseBlock = AST.block([ elseStatement ]), true;
             }
 
             flowContext.popScope();

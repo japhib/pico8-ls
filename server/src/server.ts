@@ -507,7 +507,8 @@ connection.onDocumentSymbol((params: DocumentSymbolParams) => {
 function getDefinitionsUsagesForPosition(params: TextDocumentPositionParams): DefinitionsUsages | undefined {
   const lookup = documentDefUsage.get(params.textDocument.uri);
   if (!lookup) {
-    console.log('Definition/usages lookup table unavailable for ' + params.textDocument.uri);
+    console.log(`Definition/usages lookup table unavailable for ${params.textDocument.uri} -- re-scanning`);
+    rescanEverything();
     return undefined;
   }
 
