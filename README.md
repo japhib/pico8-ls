@@ -49,6 +49,11 @@ to understand how to develop VS Code language server extension.
 
 # Changelog
 
+## 0.5.1 (9/15/2023)
+
+- Fixes formatting of single-line if statements with an `else` block
+- Fixes formatting of `repeat ... until` loops ([#43](https://github.com/japhib/pico8-ls/issues/43))
+
 ## 0.5.0 (5/18/2023)
 
 - Formatter has been released! Thanks to [@beetrootpaul](https://github.com/beetrootpaul) for major contributions in this feature.
