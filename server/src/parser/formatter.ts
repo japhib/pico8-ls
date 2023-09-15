@@ -458,7 +458,7 @@ export default class Formatter {
     this.currentIndent -= amount;
   }
 
-  commentsBeforeNode(node: ASTNode, dontIndent?: boolean): string {
+  commentsBeforeNode(node: ASTNode, dontIndent?: boolean, noTrailingNewline?: boolean): string {
     let ret = '';
     if (node.comments !== undefined) {
       if (!dontIndent) {
@@ -466,12 +466,17 @@ export default class Formatter {
         this.increaseDepth();
       }
 
-      for (const comment of node.comments) {
+      for (let i = 0; i < node.comments.length; i++) {
+        const comment = node.comments[i];
+
         if (!dontIndent) {
           ret += this.newline();
         }
         ret += this.visitComment(comment);
-        ret += this.newline();
+
+        if (!noTrailingNewline || i !== node.comments.length - 1) {
+          ret += this.newline();
+        }
       }
     }
     return ret;
@@ -773,6 +778,16 @@ export default class Formatter {
 
   visitRepeatStatement(node: RepeatStatement): string {
     let ret = this.visitBlock(node.block, 'repeat', true);
+
+    // Manually visit comments on condition node and then unset them
+    if (node.condition.comments !== undefined) {
+      ret += this.commentsBeforeNode(node.condition, false, true);
+      node.condition.comments = undefined;
+
+      this.decreaseDepth();
+    }
+    ret += this.newline();
+
     ret += 'until ';
     ret += this.visitExpression(node.condition);
     return ret;

@@ -297,6 +297,37 @@ h = some_var_1 / some_var_2 / some_var_3`.trim());
       const input = '?\'hi\', 2, 3';
       eq(formatLua(input), input);
     });
+
+    it('formats `repeat` loops', () =>{
+      const input = `
+repeat
+  local foo = "bar"
+until true
+`.trim();
+      eq(formatLua(input), input);
+    });
+
+    it('formats a `repeat` loop with a comment', () =>{
+      const input = `
+repeat
+  local foo = "bar"
+  -- comment
+until true
+`.trim();
+      eq(formatLua(input), input);
+    });
+
+    it('formats a `repeat` loop with a comment inside an indented block', () =>{
+      const input = `
+function a()
+  repeat
+    local foo = "bar"
+    -- comment
+  until true
+end
+`.trim();
+      eq(formatLua(input), input);
+    });
   });
 
   describe('preserves comments', () => {
