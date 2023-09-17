@@ -585,12 +585,25 @@ connection.onCompletion((params: TextDocumentPositionParams): CompletionItem[] =
     // They use 0-index line numbers, we use 1-index
     line: params.position.line + 1,
     column: params.position.character,
-    // index is 0 because it is unused in the lookup (TODO fixme)
+    // index is 0 because it is unused in the lookup
     index: 0,
     filename: ResolvedFile.fromFileURL(params.textDocument.uri) })
     .allSymbols()
     .map(sym => {
-      return { label: sym };
+      let insertText = sym;
+      if (insertText.indexOf('.') !== -1) {
+        // Make sure the text we insert doesn't contain previous members.
+        // For example, if they're typing `table.prop` and the auto-complete is `table.property`,
+        // we need insertText to be just `property` otherwise when they accept the completion
+        // item, they'll get `table.table.property`.
+        const lastDotIdx = insertText.lastIndexOf('.');
+        insertText = insertText.substring(lastDotIdx + 1);
+      }
+
+      return {
+        label: sym,
+        insertText,
+      };
     });
 });
 
