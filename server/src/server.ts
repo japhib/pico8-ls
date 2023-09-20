@@ -577,9 +577,13 @@ connection.onDidChangeWatchedFiles(_change => {
 connection.onCompletion((params: TextDocumentPositionParams): CompletionItem[] => {
   const scopes = documentScopes.get(params.textDocument.uri);
   if (!scopes) {
-    console.log('Definition/usages lookup table unavailable for ' + params.textDocument.uri);
+    console.log(`Definition/usages lookup table unavailable for ${params.textDocument.uri} -- re-scanning everything`);
+    rescanEverything();
     return [];
   }
+
+  const line = getTextOnLine(params.textDocument.uri, params.position);
+  const completionFilter = line !== undefined ? completionFilterForPosition(params.position.character, line) : '';
 
   return scopes.lookupScopeFor({
     // They use 0-index line numbers, we use 1-index
@@ -589,6 +593,7 @@ connection.onCompletion((params: TextDocumentPositionParams): CompletionItem[] =
     index: 0,
     filename: ResolvedFile.fromFileURL(params.textDocument.uri) })
     .allSymbols()
+    .filter(sym => sym.startsWith(completionFilter))
     .map(sym => {
       let insertText = sym;
       if (insertText.indexOf('.') !== -1) {
@@ -639,6 +644,23 @@ connection.onCompletionResolve((item: CompletionItem) => {
 
   return item;
 });
+
+function completionFilterForPosition(position: number, text: string) {
+  // compensate for position being one index *past* the character just typed
+  position -= 1;
+
+  let i;
+  for (i = position; i >= 0; i--) {
+    const charCode = text.charCodeAt(i);
+    if (!isIdentifierPart(charCode) && charCode !== 46) { // .
+      i++;
+      break;
+    }
+  }
+  const begin = i;
+
+  return text.substring(begin, position);
+}
 
 function identifierAtPosition(position: number, text: string) {
   let i;
