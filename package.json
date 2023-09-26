@@ -105,6 +105,10 @@
 			{
 				"language": "pico-8",
 				"path": "./syntaxes/snippets.json"
+			},
+			{
+				"language": "pico-8-lua",
+				"path": "./syntaxes/snippets.json"
 			}
 		]
 	},
