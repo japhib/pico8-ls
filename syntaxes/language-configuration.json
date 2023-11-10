@@ -25,6 +25,13 @@
         ["\"", "\""],
         ["'", "'"]
     ],
+    // code folding region support
+    "folding": {
+      "markers": {
+        "start": "^\\s*(--)\\s*#?region\\b",
+        "end": "^\\s*(--)\\s*#?endregion\\b"
+      }
+    },
     "indentationRules": {
 		"increaseIndentPattern": "((\\b(else|function|then|do|repeat)\\b((?!\\b(end|until)\\b).)*)|(\\{\\s*))$",
 		"decreaseIndentPattern": "^\\s*((\\b(elseif|else|end|until)\\b)|(\\})|(\\)))"
