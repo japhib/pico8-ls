@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.3 (11/10/2023)
+
+- Add support for code folding using `#region` comments ([#49](https://github.com/japhib/pico8-ls/pull/49)) - thanks [@TheCyberRonin](https://github.com/TheCyberRonin)!
+
 ## 0.5.2 (9/26/2023)
 
 - Fix for auto-complete duplicating table name & access operator ([#40](https://github.com/japhib/pico8-ls/issues/40))
