@@ -44,7 +44,7 @@ looking for help with that. See tips and support thread on the issue for various
 
 ## Changelog
 
-[Changelog has been moved to a separate file.](https://github.com/japhib/pico8-ls/blob/master/README.md)
+[Changelog has been moved to a separate file.](https://github.com/japhib/pico8-ls/blob/master/CHANGELOG.md)
 
 ## Development
 
