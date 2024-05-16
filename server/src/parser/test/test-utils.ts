@@ -41,7 +41,8 @@ export function parse(input: string, opts: TestParseOptions = {}): Chunk & Defin
 }
 
 export function deepEqualsAST(code: string, expected: any) {
-  const { block: { body } } = parse(code);
+  const { errors, block: { body } } = parse(code);
+  deepEquals(errors, []);
   deepEquals(body, expected);
 }
 

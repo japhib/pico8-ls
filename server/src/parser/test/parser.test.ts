@@ -212,7 +212,7 @@ object.remainder_y = 0;
     }]);
   });
 
-  it('parses if statement', () => {
+  it('parses if ... then statement', () => {
     const printHiBlock = {
       type: 'Block',
       body: [{
@@ -230,6 +230,51 @@ if false then
   print("hi")
   -- end comment 1
 elseif false then
+  print("hi")
+  -- end comment 2
+else
+  print("hi")
+  -- end comment 3
+end`.trim();
+    deepEqualsAST(input, [{
+      type: 'IfStatement',
+      clauses: [
+        {
+          type: 'IfClause',
+          condition: { type: 'BooleanLiteral', value: false },
+          block: { ...printHiBlock, loc: bounds(2, 2, 4, 6) },
+        },
+        {
+          type: 'ElseifClause',
+          condition: { type: 'BooleanLiteral', value: false },
+          block: { ...printHiBlock, loc: bounds(5, 2, 7, 4) },
+        },
+        {
+          type: 'ElseClause',
+          block: { ...printHiBlock, loc: bounds(8, 2, 10, 3) },
+        },
+      ],
+    }]);
+  });
+
+  it('parses if ... do statement', () => {
+    const printHiBlock = {
+      type: 'Block',
+      body: [{
+        type: 'CallStatement',
+        expression: {
+          type: 'CallExpression',
+          base: { type: 'Identifier', name: 'print' },
+          arguments: [{ type: 'StringLiteral', value: 'hi' }],
+        },
+      }],
+    };
+
+    const input = `
+if false do
+  print("hi")
+  -- end comment 1
+elseif false do
   print("hi")
   -- end comment 2
 else

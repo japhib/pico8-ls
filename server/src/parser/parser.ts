@@ -569,7 +569,7 @@ export default class Parser {
 
     condition = this.parseExpectedExpression(flowContext);
 
-    if (!this.lexer.consume('then')) {
+    if (!this.lexer.consume('then') && !this.lexer.consume('do')) {
       if (canBeOneLiner) {
         // Handle special PICO-8 one-line if statement
         this.lexer.withSignificantNewline((cancelSignificantNewline) => {
@@ -645,7 +645,11 @@ export default class Parser {
     while (this.lexer.consume('elseif')) {
       this.pushLocation(marker);
       condition = this.parseExpectedExpression(flowContext);
-      this.lexer.expect('then');
+
+      if (!this.lexer.consume('then') && !this.lexer.consume('do')) {
+        errors.createErrForToken(this.token, errMessages.expectedToken, '\'do\' or \'this\'', this.token.value);
+      }
+
       this.createScope();
       flowContext.pushScope();
       body = this.parseBlock(flowContext);
