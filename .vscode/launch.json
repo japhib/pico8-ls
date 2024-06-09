@@ -10,10 +10,31 @@
             "args": [
                 "--extensionDevelopmentPath=${workspaceRoot}"
             ],
-            "outFiles": ["${workspaceRoot}/client/out/**/*.js"],
+            "outFiles": [
+                "${workspaceRoot}/client/out/**/*.js"
+            ],
             "preLaunchTask": {
                 "type": "npm",
                 "script": "compile-nomin"
+            }
+        },
+        {
+            "name": "Extension Tests",
+            "type": "extensionHost",
+            "request": "launch",
+            "runtimeExecutable": "${execPath}",
+            "args": [
+                "--disable-extensions",
+                "--extensionDevelopmentPath=${workspaceFolder}",
+                "--extensionTestsPath=${workspaceFolder}/client/out/test/suite/index"
+            ],
+            "outFiles": [
+                "${workspaceFolder}/client/out/test/**/*.js"
+            ],
+            "preLaunchTask": {
+                "type": "npm",
+                "script": "compile",
+                "path": "client"
             }
         },
         {
@@ -26,7 +47,9 @@
                 "type": "npm",
                 "script": "compile"
             },
-            "outFiles": ["${workspaceRoot}/server/out/**/*.js"]
+            "outFiles": [
+                "${workspaceRoot}/server/out/**/*.js"
+            ]
         },
         {
             "name": "Language Server E2E Test",
@@ -38,15 +61,22 @@
                 "--extensionTestsPath=${workspaceRoot}/client/out/test/index",
                 "${workspaceRoot}/client/testFixture"
             ],
-            "outFiles": ["${workspaceRoot}/client/out/test/**/*.js"]
+            "outFiles": [
+                "${workspaceRoot}/client/out/test/**/*.js"
+            ]
         },
         {
             "name": "npm test server",
             "type": "node",
             "request": "launch",
-            "skipFiles": ["<node_internals>/**", "node_modules/mocha/**"],
+            "skipFiles": [
+                "<node_internals>/**",
+                "node_modules/mocha/**"
+            ],
             "program": "node_modules/mocha/bin/mocha",
-            "args": ["${workspaceFolder}/server/**/*.test.js"],
+            "args": [
+                "${workspaceFolder}/server/**/*.test.js"
+            ],
             "outFiles": [
                 "${workspaceFolder}/**/*.js"
             ],
@@ -59,7 +89,10 @@
     "compounds": [
         {
             "name": "Client + Server",
-            "configurations": ["Launch Client", "Attach to Server"]
+            "configurations": [
+                "Launch Client",
+                "Attach to Server"
+            ]
         }
     ]
 }
