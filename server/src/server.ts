@@ -25,7 +25,7 @@ import * as url from 'url';
 import * as fs from 'fs';
 import * as path from 'path';
 
-console.log('PICO-8 Language Server starting.');
+//console.log('PICO-8 Language Server starting.');
 
 const connection = createConnection(ProposedFeatures.all);
 
@@ -100,10 +100,10 @@ function rescanEverything() {
     }
 
     Promise.all(workspaceFolders.map(scanWorkspaceFolder)).catch(e => {
-      console.log('Error scanning workspace folders', e);
+      //console.log('Error scanning workspace folders', e);
     });
   }).catch(reason => {
-    console.log('Failed to get workspace folder(s):', reason);
+    //console.log('Failed to get workspace folder(s):', reason);
   });
 }
 
@@ -260,7 +260,7 @@ function refreshProject(project: Project) {
 function refreshNodeContents(node: ProjectDocumentNode) {
   const parsed = parsedDocuments.get(node.document.textDocument.uri);
   if (!parsed) {
-    console.log('refreshNodeContents: cannot find contents of file ' + node.document.textDocument.uri);
+    //console.log('refreshNodeContents: cannot find contents of file ' + node.document.textDocument.uri);
     return;
   }
 
@@ -299,7 +299,7 @@ documents.onDidChangeContent(change => {
   // re-parse the AST
   const parsed = parseTextDocument(document);
   if (!parsed) {
-    console.log('Failed to parse ' + document.uri);
+    //console.log('Failed to parse ' + document.uri);
     return;
   }
 
@@ -325,7 +325,7 @@ documents.onDidChangeContent(change => {
   const alreadyParsed = { [document.uri]: parsed };
 
   if (foundProjectDifferences) {
-    console.log('Found differences in #include statements -- rebuilding project tree');
+    //console.log('Found differences in #include statements -- rebuilding project tree');
     rebuildProjectTree();
     parseAllProjects(alreadyParsed);
   } else {
@@ -507,7 +507,7 @@ connection.onDocumentSymbol((params: DocumentSymbolParams) => {
 function getDefinitionsUsagesForPosition(params: TextDocumentPositionParams): DefinitionsUsages | undefined {
   const lookup = documentDefUsage.get(params.textDocument.uri);
   if (!lookup) {
-    console.log(`Definition/usages lookup table unavailable for ${params.textDocument.uri} -- re-scanning`);
+    //console.log(`Definition/usages lookup table unavailable for ${params.textDocument.uri} -- re-scanning`);
     rescanEverything();
     return undefined;
   }
@@ -577,7 +577,7 @@ connection.onDidChangeWatchedFiles(_change => {
 connection.onCompletion((params: TextDocumentPositionParams): CompletionItem[] => {
   const scopes = documentScopes.get(params.textDocument.uri);
   if (!scopes) {
-    console.log(`Definition/usages lookup table unavailable for ${params.textDocument.uri} -- re-scanning everything`);
+    //console.log(`Definition/usages lookup table unavailable for ${params.textDocument.uri} -- re-scanning everything`);
     rescanEverything();
     return [];
   }
@@ -828,4 +828,4 @@ documents.listen(connection);
 // Listen on the connection
 connection.listen();
 
-console.log('PICO-8 Language Server launched.');
+//console.log('PICO-8 Language Server launched.');
