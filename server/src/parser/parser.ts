@@ -505,15 +505,36 @@ export default class Parser {
   //     while ::= 'while' exp 'do' block 'end'
 
   parseWhileStatement(flowContext: FlowContext): WhileStatement {
+    let body: Block | undefined;
+
+    const canBeOneLiner = this.lexer.token?.value === '(';
     const condition = this.parseExpectedExpression(flowContext);
-    this.lexer.expect('do');
+
+    if (this.lexer.consume('do')) {
+      // regular while statement with `do` ... `end`
+      // (we already consumed the `do`)
+      body = this.parseWhileStatementBody(flowContext);
+      this.lexer.expect('end');  
+    } else if (canBeOneLiner) {
+      // Handle special one-line while statement
+      this.lexer.withSignificantNewline(() => {
+        body = this.parseWhileStatementBody(flowContext);
+      });
+    } else {
+      errors.raiseErrForToken(this.token!, errMessages.expected, 'do', this.token!.value);
+    }
+
+    return this.finishNode(AST.whileStatement(condition, body!));
+  }
+
+  parseWhileStatementBody(flowContext: FlowContext) {
     this.createScope();
     flowContext.pushScope(true);
     const body = this.parseBlock(flowContext);
     flowContext.popScope();
     this.destroyScope();
-    this.lexer.expect('end');
-    return this.finishNode(AST.whileStatement(condition, body));
+
+    return body;
   }
 
   //     repeat ::= 'repeat' block 'until' exp

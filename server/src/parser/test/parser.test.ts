@@ -1,5 +1,6 @@
 import { strictEqual as eq } from 'assert';
 import { bounds, deepEquals, deepEqualsAST, getTestFileContents, MockFileResolver, parse } from './test-utils';
+import { inspect } from 'util';
 
 describe('Parser', () => {
   it('parses basic assignment statement', () => {
@@ -302,7 +303,7 @@ end`.trim();
     }]);
   });
 
-  it('parses PICO-8 if statement', () => {
+  it('parses one-line if statement', () => {
     deepEqualsAST('if (false) print("hi")\ni = 1', [
       {
         type: 'IfStatement',
@@ -338,7 +339,7 @@ end`.trim();
     ]);
   });
 
-  it('parses PICO-8 if statement with a significant newline', () => {
+  it('parses one-line if statement with a significant newline', () => {
     // If it doesn't treat the newline as significant, it'll interpret it as "return i" instead of just "return"
     deepEqualsAST('if (false) return\ni += 1', [
       {
@@ -414,6 +415,35 @@ end
         },
       ],
     }]);
+  });
+
+  it('parses a regular while statement', () => {
+    const { errors, block: { body } } = parse('while a < 1 do a += 1 end');
+    deepEquals(errors, []);
+  })
+
+  it('parses a one-line while statement', () => {
+    deepEqualsAST('while (a < 1) a += 1', [
+      {
+        type: 'WhileStatement',
+        condition: {
+          type: 'BinaryExpression',
+          operator: '<',
+          left: { type: 'Identifier', name: 'a' },
+          right: { type: 'NumericLiteral', value: 1 }
+        },
+        block: {
+          type: 'Block',
+          body: [
+            {
+              type: 'AssignmentStatement',
+              variables: [{ type: 'Identifier', name: 'a' }],
+              operator: '+=',
+              init: [{ type: 'NumericLiteral', value: 1 }]
+            }
+          ]
+        }
+      }]);
   });
 
   it('parses a PICO-8 "print" operator (?)', () => {
