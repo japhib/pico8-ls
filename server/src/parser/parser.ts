@@ -514,14 +514,14 @@ export default class Parser {
       // regular while statement with `do` ... `end`
       // (we already consumed the `do`)
       body = this.parseWhileStatementBody(flowContext);
-      this.lexer.expect('end');  
+      this.lexer.expect('end');
     } else if (canBeOneLiner) {
       // Handle special one-line while statement
       this.lexer.withSignificantNewline(() => {
         body = this.parseWhileStatementBody(flowContext);
       });
     } else {
-      errors.raiseErrForToken(this.token!, errMessages.expected, 'do', this.token!.value);
+      errors.raiseErrForToken(this.token, errMessages.expected, 'do', this.token.value);
     }
 
     return this.finishNode(AST.whileStatement(condition, body!));

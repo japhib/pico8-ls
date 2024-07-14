@@ -1,6 +1,5 @@
 import { strictEqual as eq } from 'assert';
 import { bounds, deepEquals, deepEqualsAST, getTestFileContents, MockFileResolver, parse } from './test-utils';
-import { inspect } from 'util';
 
 describe('Parser', () => {
   it('parses basic assignment statement', () => {
@@ -418,9 +417,28 @@ end
   });
 
   it('parses a regular while statement', () => {
-    const { errors, block: { body } } = parse('while a < 1 do a += 1 end');
-    deepEquals(errors, []);
-  })
+    deepEqualsAST('while a < 1 do a += 1 end', [
+      {
+        type: 'WhileStatement',
+        condition: {
+          type: 'BinaryExpression',
+          operator: '<',
+          left: { type: 'Identifier', name: 'a' },
+          right: { type: 'NumericLiteral', value: 1 },
+        },
+        block: {
+          type: 'Block',
+          body: [
+            {
+              type: 'AssignmentStatement',
+              variables: [{ type: 'Identifier', name: 'a' }],
+              operator: '+=',
+              init: [{ type: 'NumericLiteral', value: 1 }],
+            },
+          ],
+        },
+      }]);
+  });
 
   it('parses a one-line while statement', () => {
     deepEqualsAST('while (a < 1) a += 1', [
@@ -430,7 +448,7 @@ end
           type: 'BinaryExpression',
           operator: '<',
           left: { type: 'Identifier', name: 'a' },
-          right: { type: 'NumericLiteral', value: 1 }
+          right: { type: 'NumericLiteral', value: 1 },
         },
         block: {
           type: 'Block',
@@ -439,10 +457,10 @@ end
               type: 'AssignmentStatement',
               variables: [{ type: 'Identifier', name: 'a' }],
               operator: '+=',
-              init: [{ type: 'NumericLiteral', value: 1 }]
-            }
-          ]
-        }
+              init: [{ type: 'NumericLiteral', value: 1 }],
+            },
+          ],
+        },
       }]);
   });
 

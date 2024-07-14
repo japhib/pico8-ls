@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.4 (7/14/2023)
+
+- Add support for one-line `while` loop construct ([#11](https://github.com/japhib/pico8-ls/issues/11))
+- Add support for new conditional syntax `if ... do ... end` ([#57](https://github.com/japhib/pico8-ls/issues/57))
+- Fix changelog link ([#52](https://github.com/japhib/pico8-ls/pull/52))
+
 ## 0.5.3 (11/10/2023)
 
 - Add support for code folding using `#region` comments ([#49](https://github.com/japhib/pico8-ls/pull/49)) - thanks [@TheCyberRonin](https://github.com/TheCyberRonin)!
