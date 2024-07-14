@@ -7,8 +7,9 @@ name: Publish VSCode extension
 #     types: [published]
 
 # trigger manually for now
-on: workflow_dispatch
-
+on:
+  - workflow_dispatch
+  - push
 jobs:
   release:
     runs-on: ubuntu-latest
