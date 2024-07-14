@@ -10,33 +10,22 @@ name: Publish VSCode extension
 on:
   - workflow_dispatch
   - push
+
 jobs:
   release:
     runs-on: ubuntu-latest
     environment: deploy-vsce-prod
     steps:
     - uses: actions/checkout@v2
-    - name: Azure debugging
-      run: |
-        # install azure cli
-        curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
-
-        az devops login <<<"${AZURE_DEVOPS_ACCESS_TOKEN}"
-        
-        az role assignment list
     - name: Install modules
       run: npm install
-    - name: Install vsce
-      run: npm install -g @vscode/vsce
-    - name: Release
-      env:
-        AZURE_DEVOPS_ACCESS_TOKEN: ${{ secrets.AZURE_DEVOPS_ACCESS_TOKEN }}
-      run: |
-        echo "length of string: ${#AZURE_DEVOPS_ACCESS_TOKEN}"
-        echo "first 5 chars: ${AZURE_DEVOPS_ACCESS_TOKEN:0:5}"
-        echo "last 5 chars: ${AZURE_DEVOPS_ACCESS_TOKEN:47:52}"
-        
-        vsce login PollywogGames <<<"${AZURE_DEVOPS_ACCESS_TOKEN}"
+    - name: Bundle
+      run: 
         npm run compile
+    - name: VSCE package and publish
+      env:
+        # see docs: https://code.visualstudio.com/api/working-with-extensions/continuous-integration#github-actions-automated-publishing
+        VSCE_PAT: ${{ secrets.VSCE_PAT }}
+      run: |
         vsce package
         vsce publish
