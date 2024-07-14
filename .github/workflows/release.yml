@@ -15,6 +15,14 @@ jobs:
     environment: deploy-vsce-prod
     steps:
     - uses: actions/checkout@v2
+    - name: Azure debugging
+      run: |
+        # install azure cli
+        curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
+
+        az devops login <<<"${AZURE_DEVOPS_ACCESS_TOKEN}"
+        
+        az role assignment list
     - name: Install modules
       run: npm install
     - name: Install vsce
