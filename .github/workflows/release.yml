@@ -19,6 +19,8 @@ jobs:
     - uses: actions/checkout@v2
     - name: Install modules
       run: npm install
+    - name: Install vsce
+      run: npm install -g @vscode/vsce
     - name: Bundle
       run: 
         npm run compile
