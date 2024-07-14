@@ -1,15 +1,10 @@
 name: Publish VSCode extension
 
-# # Only trigger when a new release is released
-# # see: https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows#release
-# on:
-#   release:
-#     types: [published]
-
-# trigger manually for now
 on:
-  - workflow_dispatch
-  - push
+  push:
+    tags:
+      # Using '**' instead of '*' here to match all tags: https://stackoverflow.com/a/61892639/530728
+      - '**'
 
 jobs:
   release:
