@@ -5,6 +5,8 @@ name: Publish VSCode extension
 # on:
 #   release:
 #     types: [published]
+
+# trigger manually for now
 on: workflow_dispatch
 
 jobs:
@@ -14,5 +16,13 @@ jobs:
     - uses: actions/checkout@v2
     - name: Install modules
       run: npm install
+    - name: Install vsce
+      run: npm install -g @vscode/vsce
     - name: Release
-      run: npm run vscode-publish
+      env:
+        AZURE_DEVOPS_ACCESS_TOKEN: ${{ secrets.AZURE_DEVOPS_ACCESS_TOKEN }}
+      run: |
+        vsce login PollywogGames <<<"${AZURE_DEVOPS_ACCESS_TOKEN}\n"
+        npm run compile
+        vsce package
+        vsce publish
