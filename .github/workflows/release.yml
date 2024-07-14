@@ -7,22 +7,31 @@ on:
       - '**'
 
 jobs:
-  release:
+  release-vs-marketplace:
     runs-on: ubuntu-latest
     environment: deploy-vsce-prod
     steps:
     - uses: actions/checkout@v2
     - name: Install modules
       run: npm install
-    - name: Install vsce
-      run: npm install -g @vscode/vsce
-    - name: Bundle
-      run: 
-        npm run compile
     - name: VSCE package and publish
       env:
         # see docs: https://code.visualstudio.com/api/working-with-extensions/continuous-integration#github-actions-automated-publishing
         VSCE_PAT: ${{ secrets.VSCE_PAT }}
       run: |
-        vsce package
-        vsce publish
+        npx vsce package
+        npx vsce publish
+  
+  release-open-vsx:
+    # following pattern: https://github.com/open-vsx/publish-extensions/blob/master/docs/exampleCI.yaml
+    runs-on: ubuntu-latest
+    environment: deploy-vsce-prod
+    steps:
+    - uses: actions/checkout@v2
+    - name: Install modules
+      run: npm install
+    - name: OVSX package and publish
+      env:
+        OVSX_PAT: ${{ secrets.OVSX_PAT }}
+      run: |
+        npx ovsx publish --pat ${{ secrets.OVSX_PAT }}
