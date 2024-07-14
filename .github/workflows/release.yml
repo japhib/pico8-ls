@@ -25,6 +25,7 @@ jobs:
       run: |
         echo "length of string: ${#AZURE_DEVOPS_ACCESS_TOKEN}"
         echo "first 5 chars: ${AZURE_DEVOPS_ACCESS_TOKEN:0:5}"
+        echo "last 5 chars: ${AZURE_DEVOPS_ACCESS_TOKEN:47:52}"
         
         vsce login PollywogGames <<<"${AZURE_DEVOPS_ACCESS_TOKEN}"
         npm run compile
