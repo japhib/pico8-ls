@@ -22,6 +22,9 @@ jobs:
       env:
         AZURE_DEVOPS_ACCESS_TOKEN: ${{ secrets.AZURE_DEVOPS_ACCESS_TOKEN }}
       run: |
+        echo "length of string: ${#AZURE_DEVOPS_ACCESS_TOKEN}"
+        echo "first 5 chars: ${AZURE_DEVOPS_ACCESS_TOKEN:0:5}"
+        
         vsce login PollywogGames <<<"${AZURE_DEVOPS_ACCESS_TOKEN}"
         npm run compile
         vsce package
