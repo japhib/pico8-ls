@@ -22,7 +22,7 @@ jobs:
       env:
         AZURE_DEVOPS_ACCESS_TOKEN: ${{ secrets.AZURE_DEVOPS_ACCESS_TOKEN }}
       run: |
-        vsce login PollywogGames <<<"${AZURE_DEVOPS_ACCESS_TOKEN}\n"
+        vsce login PollywogGames <<<"${AZURE_DEVOPS_ACCESS_TOKEN}"
         npm run compile
         vsce package
         vsce publish
