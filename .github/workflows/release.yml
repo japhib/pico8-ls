@@ -1,12 +1,10 @@
 name: Publish VSCode extension
 
 on:
-  - push
-  # workflow_dispatch:
-  # push:
-  #   tags:
-  #     # Using '**' instead of '*' here to match all tags: https://stackoverflow.com/a/61892639/530728
-  #     - '**'
+  push:
+    tags:
+      # Using '**' instead of '*' here to match all tags: https://stackoverflow.com/a/61892639/530728
+      - '**'
 
 jobs:
   release-vs-marketplace:
