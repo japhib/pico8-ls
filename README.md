@@ -1,5 +1,8 @@
 # PICO-8 Language Server
 
+[![VS Marketplace installs](https://badgen.net/vs-marketplace/i/PollywogGames.pico8-ls?label=VS%20Marketplace%20installs)](https://marketplace.visualstudio.com/items?itemName=PollywogGames.pico8-ls)
+[![VS Marketplace downloads](https://badgen.net/vs-marketplace/d/PollywogGames.pico8-ls?label=VS%20Marketplace%20downloads)](https://marketplace.visualstudio.com/items?itemName=PollywogGames.pico8-ls)
+
 Full language support for the [PICO-8](https://www.lexaloffle.com/pico-8.php)
 dialect of Lua. 
 
