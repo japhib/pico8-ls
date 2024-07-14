@@ -1,0 +1,17 @@
+name: Publish VSCode extension
+
+# Only trigger when a new release is released
+# see: https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows#release
+on:
+  release:
+    types: [published]
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Install modules
+      run: npm install
+    - name: Release
+      run: npm run vscode-publish
