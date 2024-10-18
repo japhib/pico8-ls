@@ -2,9 +2,7 @@ name: Publish VSCode extension
 
 on:
   push:
-    tags:
-      # Using '**' instead of '*' here to match all tags: https://stackoverflow.com/a/61892639/530728
-      - '**'
+    branches: [release]
 
 jobs:
   release-vs-marketplace:
