@@ -582,8 +582,18 @@ connection.onCompletion((params: TextDocumentPositionParams): CompletionItem[] =
     return [];
   }
 
-  const line = getTextOnLine(params.textDocument.uri, params.position);
-  const completionFilter = line !== undefined ? completionFilterForPosition(params.position.character, line) : '';
+  const line = params.position.line;
+  const textOnLine = getTextOnLine(params.textDocument.uri, params.position);
+
+  let beginIdx = 0;
+  let endIdx = 0;
+  let completionFilterText = '';
+  if (textOnLine !== undefined) {
+    const completionFilter = completionFilterForPosition(params.position.character, textOnLine);
+    beginIdx = completionFilter.beginIdx;
+    endIdx = completionFilter.endIdx;
+    completionFilterText = completionFilter.text;
+  }
 
   return scopes.lookupScopeFor({
     // They use 0-index line numbers, we use 1-index
@@ -593,21 +603,19 @@ connection.onCompletion((params: TextDocumentPositionParams): CompletionItem[] =
     index: 0,
     filename: ResolvedFile.fromFileURL(params.textDocument.uri) })
     .allSymbols()
-    .filter(sym => sym.startsWith(completionFilter))
+    .filter(sym => sym.startsWith(completionFilterText))
     .map(sym => {
-      let insertText = sym;
-      if (insertText.indexOf('.') !== -1) {
-        // Make sure the text we insert doesn't contain previous members.
-        // For example, if they're typing `table.prop` and the auto-complete is `table.property`,
-        // we need insertText to be just `property` otherwise when they accept the completion
-        // item, they'll get `table.table.property`.
-        const lastDotIdx = insertText.lastIndexOf('.');
-        insertText = insertText.substring(lastDotIdx + 1);
-      }
+      const textEdit: TextEdit = {
+        range: {
+          start: { line, character: beginIdx },
+          end: { line, character: endIdx },
+        },
+        newText: sym,
+      };
 
       return {
         label: sym,
-        insertText,
+        textEdit,
       };
     });
 });
@@ -647,19 +655,22 @@ connection.onCompletionResolve((item: CompletionItem) => {
 
 function completionFilterForPosition(position: number, text: string) {
   // compensate for position being one index *past* the character just typed
-  position -= 1;
+  const startIdx = position - 1;
 
   let i;
-  for (i = position; i >= 0; i--) {
+  for (i = startIdx; i >= 0; i--) {
     const charCode = text.charCodeAt(i);
     if (!isIdentifierPart(charCode) && charCode !== 46) { // .
-      i++;
       break;
     }
   }
-  const begin = i;
+  const begin = i + 1;
 
-  return text.substring(begin, position);
+  return {
+    beginIdx: begin,
+    endIdx: position,
+    text: text.substring(begin, position),
+  };
 }
 
 function identifierAtPosition(position: number, text: string) {
