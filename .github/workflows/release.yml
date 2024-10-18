@@ -25,6 +25,10 @@ jobs:
     runs-on: ubuntu-latest
     environment: deploy-vsce-prod
     steps:
+    # Make sure we're using node 20+
+    - uses: actions/setup-node@v4
+      with:
+        node-version: '20'
     - uses: actions/checkout@v2
     - name: Install modules
       run: npm install
