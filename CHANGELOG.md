@@ -1,10 +1,15 @@
 # Changelog
 
-## 0.5.4 (7/14/2023)
+## 0.5.5 (10/18/2024)
+
+- Fix autocomplete being broken for tables ([#62](https://github.com/japhib/pico8-ls/issues/62))
+
+## 0.5.4 (7/14/2024)
 
 - Add support for one-line `while` loop construct ([#11](https://github.com/japhib/pico8-ls/issues/11))
 - Add support for new conditional syntax `if ... do ... end` ([#57](https://github.com/japhib/pico8-ls/issues/57))
 - Fix changelog link ([#52](https://github.com/japhib/pico8-ls/pull/52))
+- Moved a bunch of stuff to CI, making the release process a bit easier
 
 ## 0.5.3 (11/10/2023)
 
