@@ -115,8 +115,8 @@ export default class Formatter {
     formatted = formatted.split('\n').map(line => line.trimRight()).join('\n');
 
     if (!isPlainLuaFile) {
-      // Add whitespace buffer at beginning and end
-      formatted = '\n' + formatted + '\n';
+      // Add whitespace buffer at the end
+      formatted = formatted + '\n';
 
       // add an extra newline if we found an ending tag (__gfx__ for example)
       if (formatRange.end.line !== Number.MAX_VALUE) {
