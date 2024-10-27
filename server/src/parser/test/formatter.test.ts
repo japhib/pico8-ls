@@ -298,7 +298,7 @@ h = some_var_1 / some_var_2 / some_var_3`.trim());
       eq(formatLua(input), input);
     });
 
-    it('formats `repeat` loops', () =>{
+    it('formats `repeat` loops', () => {
       const input = `
 repeat
   local foo = "bar"
@@ -307,7 +307,7 @@ until true
       eq(formatLua(input), input);
     });
 
-    it('formats a `repeat` loop with a comment', () =>{
+    it('formats a `repeat` loop with a comment', () => {
       const input = `
 repeat
   local foo = "bar"
@@ -317,7 +317,7 @@ until true
       eq(formatLua(input), input);
     });
 
-    it('formats a `repeat` loop with a comment inside an indented block', () =>{
+    it('formats a `repeat` loop with a comment inside an indented block', () => {
       const input = `
 function a()
   repeat
@@ -933,6 +933,24 @@ a()
       deepEquals(result!.formattedRange, {
         start: { line: 3, character: 0 },
         end: { line: Number.MAX_VALUE, character: 0 },
+      });
+    });
+
+    it('does not insert leading newline in raw pico-8 files', () => {
+      const text = `
+pico-8 cartridge // http://www.pico-8.com
+version 29
+__lua__
+-- cart title
+-- by cart author
+`.trim();
+      const result = formatRaw(text, false);
+      deepEquals(result, {
+        formattedText: '-- cart title\n-- by cart author\n',
+        formattedRange: {
+          start: { line: 3, character: 0 },
+          end: { line: Number.MAX_VALUE, character: 0 },
+        }
       });
     });
 
