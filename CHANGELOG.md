@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.6 (10/26/2024)
+
+- Fix formatter adding a leading newline to .p8 files (issue [#51](https://github.com/japhib/pico8-ls/issues/51), PR [#65](https://github.com/japhib/pico8-ls/pull/65)) - thanks [@akd-io](https://github.com/akd-io)!
+
 ## 0.5.5 (10/18/2024)
 
 - Fix autocomplete being broken for tables ([#62](https://github.com/japhib/pico8-ls/issues/62))
