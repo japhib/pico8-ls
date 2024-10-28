@@ -950,7 +950,7 @@ __lua__
         formattedRange: {
           start: { line: 3, character: 0 },
           end: { line: Number.MAX_VALUE, character: 0 },
-        }
+        },
       });
     });
 
