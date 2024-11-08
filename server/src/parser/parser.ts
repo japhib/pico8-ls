@@ -592,6 +592,11 @@ export default class Parser {
 
     if (!this.lexer.consume('then') && !this.lexer.consume('do')) {
       if (canBeOneLiner) {
+
+        // Tell formatter not to use outer parens on the condition expression, since they'll
+        // be added anyway for a one-line if statement
+        condition.parens = false;
+
         // Handle special PICO-8 one-line if statement
         this.lexer.withSignificantNewline((cancelSignificantNewline) => {
           // pseudo-block for the if statement contents
@@ -1260,20 +1265,22 @@ export default class Parser {
     return null;
   }
 
-  parsePrefixExpression(flowContext: FlowContext) {
-    let base, name;
+  parsePrefixExpression(flowContext: FlowContext): Expression | null {
+    let base : Expression;
 
     const marker = this.createLocationMarker();
 
     // The prefix
     if (TokenType.Identifier === this.token.type) {
-      name = this.token.value as string;
+      const name = this.token.value as string;
       base = this.parseIdentifier();
       // Set the parent scope.
       this.attachScope(base, this.scopeHasName(name));
     } else if (this.lexer.consume('(')) {
+      // Parentheses surrounding a new expression.
       base = this.parseExpectedExpression(flowContext);
       this.lexer.expect(')');
+      base.parens = true;
     } else {
       return null;
     }

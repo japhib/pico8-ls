@@ -872,6 +872,7 @@ export default class Formatter {
         parentOperator: childContext.parentOperator,
         currentOperator: node.operator,
         extraIndent: true,
+        parens: node.parens,
       },
       () => {
         let ret = '';
@@ -1043,36 +1044,45 @@ export default class Formatter {
       currentOperator?: string,
       isRightSideOfAnExpression?: boolean,
       extraIndent?: boolean,
+      parens?: boolean,
     },
     expressionToWrap: () => string,
   ): string {
-    let shouldWrap = false;
+    const {
+      parentOperator,
+      currentOperator,
+      isRightSideOfAnExpression,
+      extraIndent,
+      parens,
+    } = params;
 
-    const parentPrecedence = params.parentOperator
-      ? Operators.binaryPrecedenceOf(params.parentOperator)
+    let shouldWrap: boolean = !!parens;
+
+    const parentPrecedence = parentOperator
+      ? Operators.binaryPrecedenceOf(parentOperator)
       : Operators.minPrecedenceValue;
-    const currentPrecedence = params.currentOperator
-      ? Operators.binaryPrecedenceOf(params.currentOperator)
+    const currentPrecedence = currentOperator
+      ? Operators.binaryPrecedenceOf(currentOperator)
       : Operators.minPrecedenceValue;
     if (currentPrecedence < parentPrecedence) {
       shouldWrap = true;
     }
 
     if (
-      params.parentOperator &&
-      params.parentOperator === params.currentOperator &&
-      params.isRightSideOfAnExpression &&
+      parentOperator &&
+      parentOperator === currentOperator &&
+      isRightSideOfAnExpression &&
       // eslint-disable-next-line @typescript-eslint/no-unsafe-call
-      Operators.doesNeedParenthesesIfOnTheRightSide(params.parentOperator)
+      Operators.doesNeedParenthesesIfOnTheRightSide(parentOperator)
     ) {
       shouldWrap = true;
     }
 
-    if (shouldWrap && params.extraIndent) {
+    if (shouldWrap && extraIndent) {
       this.increaseDepth();
     }
     const expression = expressionToWrap();
-    if (shouldWrap && params.extraIndent) {
+    if (shouldWrap && extraIndent) {
       this.decreaseDepth();
     }
     return shouldWrap ? `(${expression})` : expression;

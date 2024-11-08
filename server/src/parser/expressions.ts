@@ -77,6 +77,7 @@ export type BinaryExpression = ASTNode & {
   operator: string,
   left: Expression,
   right: Expression,
+  parens?: boolean,
 };
 
 export type LogicalExpression = ASTNode & {
@@ -84,6 +85,7 @@ export type LogicalExpression = ASTNode & {
   operator: 'and' | 'or',
   left: Expression,
   right: Expression,
+  parens?: boolean,
 };
 
 export type UnaryExpression = ASTNode & {
@@ -191,9 +193,12 @@ export type StringCallExpression = ASTNode & {
   argument: StringLiteral,
 };
 
-export type Expression = TableConstructorExpression | BinaryExpression | LogicalExpression | UnaryExpression
+export type Expression = (TableConstructorExpression | BinaryExpression | LogicalExpression | UnaryExpression
   | MemberExpression | IndexExpression | CallExpression | TableCallExpression | StringCallExpression | Literal
-  | Identifier | FunctionDeclaration | Whitespace;
+  | Identifier | FunctionDeclaration | Whitespace) & {
+  /** Whether this expression is surrounded by parentheses. */
+  parens?: boolean;
+};
 
 export type Comment_ = ASTNode & {
   type: 'Comment',
