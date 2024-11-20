@@ -7,7 +7,12 @@
     "brackets": [
         ["{", "}"],
         ["[", "]"],
-        ["(", ")"]
+        ["(", ")"],
+        ["then", "elseif"],
+        ["then", "end"],
+        ["do", "end"],
+        ["function", "end"],
+        ["repeat", "until"],
     ],
     // symbols that are auto closed when typing
     "autoClosingPairs": [

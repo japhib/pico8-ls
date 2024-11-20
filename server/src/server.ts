@@ -1,6 +1,6 @@
 import {
   CompletionItem, CompletionItemTag, createConnection, DefinitionParams, Diagnostic, DiagnosticSeverity,
-  DidChangeConfigurationNotification, DocumentFormattingParams, DocumentSymbol, DocumentSymbolParams,
+  DidChangeConfigurationNotification, DocumentFormattingParams, DocumentOnTypeFormattingParams, DocumentSymbol, DocumentSymbolParams,
   ExecuteCommandParams, HoverParams, InitializeParams, InitializeResult, Location, Position, ProposedFeatures,
   Range, ReferenceParams, SignatureHelpParams, SignatureInformation, SymbolKind, TextDocumentPositionParams,
   TextDocuments, TextDocumentSyncKind, TextEdit, WorkspaceFolder,
@@ -56,7 +56,12 @@ connection.onInitialize((params: InitializeParams) => {
       completionProvider: { triggerCharacters: [ '.', ':' ], resolveProvider: true },
       hoverProvider: true,
       signatureHelpProvider: { triggerCharacters: [ '(' ], retriggerCharacters: [ ',' ] },
+
+      // Full document formatting
       documentFormattingProvider: true,
+      // // Mini-formatting while typing -
+      // documentOnTypeFormattingProvider: { firstTriggerCharacter: '\n' },
+      // Extra formatting commands to vary the style of formatting
       executeCommandProvider: {
         commands: [
           'pico8formatFile',
@@ -831,6 +836,13 @@ function executeCommand_formatDocument(documentUri: string, opts: FormatterOptio
     formatResult.formattedText,
   );
 }
+
+// Use onDocumentOnTypeFormatting to insert "end" when pressing "enter" after typing the beginning
+// of a function, while loop, for loop, etc.
+// See: https://github.com/elixir-lsp/elixir-ls/blob/master/apps/language_server/lib/language_server/providers/on_type_formatting.ex
+connection.onDocumentOnTypeFormatting((params: DocumentOnTypeFormattingParams) => {
+
+});
 
 // Make the text document manager listen on the connection
 // for open, change and close text document events
