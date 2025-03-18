@@ -755,6 +755,11 @@ export const Builtins: { [key: string]: BuiltinFunctionInfo } = {
       'usehex: If true, uses 32-bit unsigned fixed point hexadecimal notation for number values. The default is to use concise decimal notation for number values.',
     ],
   },
+  tostring: {
+    sig: 'tostring( val )',
+    desc: 'Converts a non-string value to a string representation.',
+    params: [ 'val: The value to convert.' ],
+  },
   menuitem: {
     sig: 'menuitem( index, [label,] [callback] )',
     desc: 'Adds a custom item to the PICO-8 menu.',
