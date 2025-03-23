@@ -273,6 +273,30 @@ __gfx__
     assertNoMoreTokens(tokens);
   });
 
+  it('skips __sfx__ section', () => {
+    const code = `pico-8 cartridge // http://www.pico-8.com
+version 42
+__lua__
+
+__sfx__
+013c01001815000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+`;
+    const tokens = getLexedTokens(code);
+    assertNoMoreTokens(tokens);
+  });
+
+  it('skips __music__ section', () => {
+    const code = `pico-8 cartridge // http://www.pico-8.com
+version 42
+__lua__
+
+__music__
+00 01424344
+`;
+    const tokens = getLexedTokens(code);
+    assertNoMoreTokens(tokens);
+  });
+
   describe('error handling', () => {
     it('returns an error for an unterminated string literal', () => {
       assert.throws(() => {

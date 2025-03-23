@@ -698,6 +698,28 @@ __gfx__
     deepEqualsAST(code, []);
   });
 
+  it('skips __sfx__ section', () => {
+    const code = `pico-8 cartridge // http://www.pico-8.com
+version 42
+__lua__
+
+__sfx__
+013c01001815000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+`;
+    deepEqualsAST(code, []);
+  });
+
+  it('skips __music__ section', () => {
+    const code = `pico-8 cartridge // http://www.pico-8.com
+version 42
+__lua__
+
+__music__
+00 01424344
+`;
+    deepEqualsAST(code, []);
+  });
+
   it('parses low.p8', () => {
     const { errors } = parse(getTestFileContents('low.p8'));
     eq(errors.length, 0, 'Unexpected errors: ' + errors.map(e => `[${e.bounds.start.line}:${e.bounds.end.column}] ${e.message}`).join(','));
