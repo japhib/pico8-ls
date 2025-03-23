@@ -1007,8 +1007,5 @@ export function isP8BeginningOfCodeSection(value: string): boolean {
 }
 
 export function isP8EndOfCodeSection(value: string): boolean {
-  return value === '__gfx__'
-    || value === '__label__'
-    || value === '__gff__'
-    || value === '__map__';
+  return [ '__gfx__', '__label__', '__gff__', '__map__', '__sfx__', '__music__' ].includes(value);
 }
