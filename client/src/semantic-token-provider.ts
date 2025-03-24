@@ -25,9 +25,7 @@ const provider: DocumentSemanticTokensProvider = {
       if (line.text == '__lua__') {
         inLua = true;
         continue;
-      } else if (inLua &&
-          (line.text === '__gfx__' || line.text === '__label__' || line.text === '__gff__' || line.text === '__map__')
-      ) {
+      } else if (inLua && [ '__gfx__', '__label__', '__gff__', '__map__', '__sfx__', '__music__' ].includes(line.text)) {
         inLua = false;
         continue;
       }

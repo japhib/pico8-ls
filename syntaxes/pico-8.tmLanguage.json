@@ -6,7 +6,7 @@
     "repository": {
       "lua": {
         "begin": "__lua__",
-        "end": "(__gfx__|__label__|__gff__|__map__)",
+        "end": "(__gfx__|__label__|__gff__|__map__|__sfx__|__music__)",
         "beginCaptures": {
           "0": { "name": "punctuation.code.open" }
         },
