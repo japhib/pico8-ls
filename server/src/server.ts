@@ -21,6 +21,7 @@ import Formatter, { FormatterOptions } from './parser/formatter';
 import {
   findProjects, getProjectFiles, iterateProject, ParsedDocumentsMap, Project, ProjectDocument, ProjectDocumentNode,
 } from './projects';
+import { Comment_ } from './parser/expressions';
 import * as url from 'url';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -482,7 +483,38 @@ function parseTextDocument(textDocument: TextDocument): ProjectDocument | undefi
 
     // Set document info in caches
     const symbolInfo: DocumentSymbol[] = symbols.map(sym => toDocumentSymbol(textDocument, sym));
-    documentSymbols.set(textDocument.uri, symbolInfo);
+    const foldingRegions = getFoldingRegions(textDocument, chunk.comments || []);
+    const rootSymbols: DocumentSymbol[] = [];
+    const regionSymbols: DocumentSymbol[] = foldingRegions.map(region => {
+      const range = Range.create(region.startLine, 0, region.endLine, 0);
+      const regionSymbol = DocumentSymbol.create(
+        region.name,
+        '',
+        SymbolKind.Namespace,
+        range,
+        range,
+      );
+      regionSymbol.children = [];
+      return regionSymbol;
+    });
+
+    for (const symbol of symbolInfo) {
+      let parent: DocumentSymbol | undefined;
+      for (const regionSymbol of regionSymbols) {
+        if (regionSymbol.range.start.line <= symbol.range.start.line && regionSymbol.range.end.line >= symbol.range.end.line) {
+          parent = regionSymbol;
+          break;
+        }
+      }
+
+      if (parent) {
+        parent.children!.push(symbol);
+      } else {
+        rootSymbols.push(symbol);
+      }
+    }
+
+    documentSymbols.set(textDocument.uri, rootSymbols.concat(regionSymbols));
     documentIncludes.set(textDocument.uri, includes!);
 
     // send errors back to client immediately
@@ -780,19 +812,12 @@ connection.onDocumentFormatting((params: DocumentFormattingParams) => {
   return formatResult ? [ formatResult ] : null;
 });
 
-connection.onFoldingRanges((params: FoldingRangeParams): FoldingRange[] => {
-  const parsedDocument = parsedDocuments.get(params.textDocument.uri);
-  if (!parsedDocument || !parsedDocument.chunk || !parsedDocument.chunk.comments) {
-    return [];
-  }
-
-  const foldingRanges: FoldingRange[] = [];
-  const comments = parsedDocument.chunk.comments;
-  const textDocument = documents.get(params.textDocument.uri);
-  if (!textDocument) {
-    return [];
-  }
+function getFoldingRegions(textDocument: TextDocument, comments: Comment_[]): { name: string, startLine: number, endLine: number }[] {
+  const foldingRegions: { name: string, startLine: number, endLine: number }[] = [];
   const lines = textDocument.getText().split('\n');
+
+  // Sort comments by line number to process them in order
+  const sortedComments = comments.sort((a, b) => a.loc!.start.line - b.loc!.start.line);
 
   let luaStartLine: number | undefined = undefined;
   let gfxStartLine: number | undefined = undefined;
@@ -808,36 +833,52 @@ connection.onFoldingRanges((params: FoldingRangeParams): FoldingRange[] => {
   }
 
   let currentFoldingStartLine: number | undefined = undefined;
+  let currentFoldingName: string | undefined = undefined;
 
   // Handle the region from __lua__ to the first -->8
   if (luaStartLine !== undefined) {
-    // Find the first -->8 comment after __lua__
-    const firstFoldingComment = comments.find(comment =>
+    const firstFoldingComment = sortedComments.find(comment =>
       comment.raw.startsWith('-->8') && comment.loc!.start.line - 1 > luaStartLine!,
     );
 
     if (firstFoldingComment) {
-      foldingRanges.push({
+      let regionName = 'main';
+      const firstCommentAfterLua = sortedComments.find(c => c.loc!.start.line -1 > luaStartLine!);
+      if (firstCommentAfterLua && firstCommentAfterLua.loc!.start.line < firstFoldingComment.loc!.start.line) {
+        regionName = firstCommentAfterLua.value.trim();
+      }
+
+      foldingRegions.push({
+        name: regionName,
         startLine: luaStartLine + 1, // Line after __lua__
         endLine: firstFoldingComment.loc!.start.line - 2, // Line before the first -->8
-        kind: 'region',
       });
     }
   }
 
   // Handle -->8 comments
-  for (let i = 0; i < comments.length; i++) {
-    const comment = comments[i];
+  for (let i = 0; i < sortedComments.length; i++) {
+    const comment = sortedComments[i];
     if (comment.raw.startsWith('-->8')) {
       if (currentFoldingStartLine !== undefined) {
         // Found a new folding start, so the previous one ends here (or one line before)
-        foldingRanges.push({
+        foldingRegions.push({
+          name: currentFoldingName!,
           startLine: currentFoldingStartLine,
-          endLine: comment.loc!.start.line - 2, // -1 for 0-indexed, -1 for the line before the comment
-          kind: 'region',
+          endLine: comment.loc!.start.line - 2, // -1 for 1-based, -1 for the line before the comment
         });
       }
-      currentFoldingStartLine = comment.loc!.start.line; // Convert to 0-indexed
+      currentFoldingStartLine = comment.loc!.start.line; // Convert to 0-indexed, and start on next line
+
+      // Look for a comment on the next line for the region name
+      let regionName = comment.raw.substring(4).trim(); // default to text on same line
+      if (!regionName && i + 1 < sortedComments.length) {
+        const nextComment = sortedComments[i+1];
+        if (nextComment.loc!.start.line === comment.loc!.start.line + 1) {
+          regionName = nextComment.value.trim();
+        }
+      }
+      currentFoldingName = regionName || 'region'; // Default name if none found
     }
   }
 
@@ -847,14 +888,35 @@ connection.onFoldingRanges((params: FoldingRangeParams): FoldingRange[] => {
     if (gfxStartLine !== undefined) {
       endLine = gfxStartLine; // Include __gfx__ line in the folded region
     }
-    foldingRanges.push({
+    foldingRegions.push({
+      name: currentFoldingName!,
       startLine: currentFoldingStartLine,
       endLine: endLine,
-      kind: 'region',
     });
   }
 
-  return foldingRanges;
+  return foldingRegions;
+}
+
+connection.onFoldingRanges((params: FoldingRangeParams): FoldingRange[] => {
+  const parsedDocument = parsedDocuments.get(params.textDocument.uri);
+  if (!parsedDocument || !parsedDocument.chunk || !parsedDocument.chunk.comments) {
+    return [];
+  }
+
+  const textDocument = documents.get(params.textDocument.uri);
+  if (!textDocument) {
+    return [];
+  }
+
+  const regions = getFoldingRegions(textDocument, parsedDocument.chunk.comments);
+  return regions.map(region => {
+    return {
+      startLine: region.startLine,
+      endLine: region.endLine,
+      kind: 'region',
+    };
+  });
 });
 
 connection.onExecuteCommand((params: ExecuteCommandParams) => {
