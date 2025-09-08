@@ -1,7 +1,7 @@
 import {
   CompletionItem, CompletionItemTag, createConnection, DefinitionParams, Diagnostic, DiagnosticSeverity,
   DidChangeConfigurationNotification, DocumentFormattingParams, DocumentSymbol, DocumentSymbolParams,
-  ExecuteCommandParams, HoverParams, InitializeParams, InitializeResult, Location, Position, ProposedFeatures,
+  ExecuteCommandParams, FoldingRange, FoldingRangeParams, HoverParams, InitializeParams, InitializeResult, Location, Position, ProposedFeatures,
   Range, ReferenceParams, SignatureHelpParams, SignatureInformation, SymbolKind, TextDocumentPositionParams,
   TextDocuments, TextDocumentSyncKind, TextEdit, WorkspaceFolder,
 } from 'vscode-languageserver/node';
@@ -57,6 +57,7 @@ connection.onInitialize((params: InitializeParams) => {
       hoverProvider: true,
       signatureHelpProvider: { triggerCharacters: [ '(' ], retriggerCharacters: [ ',' ] },
       documentFormattingProvider: true,
+      foldingRangeProvider: true,
       executeCommandProvider: {
         commands: [
           'pico8formatFile',
@@ -777,6 +778,83 @@ connection.onSignatureHelp((params: SignatureHelpParams) => {
 connection.onDocumentFormatting((params: DocumentFormattingParams) => {
   const formatResult = executeCommand_formatDocument(params.textDocument.uri, params.options);
   return formatResult ? [ formatResult ] : null;
+});
+
+connection.onFoldingRanges((params: FoldingRangeParams): FoldingRange[] => {
+  const parsedDocument = parsedDocuments.get(params.textDocument.uri);
+  if (!parsedDocument || !parsedDocument.chunk || !parsedDocument.chunk.comments) {
+    return [];
+  }
+
+  const foldingRanges: FoldingRange[] = [];
+  const comments = parsedDocument.chunk.comments;
+  const textDocument = documents.get(params.textDocument.uri);
+  if (!textDocument) {
+    return [];
+  }
+  const lines = textDocument.getText().split('\n');
+
+  let luaStartLine: number | undefined = undefined;
+  let gfxStartLine: number | undefined = undefined;
+
+  // Find __lua__ and __gfx__ lines
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (line === '__lua__') {
+      luaStartLine = i; // 0-indexed line number
+    } else if (line === '__gfx__') {
+      gfxStartLine = i - 1; // 0-indexed line number
+    }
+  }
+
+  let currentFoldingStartLine: number | undefined = undefined;
+
+  // Handle the region from __lua__ to the first -->8
+  if (luaStartLine !== undefined) {
+    // Find the first -->8 comment after __lua__
+    const firstFoldingComment = comments.find(comment =>
+      comment.raw.startsWith('-->8') && comment.loc!.start.line - 1 > luaStartLine!,
+    );
+
+    if (firstFoldingComment) {
+      foldingRanges.push({
+        startLine: luaStartLine + 1, // Line after __lua__
+        endLine: firstFoldingComment.loc!.start.line - 2, // Line before the first -->8
+        kind: 'region',
+      });
+    }
+  }
+
+  // Handle -->8 comments
+  for (let i = 0; i < comments.length; i++) {
+    const comment = comments[i];
+    if (comment.raw.startsWith('-->8')) {
+      if (currentFoldingStartLine !== undefined) {
+        // Found a new folding start, so the previous one ends here (or one line before)
+        foldingRanges.push({
+          startLine: currentFoldingStartLine,
+          endLine: comment.loc!.start.line - 2, // -1 for 0-indexed, -1 for the line before the comment
+          kind: 'region',
+        });
+      }
+      currentFoldingStartLine = comment.loc!.start.line; // Convert to 0-indexed
+    }
+  }
+
+  // If there's an open folding region at the end of the file
+  if (currentFoldingStartLine !== undefined) {
+    let endLine = textDocument.lineCount - 1; // Default to end of document
+    if (gfxStartLine !== undefined) {
+      endLine = gfxStartLine; // Include __gfx__ line in the folded region
+    }
+    foldingRanges.push({
+      startLine: currentFoldingStartLine,
+      endLine: endLine,
+      kind: 'region',
+    });
+  }
+
+  return foldingRanges;
 });
 
 connection.onExecuteCommand((params: ExecuteCommandParams) => {
