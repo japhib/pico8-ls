@@ -816,80 +816,77 @@ function getFoldingRegions(textDocument: TextDocument, comments: Comment_[]): { 
   const foldingRegions: { name: string, startLine: number, endLine: number }[] = [];
   const lines = textDocument.getText().split('\n');
 
-  // Sort comments by line number to process them in order
   const sortedComments = comments.sort((a, b) => a.loc!.start.line - b.loc!.start.line);
 
   let luaStartLine: number | undefined = undefined;
   let gfxStartLine: number | undefined = undefined;
 
-  // Find __lua__ and __gfx__ lines
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].trim();
     if (line === '__lua__') {
-      luaStartLine = i; // 0-indexed line number
+      luaStartLine = i;
     } else if (line === '__gfx__') {
-      gfxStartLine = i - 1; // 0-indexed line number
+      gfxStartLine = i - 1;
     }
   }
 
+  let tabNumber = 0;
   let currentFoldingStartLine: number | undefined = undefined;
   let currentFoldingName: string | undefined = undefined;
 
-  // Handle the region from __lua__ to the first -->8
   if (luaStartLine !== undefined) {
     const firstFoldingComment = sortedComments.find(comment =>
       comment.raw.startsWith('-->8') && comment.loc!.start.line - 1 > luaStartLine!,
     );
 
     if (firstFoldingComment) {
-      let regionName = 'main';
-      const firstCommentAfterLua = sortedComments.find(c => c.loc!.start.line -1 > luaStartLine!);
-      if (firstCommentAfterLua && firstCommentAfterLua.loc!.start.line < firstFoldingComment.loc!.start.line) {
-        regionName = firstCommentAfterLua.value.trim();
+      const regionStartLine = luaStartLine + 1;
+      let regionName = 'tab'; // Default name
+
+      // Check if the first line of the region is a comment
+      const commentOnFirstLine = sortedComments.find(c => c.loc!.start.line - 1 === regionStartLine);
+      if (commentOnFirstLine) {
+        regionName = commentOnFirstLine.value.trim();
       }
 
       foldingRegions.push({
-        name: regionName,
-        startLine: luaStartLine + 1, // Line after __lua__
-        endLine: firstFoldingComment.loc!.start.line - 2, // Line before the first -->8
+        name: `${tabNumber++}: ${regionName}`,
+        startLine: regionStartLine,
+        endLine: firstFoldingComment.loc!.start.line - 2,
       });
     }
   }
 
-  // Handle -->8 comments
   for (let i = 0; i < sortedComments.length; i++) {
     const comment = sortedComments[i];
     if (comment.raw.startsWith('-->8')) {
       if (currentFoldingStartLine !== undefined) {
-        // Found a new folding start, so the previous one ends here (or one line before)
         foldingRegions.push({
-          name: currentFoldingName!,
+          name: `${tabNumber++}: ${currentFoldingName!}`,
           startLine: currentFoldingStartLine,
-          endLine: comment.loc!.start.line - 2, // -1 for 1-based, -1 for the line before the comment
+          endLine: comment.loc!.start.line - 2,
         });
       }
-      currentFoldingStartLine = comment.loc!.start.line; // Convert to 0-indexed, and start on next line
+      currentFoldingStartLine = comment.loc!.start.line;
 
-      // Look for a comment on the next line for the region name
-      let regionName = comment.raw.substring(4).trim(); // default to text on same line
+      let regionName = comment.raw.substring(4).trim();
       if (!regionName && i + 1 < sortedComments.length) {
         const nextComment = sortedComments[i+1];
         if (nextComment.loc!.start.line === comment.loc!.start.line + 1) {
           regionName = nextComment.value.trim();
         }
       }
-      currentFoldingName = regionName || 'region'; // Default name if none found
+      currentFoldingName = regionName || 'tab';
     }
   }
 
-  // If there's an open folding region at the end of the file
   if (currentFoldingStartLine !== undefined) {
-    let endLine = textDocument.lineCount - 1; // Default to end of document
+    let endLine = textDocument.lineCount - 1;
     if (gfxStartLine !== undefined) {
-      endLine = gfxStartLine; // Include __gfx__ line in the folded region
+      endLine = gfxStartLine;
     }
     foldingRegions.push({
-      name: currentFoldingName!,
+      name: `${tabNumber++}: ${currentFoldingName!}`,
       startLine: currentFoldingStartLine,
       endLine: endLine,
     });
