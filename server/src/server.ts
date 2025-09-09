@@ -840,6 +840,9 @@ function getRegionNameFromNextComment(sortedComments: Comment_[], currentIndex: 
   // Assuming the next comment always exists and contains the name.
   // This assumption is based on the previous user instruction.
   const nextComment = sortedComments[currentIndex + 1];
+  if (nextComment.raw === '-->8'){
+    return 'tab';
+  }
   return nextComment.value.trim() || 'tab';
 }
 
@@ -857,7 +860,7 @@ function getFoldingRegions(textDocument: TextDocument, comments: Comment_[]): { 
   // Handle the initial region before the first '-->8' comment, if __lua__ exists.
   if (luaStartLine !== undefined) {
     const firstFoldingComment = sortedComments.find(comment =>
-      comment.raw.startsWith('-->8') && comment.loc!.start.line - 1 > luaStartLine,
+      comment.raw === '-->8' && comment.loc!.start.line - 1 > luaStartLine,
     );
 
     if (firstFoldingComment) {
@@ -873,7 +876,7 @@ function getFoldingRegions(textDocument: TextDocument, comments: Comment_[]): { 
   // Iterate through comments to find '-->8' markers and create folding regions.
   for (let i = 0; i < sortedComments.length; i++) {
     const comment = sortedComments[i];
-    if (comment.raw.startsWith('-->8')) {
+    if (comment.raw === '-->8') {
       if (currentFoldingStartLine !== undefined) {
         foldingRegions.push(createFoldingRegion(currentFoldingName!, currentFoldingStartLine, comment.loc!.start.line - 2, tabNumber++));
       }
