@@ -22,6 +22,7 @@ import {
   findProjects, getProjectFiles, iterateProject, ParsedDocumentsMap, Project, ProjectDocument, ProjectDocumentNode,
 } from './projects';
 import { Comment_ } from './parser/expressions';
+import { FoldingRangeVisitor } from './parser/folding-range-visitor';
 import * as url from 'url';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -893,25 +894,64 @@ function getFoldingRegions(textDocument: TextDocument, comments: Comment_[]): { 
   return foldingRegions;
 }
 
+function getFoldingRangesFromSymbols(symbols: DocumentSymbol[]): FoldingRange[] {
+  const ranges: FoldingRange[] = [];
+
+  for (const symbol of symbols) {
+    if (symbol.range.start.line < symbol.range.end.line) {
+      ranges.push({
+        startLine: symbol.range.start.line,
+        endLine: symbol.range.end.line,
+        kind: symbol.kind === SymbolKind.Namespace ? 'region' : undefined,
+      });
+    }
+
+    if (symbol.children) {
+      ranges.push(...getFoldingRangesFromSymbols(symbol.children));
+    }
+  }
+
+  return ranges;
+}
+
+function getCommentFoldingRanges(comments: Comment_[]): FoldingRange[] {
+  const ranges: FoldingRange[] = [];
+  for (const comment of comments) {
+    if (comment.loc && comment.loc.start.line < comment.loc.end.line) {
+      ranges.push({
+        startLine: comment.loc.start.line - 1,
+        endLine: comment.loc.end.line - 1,
+        kind: 'comment',
+      });
+    }
+  }
+  return ranges;
+}
+
 connection.onFoldingRanges((params: FoldingRangeParams): FoldingRange[] => {
-  const parsedDocument = parsedDocuments.get(params.textDocument.uri);
-  if (!parsedDocument || !parsedDocument.chunk || !parsedDocument.chunk.comments) {
+  const uri = params.textDocument.uri;
+  const parsedDocument = parsedDocuments.get(uri);
+  if (!parsedDocument) {
     return [];
   }
 
-  const textDocument = documents.get(params.textDocument.uri);
-  if (!textDocument) {
-    return [];
-  }
+  // 1. Get ranges from symbols (for PICO-8 regions and functions/vars)
+  const symbols = documentSymbols.get(uri) || [];
+  const symbolRanges = getFoldingRangesFromSymbols(symbols);
 
-  const regions = getFoldingRegions(textDocument, parsedDocument.chunk.comments);
-  return regions.map(region => {
-    return {
-      startLine: region.startLine,
-      endLine: region.endLine,
-      kind: 'region',
-    };
-  });
+  // 2. Get ranges from AST blocks (if, for, while, etc.)
+  const visitor = new FoldingRangeVisitor();
+  visitor.visit(parsedDocument.chunk);
+  const blockRanges = visitor.ranges;
+
+  // 3. Get ranges from multi-line comments
+  const commentRanges = getCommentFoldingRanges(parsedDocument.chunk.comments || []);
+
+  // 4. Combine and deduplicate
+  const allRanges = [ ...symbolRanges, ...blockRanges, ...commentRanges ];
+  const uniqueRanges = Array.from(new Map(allRanges.map(r => [ `${r.startLine}-${r.endLine}`, r ])).values());
+
+  return uniqueRanges;
 });
 
 connection.onExecuteCommand((params: ExecuteCommandParams) => {
