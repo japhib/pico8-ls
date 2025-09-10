@@ -1,4 +1,4 @@
-import { deepEquals, parse } from './test-utils';
+import { deepEquals, parse, getTestFileContents } from './test-utils';
 import { FoldingRangeVisitor } from '../folding-range-visitor';
 import { FoldingRange } from 'vscode-languageserver/node';
 import { TextDocument } from 'vscode-languageserver-textdocument';
@@ -178,5 +178,53 @@ __gfx__
       { name: '2: tab 3', startLine: 8, endLine: 10 },
     ]);
   });
-});
 
+  it('should create folding regions for tabs.p8 using TestFilesResolver', () => {
+    const filename = 'tabs.p8';
+    const code = getTestFileContents(filename);
+    const textDocument = TextDocument.create(filename, 'pico-8', 0, code);
+    const { comments } = parse(code);
+
+    const expectedFoldingRanges: FoldingRange[] = [
+      { startLine: 3, endLine: 32 },   // tab 0: __lua__ ... -->8
+      { startLine: 5, endLine: 7 },    // function _init()
+      { startLine: 9, endLine: 11 },   // function _update()
+      { startLine: 13, endLine: 27 },  // function _draw()
+      { startLine: 16, endLine: 17 },  // if draw_tab == 0 then
+      { startLine: 18, endLine: 19 },  // elseif draw_tab == 1 then
+      { startLine: 20, endLine: 21 },  // elseif draw_tab == 2 then
+      { startLine: 22, endLine: 23 },  // elseif draw_tab == 3 then
+      { startLine: 24, endLine: 25 },  // elseif draw_tab == 4 then
+      { startLine: 29, endLine: 32 },  // function draw_0()
+      { startLine: 34, endLine: 39 },  // tab 1: -->8 ... -->8
+      { startLine: 36, endLine: 39 },  // function draw_1()
+      { startLine: 41, endLine: 48 },  // tab 2: -->8 ... -->8
+      { startLine: 45, endLine: 48 },  // function draw_2()
+      { startLine: 50, endLine: 54 },  // tab 3: -->8 ... -->8
+      { startLine: 51, endLine: 54 },  // function draw_3()
+      { startLine: 56, endLine: 63 },  // tab 4: -->8 ... __gfx__
+      { startLine: 58, endLine: 61 },  // function draw_4()
+    ];
+
+    const regions = getFoldingRegions(textDocument, comments || []);
+    const luaRanges = getFoldingRanges(code);
+
+    const combinedRanges = [ ...regions, ...luaRanges ];
+
+    // Sort the combined ranges for consistent comparison
+    combinedRanges.sort((a, b) => {
+      if (a.startLine !== b.startLine) {
+        return a.startLine - b.startLine;
+      }
+      return a.endLine - b.endLine;
+    });
+
+    // Filter out regions that are not of type FoldingRange (e.g., PICO-8 tab regions)
+    // and only compare startLine and endLine.
+    const actualFoldingRanges = combinedRanges
+      .filter(r => r.startLine !== undefined && r.endLine !== undefined)
+      .map(r => ({ startLine: r.startLine, endLine: r.endLine }));
+
+    deepEquals(actualFoldingRanges, expectedFoldingRanges);
+  });
+});
