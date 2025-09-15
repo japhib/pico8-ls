@@ -103,6 +103,18 @@ export const Builtins: { [key: string]: BuiltinFunctionInfo } = {
       'col: The color of the rectangle border. If omitted, the color from the draw state is used.',
     ],
   },
+  rrect: {
+    sig: 'rrect( x, y, w, h, r, [col] )',
+    desc: 'Draws an empty rectangle shape with rounded corners.',
+    params: [
+      'x: The x coordinate of the upper left corner.',
+      'y: The y coordinate of the upper left corner.',
+      'w: The width of the rounded rectangle, in pixels.',
+      'h: The height of the rounded rectangle, in pixels.',
+      'r: The size of the quarter-circle to be drawn at each corner. The maximum radius is min(width, height)/2. Default is 0.',
+      'col: The color of the rounded rectangle border. If omitted, the color from the draw state is used.',
+    ],
+  },
   palt: {
     sig: 'palt( [col,] [t] )',
     desc: 'Change the transparency of a color in the draw state for subsequent draw calls.',
@@ -299,6 +311,18 @@ export const Builtins: { [key: string]: BuiltinFunctionInfo } = {
       'x1: The x coordinate of the lower right corner.',
       'y1: The y coordinate of the lower right corner.',
       'col: The color of the rectangle and fill. If omitted, the color from the draw state is used.',
+    ],
+  },
+  rrectfill: {
+    sig: 'rrectfill( x, y, w, h, r, [col] )',
+    desc: 'Draws a filled-in rectangle shape with rounded corners.',
+    params: [
+      'x: The x coordinate of the upper left corner.',
+      'y: The y coordinate of the upper left corner.',
+      'w: The width of the rounded rectangle, in pixels.',
+      'h: The height of the rounded rectangle, in pixels.',
+      'r: The size of the quarter-circle to be drawn at each corner. The maximum radius is min(width, height)/2. Default is 0.',
+      'col: The color of the rounded rectangle and fill. If omitted, the color from the draw state is used.',
     ],
   },
   sfx: {
