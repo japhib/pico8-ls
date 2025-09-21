@@ -179,6 +179,32 @@ __gfx__
     ]);
   });
 
+  it('should create folding regions for #region and #endregion markers', () => {
+    const code = `
+-- #region My Region
+local a = 1
+local b = 2
+-- #endregion
+
+-- #region Another Region
+function foo()
+  -- #region Nested Region
+  print("hello")
+  -- #endregion
+end
+-- #endregion
+`.trim();
+    const textDocument = TextDocument.create('test.lua', 'pico-8-lua', 0, code);
+    const { comments } = parse(code);
+    const regions = getFoldingRegions(textDocument, comments || []);
+
+    deepEquals(regions, [
+      { name: 'My Region', startLine: 0, endLine: 3 },
+      { name: 'Another Region', startLine: 5, endLine: 11 },
+      { name: 'Nested Region', startLine: 7, endLine: 9 },
+    ]);
+  });
+
   it('should create folding regions for tabs.p8 using TestFilesResolver', () => {
     const filename = 'tabs.p8';
     const code = getTestFileContents(filename);
