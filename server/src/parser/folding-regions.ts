@@ -46,9 +46,9 @@ export function getFoldingRegions(textDocument: TextDocument, comments: Comment_
   let currentFoldingName: string | undefined = undefined;
 
   // Stack to handle nested #region comments
-  const regionStack: { startLine: number; name: string }[] = [];
+  const regionStack: { startLine: number; name: string; isDefaultName: boolean }[] = [];
   const regionStartRegex = /^#region\s*(.*)$/;
-  const regionEndRegex = /^#endregion\b/;
+  const regionEndRegex = /^#endregion\s*(.*)$/;
 
   // Handle the initial region before the first '-->8' comment, if __lua__ exists.
   if (luaStartLine !== undefined) {
@@ -74,13 +74,22 @@ export function getFoldingRegions(textDocument: TextDocument, comments: Comment_
     // Handle #region and #endregion markers
     if (regionStartRegex.test(commentText)) {
       const nameMatch = commentText.match(regionStartRegex);
-      const name = nameMatch && nameMatch[1] ? nameMatch[1].trim() : 'region';
-      regionStack.push({ startLine: comment.loc!.start.line, name: name });
+      const label = nameMatch && nameMatch[1] ? nameMatch[1].trim() : '';
+      const name = label || 'region';
+      regionStack.push({ startLine: comment.loc!.start.line, name: name, isDefaultName: !label });
     } else if (regionEndRegex.test(commentText)) {
       if (regionStack.length > 0) {
         const startRegion = regionStack.pop()!;
+        const endNameMatch = commentText.match(regionEndRegex);
+        const endLabel = endNameMatch && endNameMatch[1] ? endNameMatch[1].trim() : '';
+
+        let finalName = startRegion.name;
+        if (startRegion.isDefaultName && endLabel) {
+          finalName = endLabel;
+        }
+
         foldingRegions.push({
-          name: startRegion.name,
+          name: finalName,
           startLine: startRegion.startLine - 1,
           endLine: comment.loc!.start.line - 1,
         });
@@ -110,7 +119,7 @@ export function getFoldingRegions(textDocument: TextDocument, comments: Comment_
     const startRegion = regionStack.pop()!;
     foldingRegions.push({
       name: startRegion.name,
-      startLine: startRegion.startLine - 1,
+      startLine: startRegion.startLine,
       endLine: textDocument.lineCount - 1, // Fold to the end of the file
     });
   }
