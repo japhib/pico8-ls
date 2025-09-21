@@ -72,27 +72,29 @@ export function getFoldingRegions(textDocument: TextDocument, comments: Comment_
     const commentText = comment.value.trim();
 
     // Handle #region and #endregion markers
-    if (regionStartRegex.test(commentText)) {
-      const nameMatch = commentText.match(regionStartRegex);
-      const label = nameMatch && nameMatch[1] ? nameMatch[1].trim() : '';
+    const regionStartMatch = regionStartRegex.exec(commentText);
+    if (regionStartMatch) {
+      const label = regionStartMatch[1] ? regionStartMatch[1].trim() : '';
       const name = label || 'region';
       regionStack.push({ startLine: comment.loc!.start.line, name: name, isDefaultName: !label });
-    } else if (regionEndRegex.test(commentText)) {
-      if (regionStack.length > 0) {
-        const startRegion = regionStack.pop()!;
-        const endNameMatch = commentText.match(regionEndRegex);
-        const endLabel = endNameMatch && endNameMatch[1] ? endNameMatch[1].trim() : '';
+    } else {
+      const regionEndMatch = regionEndRegex.exec(commentText);
+      if (regionEndMatch) {
+        if (regionStack.length > 0) {
+          const startRegion = regionStack.pop()!;
+          const endLabel = regionEndMatch[1] ? regionEndMatch[1].trim() : '';
 
-        let finalName = startRegion.name;
-        if (startRegion.isDefaultName && endLabel) {
-          finalName = endLabel;
+          let finalName = startRegion.name;
+          if (startRegion.isDefaultName && endLabel) {
+            finalName = endLabel;
+          }
+
+          foldingRegions.push({
+            name: finalName,
+            startLine: startRegion.startLine - 1,
+            endLine: comment.loc!.start.line - 1,
+          });
         }
-
-        foldingRegions.push({
-          name: finalName,
-          startLine: startRegion.startLine - 1,
-          endLine: comment.loc!.start.line - 1,
-        });
       }
     }
 
