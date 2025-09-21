@@ -205,6 +205,87 @@ end
     ]);
   });
 
+  it('should create folding regions when #region has a label and #endregion does not', () => {
+    const code = `
+-- #region MyLabeledRegion
+local a = 1
+-- #endregion
+`.trim();
+    const textDocument = TextDocument.create('test.lua', 'pico-8-lua', 0, code);
+    const { comments } = parse(code);
+    const regions = getFoldingRegions(textDocument, comments || []);
+
+    deepEquals(regions, [
+      { name: 'MyLabeledRegion', startLine: 0, endLine: 2 },
+    ]);
+  });
+
+  it('should create folding regions when #region has no label and #endregion has a label', () => {
+    const code = `
+-- #region
+local a = 1
+-- #endregion MyEndRegion
+`.trim();
+    const textDocument = TextDocument.create('test.lua', 'pico-8-lua', 0, code);
+    const { comments } = parse(code);
+    const regions = getFoldingRegions(textDocument, comments || []);
+
+    deepEquals(regions, [
+      { name: 'MyEndRegion', startLine: 0, endLine: 2 },
+    ]);
+  });
+
+  it('should prioritize #region label over #endregion label if both exist', () => {
+    const code = `
+-- #region StartLabel
+local a = 1
+-- #endregion EndLabel
+`.trim();
+    const textDocument = TextDocument.create('test.lua', 'pico-8-lua', 0, code);
+    const { comments } = parse(code);
+    const regions = getFoldingRegions(textDocument, comments || []);
+
+    deepEquals(regions, [
+      { name: 'StartLabel', startLine: 0, endLine: 2 },
+    ]);
+  });
+
+  it('should handle deeply nested #region and #endregion markers with labels', () => {
+    const code = `
+-- #region Outer
+  -- #region Middle
+    -- #region Inner
+    local x = 1
+    -- #endregion Inner
+  -- #endregion Middle
+-- #endregion Outer
+`.trim();
+    const textDocument = TextDocument.create('test.lua', 'pico-8-lua', 0, code);
+    const { comments } = parse(code);
+    const regions = getFoldingRegions(textDocument, comments || []);
+
+    deepEquals(regions, [
+      { name: 'Outer', startLine: 0, endLine: 6 },
+      { name: 'Middle', startLine: 1, endLine: 5 },
+      { name: 'Inner', startLine: 2, endLine: 4 },
+    ]);
+  });
+
+  it('should create a folding region to the end of the file if #region is not closed', () => {
+    const code = `
+-- #region UnclosedRegion
+local a = 1
+local b = 2
+`.trim();
+    const textDocument = TextDocument.create('test.lua', 'pico-8-lua', 0, code);
+    const { comments } = parse(code);
+    const regions = getFoldingRegions(textDocument, comments || []);
+
+    deepEquals(regions, [
+      { name: 'UnclosedRegion', startLine: 1, endLine: 2 },
+    ]);
+  });
+
   it('should create folding regions for tabs.p8 using TestFilesResolver', () => {
     const filename = 'tabs.p8';
     const code = getTestFileContents(filename);
