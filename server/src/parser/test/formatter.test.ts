@@ -642,6 +642,60 @@ end
       eq(formatLua(input), 'if false then print(\'hi\') else a() end');
     });
 
+    // some regression tests for #48
+    it('keeps the statement after a nested single-line if on its own line', () => {
+      const input = `
+function foo()
+  if true then
+    if (bar) baz()
+    lorem = "ipsum"
+  end
+end`.trim();
+      eq(formatLua(input), input);
+    });
+
+    it('keeps a block statement after a nested single-line if on its own line', () => {
+      const input = `
+function foo()
+  if true then
+    if (bar) baz()
+    if 1 == 2 then
+      print("hello")
+    end
+  end
+end`.trim();
+      eq(formatLua(input), input);
+    });
+
+    it('keeps comments and statements after nested single-line ifs on their own lines', () => {
+      const input = `
+function update_map()
+  for x = 0, 15 do
+    for y = 0, 15 do
+      local tile = mget(x, y)
+      -- bonfire
+      if (tile == 56) mset(x, y, 57)
+      if (tile == 57) mset(x, y, 56)
+      -- water
+      local r = r() < .1
+      if (tile == 10 and r) mset(x, y, 11)
+      if (tile == 11 and r) mset(x, y, 10)
+    end
+  end
+end`.trim();
+      eq(formatLua(input), input);
+    });
+
+    it('doesn\'t join a comment following a single-line if with the statement after it', () => {
+      const input = `
+if (wound) hp -= 1
+--now check if dead
+if hp <= 0 then
+  print("dead")
+end`.trim();
+      eq(formatLua(input), input);
+    });
+
     it('preserves comments after statements', () => {
       const input = 'print(\'hi\') -- print hi here';
       eq(formatLua(input), input);

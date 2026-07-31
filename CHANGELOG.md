@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Fix formatter joining the line after a one-line `if (...)` onto it, when the `if` is nested inside another block
+
 ## 0.6.1 (9/23/2025)
 
 - Fix for `#region` region markers (PR [#76](https://github.com/japhib/pico8-ls/pull/76)) -- thanks [@ryugibo](https://github.com/ryugibo)!

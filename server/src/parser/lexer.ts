@@ -885,8 +885,18 @@ export default class Lexer {
       this.lookahead = this.lex();
     }
 
-    if (this.newlineSignificant && this.token?.bounds.start.line !== this.lookahead.bounds.start.line) {
+    if (this.newlineSignificant
+        && this.token?.type !== TokenType.Newline
+        && this.token?.bounds.start.line !== this.lookahead.bounds.start.line) {
       this.token = this.makeToken(TokenType.Newline, '\\n');
+      // Create fake zero-width location right after the last real token.
+      // Prevents misformatting one-line if statements.
+      if (this.previousToken) {
+        this.token.bounds = {
+          start: { ...this.previousToken.bounds.end },
+          end: { ...this.previousToken.bounds.end },
+        };
+      }
       // lookahead remains the same until newlineSignificant is turned off
     } else {
       this.token = this.lookahead;
