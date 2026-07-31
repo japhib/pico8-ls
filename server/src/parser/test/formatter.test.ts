@@ -147,6 +147,27 @@ end
       eq(formatted, input);
     });
 
+    it('doesn\'t inline the last statement of an #include-d file', () => {
+      for (const libContents of [ 'local baz = 5', 'baz = 5', 'local a = 1\nlocal b = 2' ]) {
+        const fileResolver = new TestFilesResolver({ 'bar.lua': libContents });
+
+        const input = '#include bar.lua';
+        const formatted = formatLua(input, { includeFileResolver: fileResolver });
+        eq(formatted, input);
+      }
+    });
+
+    it('doesn\'t inline the last statement of a nested #include', () => {
+      const fileResolver = new TestFilesResolver({
+        'a.lua': 'local x = 1\n#include b.lua',
+        'b.lua': 'local y = 2',
+      });
+
+      const input = '#include a.lua';
+      const formatted = formatLua(input, { includeFileResolver: fileResolver });
+      eq(formatted, input);
+    });
+
     it('handles local statements even without initializer', () => {
       const input = 'local a';
       const formatted = formatLua(input);

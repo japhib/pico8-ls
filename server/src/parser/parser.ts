@@ -106,6 +106,11 @@ export default class Parser {
     return this.lexerStack.length > 1;
   }
 
+  // The top-level file being parsed (everything else is #include-d from it)
+  get mainFile(): ResolvedFile {
+    return this.lexerStack[0].lexer.filename;
+  }
+
   // Returns the top lexer on the stack
   get lexer(): Lexer {
     return this.lexerStack[this.lexerStack.length - 1].lexer;
@@ -157,7 +162,14 @@ export default class Parser {
       location.bless(node as any as ASTNode);
     }
 
-    node.included = this.isInIncludedFile();
+    // A node belongs to an included file if it *started* in one. We can't just
+    // look at the lexer stack here: a lexer is popped as soon as it runs out of
+    // tokens, which for the last node of an included file happens before we get
+    // here. That made the last node look like it came from the top-level file,
+    // so the formatter would write it out right after the `#include` line.
+    node.included = location ?
+      !this.mainFile.equals(location.loc.start.filename) :
+      this.isInIncludedFile();
 
     return node;
   }
