@@ -26,7 +26,7 @@ import { FoldingRangeVisitor } from './parser/folding-range-visitor';
 import * as url from 'url';
 import * as fs from 'fs';
 import * as path from 'path';
-import { getFoldingRegions } from './parser/folding-regions';
+import { getFoldingRegions, getSectionFoldingRegions } from './parser/folding-regions';
 
 console.log('PICO-8 Language Server starting.');
 
@@ -855,20 +855,27 @@ connection.onFoldingRanges((params: FoldingRangeParams): FoldingRange[] => {
     return [];
   }
 
-  // 1. Get ranges from symbols (for PICO-8 regions and functions/vars)
+  // 1. Get ranges for the cartridge sections themselves (__lua__, __gfx__, etc)
+  const sectionRanges: FoldingRange[] = getSectionFoldingRegions(parsedDocument.textDocument).map(section => ({
+    startLine: section.startLine,
+    endLine: section.endLine,
+    kind: 'region',
+  }));
+
+  // 2. Get ranges from symbols (for PICO-8 regions and functions/vars)
   const symbols = documentSymbols.get(uri) || [];
   const symbolRanges = getFoldingRangesFromSymbols(symbols);
 
-  // 2. Get ranges from AST blocks (if, for, while, etc.)
+  // 3. Get ranges from AST blocks (if, for, while, etc.)
   const visitor = new FoldingRangeVisitor();
   visitor.visit(parsedDocument.chunk);
   const blockRanges = visitor.ranges;
 
-  // 3. Get ranges from multi-line comments
+  // 4. Get ranges from multi-line comments
   const commentRanges = getCommentFoldingRanges(parsedDocument.chunk.comments || []);
 
-  // 4. Combine and deduplicate
-  const allRanges = [ ...symbolRanges, ...blockRanges, ...commentRanges ];
+  // 5. Combine and deduplicate
+  const allRanges = [ ...sectionRanges, ...symbolRanges, ...blockRanges, ...commentRanges ];
   const uniqueRanges = Array.from(new Map(allRanges.map(r => [ `${r.startLine}-${r.endLine}`, r ])).values());
 
   return uniqueRanges;

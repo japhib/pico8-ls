@@ -1,21 +1,118 @@
 {
-    "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
-    "name": "PICO-8",
-    "scopeName": "source.pico8",
-    "patterns": [ { "include": "#lua" } ],
-    "repository": {
-      "lua": {
-        "begin": "__lua__",
-        "end": "(__gfx__|__label__|__gff__|__map__|__sfx__|__music__)",
-        "beginCaptures": {
-          "0": { "name": "punctuation.code.open" }
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "PICO-8",
+  "scopeName": "source.pico8",
+  "patterns": [
+    { "include": "#cartridge-header" },
+    { "include": "#lua" },
+    { "include": "#gfx" },
+    { "include": "#label" },
+    { "include": "#gff" },
+    { "include": "#map" },
+    { "include": "#sfx" },
+    { "include": "#music" },
+    { "include": "#unknown-section" }
+  ],
+  "repository": {
+    "cartridge-header": {
+      "patterns": [
+        {
+          "match": "^\\s*pico-8 cartridge.*$",
+          "name": "comment.line.cartridge.pico8"
         },
-        "endCaptures": {
-          "0": { "name": "punctuation.code.close" }
-        },
-        "name": "meta.embedded.block.pico-8-lua",
-        "patterns": [ { "include": "source.pico8.lua" } ]
-      }
+        {
+          "match": "^\\s*(version)\\s+(\\d+)\\s*$",
+          "captures": {
+            "1": { "name": "keyword.other.version.pico8" },
+            "2": { "name": "constant.numeric.version.pico8" }
+          }
+        }
+      ]
+    },
+
+    "lua": {
+      "begin": "^(__lua__)\\s*$",
+      "beginCaptures": {
+        "1": { "name": "keyword.control.section.lua.pico8" }
+      },
+      "end": "(?=^__[a-z0-9]+__\\s*$)",
+      "name": "meta.embedded.block.pico-8-lua",
+      "patterns": [ { "include": "source.pico8.lua" } ]
+    },
+
+    "gfx": {
+      "begin": "^(__gfx__)\\s*$",
+      "beginCaptures": {
+        "1": { "name": "keyword.control.section.gfx.pico8" }
+      },
+      "end": "(?=^__[a-z0-9]+__\\s*$)",
+      "name": "meta.section.gfx.pico8",
+      "patterns": [ { "include": "#hex-data" } ]
+    },
+
+    "label": {
+      "begin": "^(__label__)\\s*$",
+      "beginCaptures": {
+        "1": { "name": "keyword.control.section.label.pico8" }
+      },
+      "end": "(?=^__[a-z0-9]+__\\s*$)",
+      "name": "meta.section.label.pico8",
+      "patterns": [ { "include": "#hex-data" } ]
+    },
+
+    "gff": {
+      "begin": "^(__gff__)\\s*$",
+      "beginCaptures": {
+        "1": { "name": "keyword.control.section.gff.pico8" }
+      },
+      "end": "(?=^__[a-z0-9]+__\\s*$)",
+      "name": "meta.section.gff.pico8",
+      "patterns": [ { "include": "#hex-data" } ]
+    },
+
+    "map": {
+      "begin": "^(__map__)\\s*$",
+      "beginCaptures": {
+        "1": { "name": "keyword.control.section.map.pico8" }
+      },
+      "end": "(?=^__[a-z0-9]+__\\s*$)",
+      "name": "meta.section.map.pico8",
+      "patterns": [ { "include": "#hex-data" } ]
+    },
+
+    "sfx": {
+      "begin": "^(__sfx__)\\s*$",
+      "beginCaptures": {
+        "1": { "name": "keyword.control.section.sfx.pico8" }
+      },
+      "end": "(?=^__[a-z0-9]+__\\s*$)",
+      "name": "meta.section.sfx.pico8",
+      "patterns": [ { "include": "#hex-data" } ]
+    },
+
+    "music": {
+      "begin": "^(__music__)\\s*$",
+      "beginCaptures": {
+        "1": { "name": "keyword.control.section.music.pico8" }
+      },
+      "end": "(?=^__[a-z0-9]+__\\s*$)",
+      "name": "meta.section.music.pico8",
+      "patterns": [ { "include": "#hex-data" } ]
+    },
+
+    "unknown-section": {
+      "begin": "^(__[a-z0-9]+__)\\s*$",
+      "beginCaptures": {
+        "1": { "name": "keyword.control.section.pico8" }
+      },
+      "end": "(?=^__[a-z0-9]+__\\s*$)",
+      "name": "meta.section.other.pico8",
+      "patterns": [ { "include": "#hex-data" } ]
+    },
+
+    "hex-data": {
+      "match": "\\b[0-9a-fA-F]+\\b",
+      "name": "constant.numeric.hexadecimal.pico8"
     }
   }
-  
+}

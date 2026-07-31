@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Syntax highlighting for all cartridge sections (`__lua__`, `__gfx__`, `__label__`, `__gff__`, `__map__`, `__sfx__`, `__music__`), plus the cartridge header lines
+- Code folding for each cartridge section
 - Fix formatter joining the line after a one-line `if (...)` onto it, when the `if` is nested inside another block
 
 ## 0.6.1 (9/23/2025)

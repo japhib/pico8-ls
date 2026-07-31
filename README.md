@@ -22,7 +22,8 @@ Full support for `#include` statements:
 
 ## Features
 
-- Syntax highlighting
+- Syntax highlighting (including all cartridge sections: `__lua__`, `__gfx__`, `__label__`, `__gff__`, `__map__`, `__sfx__`, `__music__`)
+- Code folding (functions, blocks, `-->8` tabs, `#region` markers, and cartridge sections)
 - Syntax errors
 - Warnings on undefined variable usage
 - Find symbol in document

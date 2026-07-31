@@ -2,7 +2,7 @@ import { deepEquals, parse, getTestFileContents } from './test-utils';
 import { FoldingRangeVisitor } from '../folding-range-visitor';
 import { FoldingRange } from 'vscode-languageserver/node';
 import { TextDocument } from 'vscode-languageserver-textdocument';
-import { getFoldingRegions } from '../folding-regions';
+import { getFoldingRegions, getSectionFoldingRegions } from '../folding-regions';
 
 function getFoldingRanges(code: string): FoldingRange[] {
   const ast = parse(code);
@@ -175,7 +175,7 @@ __gfx__
     deepEquals(regions, [
       { name: '0: tab 1', startLine: 2, endLine: 3 },
       { name: '1: tab 2', startLine: 5, endLine: 6 },
-      { name: '2: tab 3', startLine: 8, endLine: 10 },
+      { name: '2: tab 3', startLine: 8, endLine: 9 },
     ]);
   });
 
@@ -309,7 +309,7 @@ local b = 2
       { startLine: 45, endLine: 48 },  // function draw_2()
       { startLine: 50, endLine: 54 },  // tab 3: -->8 ... -->8
       { startLine: 51, endLine: 54 },  // function draw_3()
-      { startLine: 56, endLine: 63 },  // tab 4: -->8 ... __gfx__
+      { startLine: 56, endLine: 62 },  // tab 4: -->8 ... end of __lua__ section
       { startLine: 58, endLine: 61 },  // function draw_4()
     ];
 
@@ -333,5 +333,61 @@ local b = 2
       .map(r => ({ startLine: r.startLine, endLine: r.endLine }));
 
     deepEquals(actualFoldingRanges, expectedFoldingRanges);
+  });
+});
+
+describe('Cartridge section folding regions', () => {
+  it('creates a folding region for each cartridge section', () => {
+    const code = `pico-8 cartridge // http://www.pico-8.com
+version 29
+__lua__
+function a() end
+__gfx__
+00000000
+11111111
+__label__
+22222222
+__gff__
+33333333
+__map__
+44444444
+__sfx__
+55555555
+__music__
+00 41424344
+`;
+    const textDocument = TextDocument.create('test.p8', 'pico-8', 0, code);
+
+    deepEquals(getSectionFoldingRegions(textDocument), [
+      { name: '__lua__', startLine: 2, endLine: 3 },
+      { name: '__gfx__', startLine: 4, endLine: 6 },
+      { name: '__label__', startLine: 7, endLine: 8 },
+      { name: '__gff__', startLine: 9, endLine: 10 },
+      { name: '__map__', startLine: 11, endLine: 12 },
+      { name: '__sfx__', startLine: 13, endLine: 14 },
+      { name: '__music__', startLine: 15, endLine: 17 },
+    ]);
+  });
+
+  it('skips sections that have no content to fold', () => {
+    const code = `__lua__
+function a() end
+__gfx__
+__map__
+44444444
+`;
+    const textDocument = TextDocument.create('test.p8', 'pico-8', 0, code);
+
+    deepEquals(getSectionFoldingRegions(textDocument), [
+      { name: '__lua__', startLine: 0, endLine: 1 },
+      { name: '__map__', startLine: 3, endLine: 5 },
+    ]);
+  });
+
+  it('returns no regions for a plain .lua file', () => {
+    const code = 'function a() end\nfunction b() end\n';
+    const textDocument = TextDocument.create('test.lua', 'pico-8-lua', 0, code);
+
+    deepEquals(getSectionFoldingRegions(textDocument), []);
   });
 });

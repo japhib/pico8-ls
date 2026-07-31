@@ -1,19 +1,48 @@
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import { Comment_ } from './expressions';
 
-function findSpecialMarkers(lines: string[]): { luaStartLine?: number, gfxStartLine?: number } {
-  let luaStartLine: number | undefined = undefined;
-  let gfxStartLine: number | undefined = undefined;
+export type CartridgeSection = {
+  // Name of the section, without the surrounding underscores (e.g. 'lua', 'gfx')
+  name: string,
+  // 0-based line number of the section marker itself (e.g. the '__gfx__' line)
+  startLine: number,
+  // 0-based line number of the last line belonging to the section
+  endLine: number,
+};
+
+const sectionMarkerRegex = /^__([a-z0-9]+)__$/;
+
+// Finds all the cartridge sections (__lua__, __gfx__, etc) in the given lines.
+export function findCartridgeSections(lines: string[]): CartridgeSection[] {
+  const sections: CartridgeSection[] = [];
 
   for (let i = 0; i < lines.length; i++) {
-    const line = lines[i].trim();
-    if (line === '__lua__') {
-      luaStartLine = i;
-    } else if (line === '__gfx__') {
-      gfxStartLine = i;
+    const match = sectionMarkerRegex.exec(lines[i].trim());
+    if (!match) {
+      continue;
     }
+
+    // The previous section ends right before this marker.
+    const previous = sections[sections.length - 1];
+    if (previous) {
+      previous.endLine = i - 1;
+    }
+
+    sections.push({ name: match[1], startLine: i, endLine: lines.length - 1 });
   }
-  return { luaStartLine, gfxStartLine };
+
+  return sections;
+}
+
+function findSpecialMarkers(lines: string[]): { luaStartLine?: number, luaEndLine?: number } {
+  const sections = findCartridgeSections(lines);
+  const luaSection = sections.find(section => section.name === 'lua');
+
+  if (!luaSection) {
+    return {};
+  }
+
+  return { luaStartLine: luaSection.startLine, luaEndLine: luaSection.endLine };
 }
 
 function createFoldingRegion(name: string, startLine: number, endLine: number, tabNumber: number) {
@@ -34,12 +63,27 @@ function getRegionNameFromNextComment(sortedComments: Comment_[], currentIndex: 
   return nextComment.value.trim() || 'tab';
 }
 
+// Folding regions for the cartridge sections themselves (__lua__, __gfx__, __map__, etc).
+// Each region spans from the section marker to the last line before the next section.
+export function getSectionFoldingRegions(textDocument: TextDocument): { name: string, startLine: number, endLine: number }[] {
+  const lines = textDocument.getText().split('\n');
+
+  return findCartridgeSections(lines)
+    // Don't bother with sections that are empty (nothing to fold away)
+    .filter(section => section.endLine > section.startLine)
+    .map(section => ({
+      name: `__${section.name}__`,
+      startLine: section.startLine,
+      endLine: section.endLine,
+    }));
+}
+
 export function getFoldingRegions(textDocument: TextDocument, comments: Comment_[]): { name: string, startLine: number, endLine: number }[] {
   const foldingRegions: { name: string, startLine: number, endLine: number }[] = [];
   const lines = textDocument.getText().split('\n');
   const sortedComments = comments.sort((a, b) => a.loc!.start.line - b.loc!.start.line);
 
-  const { luaStartLine, gfxStartLine } = findSpecialMarkers(lines);
+  const { luaStartLine, luaEndLine } = findSpecialMarkers(lines);
 
   let tabNumber = 0;
   let currentFoldingStartLine: number | undefined = undefined;
@@ -109,10 +153,9 @@ export function getFoldingRegions(textDocument: TextDocument, comments: Comment_
 
   // Handle the last folding region.
   if (currentFoldingStartLine !== undefined) {
-    let endLine = textDocument.lineCount - 1;
-    if (gfxStartLine !== undefined) {
-      endLine = gfxStartLine;
-    }
+    // The last tab ends where the __lua__ section ends (right before the next
+    // section marker), or at the end of the file if there is no next section.
+    const endLine = luaEndLine !== undefined ? luaEndLine : textDocument.lineCount - 1;
     foldingRegions.push(createFoldingRegion(currentFoldingName!, currentFoldingStartLine, endLine, tabNumber++));
   }
 
