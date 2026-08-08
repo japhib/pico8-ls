@@ -30,6 +30,48 @@ import { getFoldingRegions, getSectionFoldingRegions } from './parser/folding-re
 
 console.log('PICO-8 Language Server starting.');
 
+// Helper function to check if a file path matches any of the exclusion patterns
+function matchesExcludePattern(filePath: string, patterns: string[]): boolean {
+  if (!patterns || patterns.length === 0) {
+    return false;
+  }
+
+  // Normalize path separators for cross-platform compatibility
+  const normalizedPath = filePath.replace(/\\/g, '/');
+
+  for (const pattern of patterns) {
+    const normalizedPattern = pattern.replace(/\\/g, '/');
+    
+    // Convert glob pattern to regex
+    // ** matches any number of directories
+    // * matches any characters except /
+    // ? matches a single character except /
+    let regexPattern = normalizedPattern
+      .replace(/\*\*/g, '::DOUBLE_STAR::')
+      .replace(/\*/g, '[^/]*')
+      .replace(/\?/g, '[^/]')
+      .replace(/::DOUBLE_STAR::/g, '.*')
+      .replace(/\./g, '\\.');
+
+    // If pattern doesn't start with /, match anywhere in the path
+    if (!regexPattern.startsWith('/') && !regexPattern.match(/^[a-zA-Z]:/)) {
+      regexPattern = '(^|/)' + regexPattern;
+    }
+
+    // If pattern ends with /, it should match the directory and its contents
+    if (regexPattern.endsWith('/')) {
+      regexPattern += '.*';
+    }
+
+    const regex = new RegExp(regexPattern);
+    if (regex.test(normalizedPath)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 const connection = createConnection(ProposedFeatures.all);
 
 const documents = new TextDocuments(TextDocument);
@@ -114,8 +156,12 @@ function rescanEverything() {
 async function scanWorkspaceFolder(workspaceFolder: WorkspaceFolder) {
   const folderPath = url.fileURLToPath(workspaceFolder.uri);
 
+  // Get exclusion patterns from settings
+  const settings = await getDocumentSettings(workspaceFolder.uri);
+  const excludePatterns = settings.exclude || [];
+
   // List all files in directory & subdirs
-  const allFiles = await getFilesRecursive(folderPath);
+  const allFiles = await getFilesRecursive(folderPath, excludePatterns);
 
   // Load contents of each file & transform to TextDocument type
   const textDocuments = await Promise.all(allFiles.map(createTextDocument));
@@ -136,7 +182,7 @@ async function scanWorkspaceFolder(workspaceFolder: WorkspaceFolder) {
   projects.forEach(findDefUsagesForProject);
 }
 
-async function getFilesRecursive(folderPath: string): Promise<string[]> {
+async function getFilesRecursive(folderPath: string, excludePatterns: string[] = []): Promise<string[]> {
   const p8andLuaFiles: string[] = [];
   try {
     const files = await fs.promises.readdir(folderPath);
@@ -144,9 +190,14 @@ async function getFilesRecursive(folderPath: string): Promise<string[]> {
     await Promise.all(files.map(async file => {
       const filePath = path.join(folderPath, file);
 
+      // Check if this file/folder should be excluded
+      if (matchesExcludePattern(filePath, excludePatterns)) {
+        return;
+      }
+
       const stat = await fs.promises.lstat(filePath);
       if (stat.isDirectory() && !file.startsWith('.')) {
-        p8andLuaFiles.push(...(await getFilesRecursive(filePath)));
+        p8andLuaFiles.push(...(await getFilesRecursive(filePath, excludePatterns)));
       } else if (stat.isFile() && (/\.(p8|lua)$/i.exec(filePath))) {
         p8andLuaFiles.push(filePath);
       }
@@ -288,12 +339,13 @@ function processDefUsages(document: ProjectDocument, injectedGlobalScope?: DefUs
 
 interface DocumentSettings {
   maxNumberOfProblems: number;
+  exclude: string[];
 }
 
 // The global settings, used when the `workspace/configuration` request is not
 // supported by the client. Note that this isn't the case with VSCode but could
 // happen with other clients.
-const defaultSettings: DocumentSettings = { maxNumberOfProblems: 1000 };
+const defaultSettings: DocumentSettings = { maxNumberOfProblems: 1000, exclude: [] };
 let globalSettings: DocumentSettings = defaultSettings;
 
 // Set up validation handler for when document changes
