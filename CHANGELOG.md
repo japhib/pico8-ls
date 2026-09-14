@@ -1,10 +1,11 @@
 # Changelog
 
-## Unreleased
+## 0.7.0 (9/14/2026)
 
 - Syntax highlighting for all cartridge sections (`__lua__`, `__gfx__`, `__label__`, `__gff__`, `__map__`, `__sfx__`, `__music__`), plus the cartridge header lines
 - Code folding for each cartridge section
-- Fix formatter joining the line after a one-line `if (...)` onto it, when the `if` is nested inside another block
+- Fix formatter joining the line after a one-line `if (...)` onto it, when the `if` is nested inside another block (issue [#48](https://github.com/japhib/pico8-ls/issues/48))
+- Fix formatter inlining the last statement of an `#include`-d file onto the `#include` line (issue [#85](https://github.com/japhib/pico8-ls/issues/85), PR [#89](https://github.com/japhib/pico8-ls/pull/89))
 
 ## 0.6.1 (9/23/2025)
 
