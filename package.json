@@ -43,6 +43,15 @@
 					"default": 100,
 					"description": "Controls the maximum number of problems produced by the server."
 				},
+				"pico8-ls.exclude": {
+					"scope": "resource",
+					"type": "array",
+					"items": {
+						"type": "string"
+					},
+					"default": [],
+					"description": "Configure glob patterns for excluding files and folders from parsing. Examples: 'backup/**' or just 'backup/'"
+				},
 				"pico8-ls.trace.server": {
 					"scope": "window",
 					"type": "string",
