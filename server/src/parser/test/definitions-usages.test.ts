@@ -74,7 +74,9 @@ end`;
 do_the_thing()
 function do_the_thing() print('hi') end`;
     const { definitionsUsages } = parse(code);
-    const { definitions, usages } = definitionsUsages.lookup(2, 1)!.defUs;
+    const result = definitionsUsages.lookup(2, 1);
+    ok(result);
+    const { definitions, usages } = result.defUs;
 
     deepEquals(definitions, [{ start: { line: 3, column: 9 } }]);
     deepEquals(usages, [
@@ -91,7 +93,9 @@ function do_the_thing() print('hi') end`;
     deepEquals(warnings, []);
 
     // lookup on the `a` in `b = a`
-    const { definitions, usages } = definitionsUsages.lookup(2, 4)!.defUs;
+    const result = definitionsUsages.lookup(2, 4);
+    ok(result);
+    const { definitions, usages } = result.defUs;
     deepEquals(definitions, [ bounds(1, 6, 1, 7) ]);
     deepEquals(usages, [
       bounds(1, 6, 1, 7),
@@ -151,7 +155,9 @@ end`);
     deepEquals(warnings, []);
 
     // Find defs/usages of x
-    const { definitions, usages } = definitionsUsages.lookup(1, 17)!.defUs;
+    const result = definitionsUsages.lookup(1, 17);
+    ok(result);
+    const { definitions, usages } = result.defUs;
     deepEquals(definitions, [ bounds(1, 17, 1, 18) ]);
     deepEquals(usages, [ bounds(1, 17, 1, 18), bounds(2, 8, 2, 9) ]);
   });
@@ -164,7 +170,9 @@ end`);
     deepEquals(warnings, []);
 
     // Find defs/usages of x
-    const { definitions, usages } = definitionsUsages.lookup(1, 15)!.defUs;
+    const result = definitionsUsages.lookup(1, 15);
+    ok(result);
+    const { definitions, usages } = result.defUs;
     deepEquals(definitions, [ bounds(1, 15, 1, 16) ]);
     deepEquals(usages, [ bounds(1, 15, 1, 16), bounds(2, 13, 2, 14) ]);
   });
@@ -178,7 +186,9 @@ end`);
 
       // Find defs/usages of a
       {
-        const { definitions, usages } = definitionsUsages.lookup(1, 0)!.defUs;
+        const result = definitionsUsages.lookup(1, 0);
+        ok(result);
+        const { definitions, usages } = result.defUs;
         deepEquals(definitions, [ bounds(1, 0, 1, 1) ]);
         deepEquals(usages, [
           // a = {}
@@ -201,7 +211,9 @@ end`);
 
       // Find defs/usages of a.b
       {
-        const { definitions, usages } = definitionsUsages.lookup(2, 2)!.defUs;
+        const result = definitionsUsages.lookup(2, 2);
+        ok(result);
+        const { definitions, usages } = result.defUs;
         deepEquals(definitions, [ bounds(2, 0, 2, 3) ]);
         deepEquals(usages, [
           // a.b = "1" (just b)
@@ -237,7 +249,9 @@ end`);
       deepEquals(warnings, []);
 
       // on the x part of v.x
-      const { definitions, usages } = definitionsUsages.lookup(2, 11)!.defUs;
+      const result = definitionsUsages.lookup(2, 11);
+      ok(result);
+      const { definitions, usages } = result.defUs;
       deepEquals(definitions, [ bounds(6, 2, 6, 5) ]);
       deepEquals(usages, [
         // v.x = x
@@ -261,7 +275,9 @@ end`);
       deepEquals(warnings, []);
 
       // on the x part of self.x
-      const { definitions, usages } = definitionsUsages.lookup(3, 15)!.defUs;
+      const result = definitionsUsages.lookup(3, 15);
+      ok(result);
+      const { definitions, usages } = result.defUs;
       deepEquals(definitions, [ bounds(7, 2, 7, 8) ]);
       deepEquals(usages, [
         // self.x = x
@@ -282,7 +298,9 @@ a.b.c.d = {}`);
 
       // a
       {
-        const { definitions, usages } = definitionsUsages.lookup(2, 0)!.defUs;
+        const result = definitionsUsages.lookup(2, 0);
+        ok(result);
+        const { definitions, usages } = result.defUs;
         deepEquals(definitions, [ bounds(2, 0, 2, 1) ]);
         deepEquals(usages, [
           bounds(2, 0, 2, 1),
@@ -348,7 +366,9 @@ a.b.c.self_fn = function() self.mem = 0 end`);
 
       // "self" on "self.mem" (line 3) takes you to `a`
       {
-        const { definitions } = definitionsUsages.lookup(3, 25)!.defUs;
+        const result = definitionsUsages.lookup(3, 25);
+        ok(result);
+        const { definitions } = result.defUs;
         deepEquals(definitions, [ bounds(2, 0, 2, 1) ]);
       }
 
@@ -396,7 +416,9 @@ a.b.mem()`);
 
       // "self" on "self.mem" (line 3) takes you to `a`
       {
-        const { definitions } = definitionsUsages.lookup(3, 23)!.defUs;
+        const result = definitionsUsages.lookup(3, 23);
+        ok(result);
+        const { definitions } = result.defUs;
         deepEquals(definitions, [ bounds(2, 0, 2, 1) ]);
       }
 
@@ -440,7 +462,9 @@ a.b.c.mem()
 
       // "self" on "self.mem" (line 2) takes you to `a`
       {
-        const { definitions } = definitionsUsages.lookup(2, 24)!.defUs;
+        const result = definitionsUsages.lookup(2, 24);
+        ok(result);
+        const { definitions } = result.defUs;
         deepEquals(definitions, [ bounds(1, 0, 1, 1) ]);
       }
 
