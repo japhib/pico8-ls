@@ -29,6 +29,7 @@ Full support for `#include` statements:
 - Find symbol in document
 - Go to definition
 - Find references
+- Rename symbol command, including across `#include`d files
 - Hover support & signature help for built-in functions
 - Auto-completion
 - Support for `#include`ing other files

@@ -2,15 +2,14 @@ import {
   CompletionItem, CompletionItemTag, createConnection, DefinitionParams, Diagnostic, DiagnosticSeverity,
   DidChangeConfigurationNotification, DocumentFormattingParams, DocumentSymbol, DocumentSymbolParams,
   ExecuteCommandParams, FoldingRange, FoldingRangeParams, HoverParams, InitializeParams, InitializeResult, Location, Position, ProposedFeatures,
-  Range, ReferenceParams, SignatureHelpParams, SignatureInformation, SymbolKind, TextDocumentPositionParams,
-  TextDocuments, TextDocumentSyncKind, TextEdit, WorkspaceFolder,
+  PrepareRenameParams, Range, ReferenceParams, RenameParams, SignatureHelpParams, SignatureInformation, SymbolKind, TextDocumentPositionParams,
+  TextDocuments, TextDocumentSyncKind, TextEdit, WorkspaceEdit, WorkspaceFolder,
 } from 'vscode-languageserver/node';
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import Parser from './parser/parser';
 import { Bounds, boundsToString } from './parser/types';
 import { CodeSymbolType, CodeSymbol } from './parser/symbols';
-import {
-  DefinitionsUsages, DefinitionsUsagesLookup, DefUsageScope, findDefinitionsUsages,
+import { DefinitionsUsagesLookup, DefinitionsUsagesWithLocation, DefUsageScope, findDefinitionsUsages,
 } from './parser/definitions-usages';
 import { isParseError, ParseError, Warning } from './parser/errors';
 import { Builtins, BuiltinFunctionInfo } from './parser/builtins';
@@ -56,6 +55,7 @@ connection.onInitialize((params: InitializeParams) => {
       documentSymbolProvider: true,
       definitionProvider: true,
       referencesProvider: true,
+      renameProvider: { prepareProvider: true },
       completionProvider: { triggerCharacters: [ '.', ':' ], resolveProvider: true },
       hoverProvider: true,
       signatureHelpProvider: { triggerCharacters: [ '(' ], retriggerCharacters: [ ',' ] },
@@ -539,7 +539,7 @@ connection.onDocumentSymbol((params: DocumentSymbolParams) => {
   return documentSymbols.get(params.textDocument.uri);
 });
 
-function getDefinitionsUsagesForPosition(params: TextDocumentPositionParams): DefinitionsUsages | undefined {
+function getDefinitionsUsagesWithLocationForPosition(params: TextDocumentPositionParams): DefinitionsUsagesWithLocation | undefined {
   const lookup = documentDefUsage.get(params.textDocument.uri);
   if (!lookup) {
     console.log(`Definition/usages lookup table unavailable for ${params.textDocument.uri} -- re-scanning`);
@@ -586,21 +586,58 @@ connection.onDefinition((params: DefinitionParams) => {
     }
   }
 
-  const result = getDefinitionsUsagesForPosition(params);
+  const result = getDefinitionsUsagesWithLocationForPosition(params);
   if (!result) {
     return [];
   }
 
-  return result.definitions.map(bounds => boundsToLocation(bounds));
+  return result.defUs.definitions.map(bounds => boundsToLocation(bounds));
 });
 
 connection.onReferences((params: ReferenceParams) => {
-  const result = getDefinitionsUsagesForPosition(params);
+  const result = getDefinitionsUsagesWithLocationForPosition(params);
   if (!result) {
     return [];
   }
 
-  return result.usages.map(bounds => boundsToLocation(bounds));
+  return result.defUs.usages.map(bounds => boundsToLocation(bounds));
+});
+
+connection.onPrepareRename((params: PrepareRenameParams) => {
+  const result = getDefinitionsUsagesWithLocationForPosition(params);
+  if (!result || result.defUs.definitions.length === 0) {
+    return null;
+  }
+
+  return {
+    range: boundsToLocation(result.defUs.definitions[0]).range,
+    placeholder: result.defUs.symbolName,
+  };
+});
+
+connection.onRenameRequest((params: RenameParams): WorkspaceEdit | null => {
+  const result = getDefinitionsUsagesWithLocationForPosition(params);
+  if (!result) {
+    return null;
+  }
+
+  const changes: { [uri: string]: TextEdit[] } = {};
+  const seen = new Set<string>();
+  for (const bounds of result.defUs.usages) {
+    const { uri, range } = boundsToLocation(bounds);
+    const key = `${uri}:${range.start.line}:${range.start.character}-${range.end.line}:${range.end.character}`;
+    if (seen.has(key)) {
+      continue;
+    }
+    seen.add(key);
+
+    if (!changes[uri]) {
+      changes[uri] = [];
+    }
+    changes[uri].push(TextEdit.replace(range, params.newName));
+  }
+
+  return { changes };
 });
 
 connection.onDidChangeWatchedFiles(_change => {

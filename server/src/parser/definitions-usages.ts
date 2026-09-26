@@ -79,7 +79,7 @@ export class DefinitionsUsagesLookup {
     }
   }
 
-  lookup(line: number, column: number): DefinitionsUsages | undefined {
+  lookup(line: number, column: number): DefinitionsUsagesWithLocation | undefined {
     const defUsOnLine = this.lines[line];
 
     // Can't find the line, don't bother adding it to the list, just return
@@ -104,7 +104,7 @@ export class DefinitionsUsagesLookup {
       }
     }
 
-    return found?.defUs;
+    return found;
   }
 }
 

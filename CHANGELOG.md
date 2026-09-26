@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.1 (9/25/2026)
+
+- Rename symbol command support, including across `#include`d files
+
 ## 0.7.0 (9/14/2026)
 
 - Syntax highlighting for all cartridge sections (`__lua__`, `__gfx__`, `__label__`, `__gff__`, `__map__`, `__sfx__`, `__music__`), plus the cartridge header lines

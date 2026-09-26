@@ -1,4 +1,4 @@
-import { strictEqual as eq } from 'assert';
+import { strictEqual as eq, ok } from 'assert';
 import { DefinitionsUsagesLookup } from '../definitions-usages';
 import { TokenValue } from '../tokens';
 import { Bounds } from '../types';
@@ -9,32 +9,32 @@ import { bounds, deepEquals, MockFileResolver, parse, tokenAt } from './test-uti
 // and we spit out the token at the location where the lookup
 // would take us.
 function goToDefinition(lookup: DefinitionsUsagesLookup, code: string, line: number, column: number): TokenValue | undefined {
-  const defUs = lookup.lookup(line, column);
-  if (!defUs) {
+  const result = lookup.lookup(line, column);
+  if (!result) {
     return undefined;
   }
 
-  const token = tokenAt(code, defUs.definitions[0].start.index);
+  const token = tokenAt(code, result.defUs.definitions[0].start.index);
   // eslint-disable-next-line @typescript-eslint/no-unsafe-return
   return token?.value;
 }
 
 function getDefinitions(lookup: DefinitionsUsagesLookup, line: number, column: number): Bounds[] {
-  const defUs = lookup.lookup(line, column);
-  if (!defUs) {
+  const result = lookup.lookup(line, column);
+  if (!result) {
     return [];
   }
 
-  return defUs.definitions;
+  return result.defUs.definitions;
 }
 
 function getUsages(lookup: DefinitionsUsagesLookup, line: number, column: number): Bounds[] {
-  const defUs = lookup.lookup(line, column);
-  if (!defUs) {
+  const result = lookup.lookup(line, column);
+  if (!result) {
     return [];
   }
 
-  return defUs.usages;
+  return result.defUs.usages;
 }
 
 describe('DefinitionsUsagesFinder', () => {
@@ -74,7 +74,7 @@ end`;
 do_the_thing()
 function do_the_thing() print('hi') end`;
     const { definitionsUsages } = parse(code);
-    const { definitions, usages } = definitionsUsages.lookup(2, 1)!;
+    const { definitions, usages } = definitionsUsages.lookup(2, 1)!.defUs;
 
     deepEquals(definitions, [{ start: { line: 3, column: 9 } }]);
     deepEquals(usages, [
@@ -91,7 +91,7 @@ function do_the_thing() print('hi') end`;
     deepEquals(warnings, []);
 
     // lookup on the `a` in `b = a`
-    const { definitions, usages } = definitionsUsages.lookup(2, 4)!;
+    const { definitions, usages } = definitionsUsages.lookup(2, 4)!.defUs;
     deepEquals(definitions, [ bounds(1, 6, 1, 7) ]);
     deepEquals(usages, [
       bounds(1, 6, 1, 7),
@@ -151,7 +151,7 @@ end`);
     deepEquals(warnings, []);
 
     // Find defs/usages of x
-    const { definitions, usages } = definitionsUsages.lookup(1, 17)!;
+    const { definitions, usages } = definitionsUsages.lookup(1, 17)!.defUs;
     deepEquals(definitions, [ bounds(1, 17, 1, 18) ]);
     deepEquals(usages, [ bounds(1, 17, 1, 18), bounds(2, 8, 2, 9) ]);
   });
@@ -164,7 +164,7 @@ end`);
     deepEquals(warnings, []);
 
     // Find defs/usages of x
-    const { definitions, usages } = definitionsUsages.lookup(1, 15)!;
+    const { definitions, usages } = definitionsUsages.lookup(1, 15)!.defUs;
     deepEquals(definitions, [ bounds(1, 15, 1, 16) ]);
     deepEquals(usages, [ bounds(1, 15, 1, 16), bounds(2, 13, 2, 14) ]);
   });
@@ -178,7 +178,7 @@ end`);
 
       // Find defs/usages of a
       {
-        const { definitions, usages } = definitionsUsages.lookup(1, 0)!;
+        const { definitions, usages } = definitionsUsages.lookup(1, 0)!.defUs;
         deepEquals(definitions, [ bounds(1, 0, 1, 1) ]);
         deepEquals(usages, [
           // a = {}
@@ -201,7 +201,7 @@ end`);
 
       // Find defs/usages of a.b
       {
-        const { definitions, usages } = definitionsUsages.lookup(2, 2)!;
+        const { definitions, usages } = definitionsUsages.lookup(2, 2)!.defUs;
         deepEquals(definitions, [ bounds(2, 0, 2, 3) ]);
         deepEquals(usages, [
           // a.b = "1" (just b)
@@ -237,7 +237,7 @@ end`);
       deepEquals(warnings, []);
 
       // on the x part of v.x
-      const { definitions, usages } = definitionsUsages.lookup(2, 11)!;
+      const { definitions, usages } = definitionsUsages.lookup(2, 11)!.defUs;
       deepEquals(definitions, [ bounds(6, 2, 6, 5) ]);
       deepEquals(usages, [
         // v.x = x
@@ -261,7 +261,7 @@ end`);
       deepEquals(warnings, []);
 
       // on the x part of self.x
-      const { definitions, usages } = definitionsUsages.lookup(3, 15)!;
+      const { definitions, usages } = definitionsUsages.lookup(3, 15)!.defUs;
       deepEquals(definitions, [ bounds(7, 2, 7, 8) ]);
       deepEquals(usages, [
         // self.x = x
@@ -282,7 +282,7 @@ a.b.c.d = {}`);
 
       // a
       {
-        const { definitions, usages } = definitionsUsages.lookup(2, 0)!;
+        const { definitions, usages } = definitionsUsages.lookup(2, 0)!.defUs;
         deepEquals(definitions, [ bounds(2, 0, 2, 1) ]);
         deepEquals(usages, [
           bounds(2, 0, 2, 1),
@@ -294,7 +294,9 @@ a.b.c.d = {}`);
 
       // b
       {
-        const { symbolName, definitions, usages } = definitionsUsages.lookup(3, 2)!;
+        const result = definitionsUsages.lookup(3, 2);
+        ok(result);
+        const { symbolName, definitions, usages } = result.defUs;
         eq(symbolName, 'a.b');
         deepEquals(definitions, [ bounds(3, 0, 3, 3) ]);
         deepEquals(usages, [
@@ -306,7 +308,9 @@ a.b.c.d = {}`);
 
       // c
       {
-        const { symbolName, definitions, usages } = definitionsUsages.lookup(4, 4)!;
+        const result = definitionsUsages.lookup(4, 4);
+        ok(result);
+        const { symbolName, definitions, usages } = result.defUs;
         eq(symbolName, 'a.b.c');
         deepEquals(definitions, [ bounds(4, 0, 4, 5) ]);
         deepEquals(usages, [
@@ -317,7 +321,9 @@ a.b.c.d = {}`);
 
       // d
       {
-        const { symbolName, definitions, usages } = definitionsUsages.lookup(5, 6)!;
+        const result = definitionsUsages.lookup(5, 6);
+        ok(result);
+        const { symbolName, definitions, usages } = result.defUs;
         eq(symbolName, 'a.b.c.d');
         deepEquals(definitions, [ bounds(5, 0, 5, 7) ]);
         deepEquals(usages, [
@@ -342,13 +348,15 @@ a.b.c.self_fn = function() self.mem = 0 end`);
 
       // "self" on "self.mem" (line 3) takes you to `a`
       {
-        const { definitions } = definitionsUsages.lookup(3, 25)!;
+        const { definitions } = definitionsUsages.lookup(3, 25)!.defUs;
         deepEquals(definitions, [ bounds(2, 0, 2, 1) ]);
       }
 
       // "a.mem"
       {
-        const { symbolName, definitions, usages } = definitionsUsages.lookup(3, 30)!;
+        const result = definitionsUsages.lookup(3, 30);
+        ok(result);
+        const { symbolName, definitions, usages } = result.defUs;
         eq(symbolName, 'a.mem'); // instead of self.mem
         deepEquals(definitions, [ bounds(3, 23, 3, 31) ]);
         deepEquals(usages, [ bounds(3, 23, 3, 31), bounds(4, 0, 4, 5) ]);
@@ -356,7 +364,9 @@ a.b.c.self_fn = function() self.mem = 0 end`);
 
       // "a.b.mem"
       {
-        const { symbolName, definitions, usages } = definitionsUsages.lookup(6, 32)!;
+        const result = definitionsUsages.lookup(6, 32);
+        ok(result);
+        const { symbolName, definitions, usages } = result.defUs;
         eq(symbolName, 'a.b.mem');
         deepEquals(definitions, [ bounds(6, 25, 6, 33) ]);
         deepEquals(usages, [ bounds(6, 25, 6, 33), bounds(7, 0, 7, 7) ]);
@@ -364,7 +374,9 @@ a.b.c.self_fn = function() self.mem = 0 end`);
 
       // "a.b.c.mem"
       {
-        const { symbolName, definitions, usages } = definitionsUsages.lookup(10, 34)!;
+        const result = definitionsUsages.lookup(10, 34);
+        ok(result);
+        const { symbolName, definitions, usages } = result.defUs;
         eq(symbolName, 'a.b.c.mem');
         deepEquals(definitions, [ bounds(10, 27, 10, 35) ]);
         deepEquals(usages, [ bounds(10, 27, 10, 35), bounds(9, 0, 9, 9) ]);
@@ -384,13 +396,15 @@ a.b.mem()`);
 
       // "self" on "self.mem" (line 3) takes you to `a`
       {
-        const { definitions } = definitionsUsages.lookup(3, 23)!;
+        const { definitions } = definitionsUsages.lookup(3, 23)!.defUs;
         deepEquals(definitions, [ bounds(2, 0, 2, 1) ]);
       }
 
       // "a.mem"
       {
-        const { symbolName, definitions, usages } = definitionsUsages.lookup(3, 28)!;
+        const result = definitionsUsages.lookup(3, 28);
+        ok(result);
+        const { symbolName, definitions, usages } = result.defUs;
         eq(symbolName, 'a.mem'); // instead of self.mem
         deepEquals(definitions, [ bounds(3, 21, 3, 29) ]);
         deepEquals(usages, [ bounds(3, 21, 3, 29), bounds(4, 0, 4, 5) ]);
@@ -398,7 +412,9 @@ a.b.mem()`);
 
       // "a.b.mem"
       {
-        const { symbolName, definitions, usages } = definitionsUsages.lookup(6, 30)!;
+        const result = definitionsUsages.lookup(6, 30);
+        ok(result);
+        const { symbolName, definitions, usages } = result.defUs;
         eq(symbolName, 'a.b.mem');
         deepEquals(definitions, [ bounds(6, 23, 6, 31) ]);
         deepEquals(usages, [ bounds(6, 23, 6, 31), bounds(7, 0, 7, 7) ]);
@@ -424,13 +440,15 @@ a.b.c.mem()
 
       // "self" on "self.mem" (line 2) takes you to `a`
       {
-        const { definitions } = definitionsUsages.lookup(2, 24)!;
+        const { definitions } = definitionsUsages.lookup(2, 24)!.defUs;
         deepEquals(definitions, [ bounds(1, 0, 1, 1) ]);
       }
 
       // "a.mem"
       {
-        const { symbolName, definitions, usages } = definitionsUsages.lookup(2, 29)!;
+        const result = definitionsUsages.lookup(2, 29);
+        ok(result);
+        const { symbolName, definitions, usages } = result.defUs;
         eq(symbolName, 'a.mem'); // instead of self.mem
         deepEquals(definitions, [ bounds(2, 23, 2, 31) ]);
         deepEquals(usages, [ bounds(2, 23, 2, 31), bounds(10, 0, 10, 5) ]);
@@ -438,7 +456,9 @@ a.b.c.mem()
 
       // "a.b.mem"
       {
-        const { symbolName, definitions, usages } = definitionsUsages.lookup(4, 31)!;
+        const result = definitionsUsages.lookup(4, 31);
+        ok(result);
+        const { symbolName, definitions, usages } = result.defUs;
         eq(symbolName, 'b.mem');
         deepEquals(definitions, [ bounds(4, 25, 4, 33) ]);
         deepEquals(usages, [ bounds(4, 25, 4, 33), bounds(11, 0, 11, 7) ]);
@@ -446,7 +466,9 @@ a.b.c.mem()
 
       // "a.b.c.mem"
       {
-        const { symbolName, definitions, usages } = definitionsUsages.lookup(6, 33)!;
+        const result = definitionsUsages.lookup(6, 33);
+        ok(result);
+        const { symbolName, definitions, usages } = result.defUs;
         eq(symbolName, 'c.mem');
         deepEquals(definitions, [ bounds(6, 27, 6, 35) ]);
         deepEquals(usages, [ bounds(6, 27, 6, 35), bounds(12, 0, 12, 9) ]);
@@ -462,7 +484,9 @@ a.b.c.mem()
       const { warnings, definitionsUsages } = parse('#include other_file.lua\nprint(a)', { includeFileResolver: fileResolver });
       deepEquals(warnings, []);
 
-      const { symbolName, definitions, usages } = definitionsUsages.lookup(2, 6)!;
+      const result = definitionsUsages.lookup(2, 6);
+      ok(result);
+      const { symbolName, definitions, usages } = result.defUs;
       eq(symbolName, 'a');
 
       // The definition in 'other_file.lua'
@@ -487,7 +511,9 @@ a.b.c.mem()
       const { warnings, definitionsUsages } = parse('local a = 5\n#include other_file.lua', { includeFileResolver: fileResolver });
       deepEquals(warnings, []);
 
-      const { symbolName, definitions, usages } = definitionsUsages.lookup(1, 6)!;
+      const result = definitionsUsages.lookup(1, 6);
+      ok(result);
+      const { symbolName, definitions, usages } = result.defUs;
       eq(symbolName, 'a');
 
       // The main definition
@@ -527,7 +553,9 @@ end`;
       });
       deepEquals(warnings, []);
 
-      const { symbolName, definitions, usages } = definitionsUsages.lookup(3, 9)!;
+      const result = definitionsUsages.lookup(3, 9);
+      ok(result);
+      const { symbolName, definitions, usages } = result.defUs;
       eq(symbolName, 'a');
 
       // The definition in the including file
@@ -566,7 +594,9 @@ end`;
       });
       deepEquals(warnings, []);
 
-      const { symbolName, definitions, usages } = definitionsUsages.lookup(1, 6)!;
+      const result = definitionsUsages.lookup(1, 6);
+      ok(result);
+      const { symbolName, definitions, usages } = result.defUs;
       eq(symbolName, 'a');
 
       // The definition in other_file.lua
