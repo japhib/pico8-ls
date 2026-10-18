@@ -1,0 +1,38 @@
+name: Attach server bundle to release
+
+# Builds the standalone language server (single JS file, run with `node pico8-ls-server.js --stdio`)
+# and attaches it to the GitHub release for the current version, so editors other than VS Code
+# (Zed, Neovim, ...) can download it without building from source.
+on:
+  push:
+    branches: [release]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  server-bundle:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install modules
+        run: npm install
+      - name: Bundle server
+        run: |
+          npm run esbuild-server
+          cp server/out-min/main.js pico8-ls-server.js
+      - name: Create or update release asset
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          TAG="v$VERSION"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" pico8-ls-server.js --clobber
+          else
+            gh release create "$TAG" pico8-ls-server.js --title "$TAG" --generate-notes
+          fi
