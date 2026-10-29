@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.8.0 (10/29/2026)
 
 - Fix parse error on the line after a one-line `while (...)` statement (issue [#80](https://github.com/japhib/pico8-ls/issues/80))
 - Fix formatter moving a comment directly after a function call inside the call's parentheses (issue [#53](https://github.com/japhib/pico8-ls/issues/53))
