@@ -283,7 +283,7 @@ export default class Parser {
     const flowContext = new FlowContext();
     flowContext.allowVararg = true;
     flowContext.pushScope();
-    const body = this.parseBlock(flowContext, true);
+    const body = this.parseBlock(flowContext, isEndOfFile);
     flowContext.popScope();
     this.destroyScope();
 
@@ -305,11 +305,10 @@ export default class Parser {
   //
   //     block ::= {stat} [retstat]
 
-  parseBlock(flowContext: FlowContext, endsWithEOF?: boolean): Block {
+  parseBlock(flowContext: FlowContext, endingFunction: (token: Token) => boolean = isBlockFollow): Block {
     this.pushLocation(this.createLocationMarker());
 
     const block: Statement[] = [];
-    const endingFunction = endsWithEOF ? isEndOfFile : isBlockFollow;
 
     while (!endingFunction(this.token)) {
       try {
@@ -353,7 +352,7 @@ export default class Parser {
 
           this.lexer.newlineSignificant = false;
 
-          if (this.token.type === TokenType.Newline) {
+          if (this.token.type === TokenType.Newline && !endingFunction(this.token)) {
             // If we got to a newline, consume the newline token and continue parsing.
             this.lexerNext();
           } else if (isEndOfFile(this.token) && this.isInIncludedFile()) {
@@ -529,8 +528,9 @@ export default class Parser {
       this.lexer.expect('end');
     } else if (canBeOneLiner) {
       // Handle special one-line while statement
+      // (the body is every statement until the end of the line)
       this.lexer.withSignificantNewline(() => {
-        body = this.parseWhileStatementBody(flowContext);
+        body = this.parseWhileStatementBody(flowContext, isEndOfLine);
       });
     } else {
       errors.raiseErrForToken(this.token, errMessages.expected, 'do', this.token.value);
@@ -539,10 +539,10 @@ export default class Parser {
     return this.finishNode(AST.whileStatement(condition, body!));
   }
 
-  parseWhileStatementBody(flowContext: FlowContext) {
+  parseWhileStatementBody(flowContext: FlowContext, endingFunction?: (token: Token) => boolean) {
     this.createScope();
     flowContext.pushScope(true);
-    const body = this.parseBlock(flowContext);
+    const body = this.parseBlock(flowContext, endingFunction);
     flowContext.popScope();
     this.destroyScope();
 
@@ -1395,6 +1395,12 @@ function isAssignmentOperator(token: Token): boolean {
   return token.type === TokenType.Punctuator &&
     [ '=', '+=', '-=', '*=', '/=', '\\=', '%=', '^=', '..=', '|=',
       '&=', '^^=', '<<=', '>>=', '>>>=', '<<>=', '>><=' ].includes(token.value as string);
+}
+
+// Check if the token closes a block that ends at the end of the line (e.g. a
+// PICO-8 one-line while statement).
+function isEndOfLine(token: Token) {
+  return token.type === TokenType.Newline || isBlockFollow(token);
 }
 
 // Check if the token syntactically closes a block.

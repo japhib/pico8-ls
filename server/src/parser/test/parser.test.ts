@@ -464,6 +464,39 @@ end
       }]);
   });
 
+  it('ends a one-line while statement at the end of the line (#80)', () => {
+    const { block: { body }, errors } = parse('while (true) print("hello!")\notherstatement = 5');
+    deepEquals(errors, []);
+    deepEquals(body, [
+      {
+        type: 'WhileStatement',
+        block: {
+          type: 'Block',
+          body: [{ type: 'CallStatement' }],
+        },
+      },
+      {
+        type: 'AssignmentStatement',
+        variables: [{ type: 'Identifier', name: 'otherstatement' }],
+      },
+    ]);
+  });
+
+  it('parses multiple statements in a one-line while statement', () => {
+    const { block: { body }, errors } = parse('while (a < 5) a += 1 print(a)\nb = 1');
+    deepEquals(errors, []);
+    deepEquals(body, [
+      {
+        type: 'WhileStatement',
+        block: {
+          type: 'Block',
+          body: [{ type: 'AssignmentStatement' }, { type: 'CallStatement' }],
+        },
+      },
+      { type: 'AssignmentStatement' },
+    ]);
+  });
+
   it('parses a PICO-8 "print" operator (?)', () => {
     // This is the same as print("hi")
     // (Note the argument must be on the same line as the ?)

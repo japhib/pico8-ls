@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Fix parse error on the line after a one-line `while (...)` statement (issue [#80](https://github.com/japhib/pico8-ls/issues/80))
+
 ## 0.7.0 (9/14/2026)
 
 - Syntax highlighting for all cartridge sections (`__lua__`, `__gfx__`, `__label__`, `__gff__`, `__map__`, `__sfx__`, `__music__`), plus the cartridge header lines
