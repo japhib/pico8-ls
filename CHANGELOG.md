@@ -7,6 +7,7 @@
 - Fix parse errors on one-line `if (...)` statements with multiple statements, e.g. `if (a) b() c() else d() e()` (issue [#78](https://github.com/japhib/pico8-ls/issues/78))
 - Fix formatter breaking a one-line `if (...)` that contains a multi-line statement
 - Show a helpful error instead of crashing when the "Format File" commands can't format a file with errors
+- Warn about top-level `local` variables used before they're declared, e.g. in a function defined above the `local` (issue [#37](https://github.com/japhib/pico8-ls/issues/37))
 
 ## 0.7.0 (9/14/2026)
 

@@ -231,6 +231,10 @@ class DefinitionsUsagesFinder extends ASTVisitor<DefUsageScope> {
   // List of globals that have been referenced but not defined yet
   earlyRefs: { [key: string]: Bounds[] } = {};
 
+  // Definitions of top-level `local` variables. These go in the global scope,
+  // but unlike globals they're only in scope after they're declared.
+  topLevelLocalDefinitions = new Set<Bounds>();
+
   // Errors that occurred while determining definitions & usages
   // (just undefined variables so far)
   warnings: Warning[] = [];
@@ -294,6 +298,15 @@ class DefinitionsUsagesFinder extends ASTVisitor<DefUsageScope> {
     for (const origSymbolName in this.earlyRefs) {
       let symbolName = origSymbolName;
       const usages = this.earlyRefs[origSymbolName];
+
+      if (this.isDefinedOnlyByTopLevelLocals(symbolName)) {
+        // The usages are before the `local` declaration, so they're actually
+        // referencing an undefined global.
+        usages.forEach(loc => {
+          this.warnings.push(createWarning(loc, errMessages.undefinedVariable, origSymbolName));
+        });
+        continue;
+      }
 
       const isMemberExpression = symbolName.indexOf('.') !== -1;
 
@@ -376,6 +389,13 @@ class DefinitionsUsagesFinder extends ASTVisitor<DefUsageScope> {
     }
 
     return false;
+  }
+
+  private isDefinedOnlyByTopLevelLocals(symbolName: string): boolean {
+    const defUs = this.globalScope().get(symbolName);
+    return !!defUs
+      && defUs.definitions.length > 0
+      && defUs.definitions.every(def => this.topLevelLocalDefinitions.has(def));
   }
 
   private getSymbolDef(symbolName: string): DefinitionsUsages | undefined {
@@ -559,6 +579,9 @@ class DefinitionsUsagesFinder extends ASTVisitor<DefUsageScope> {
   private defsForSimpleAssignment(variable: Identifier, statement: AssignmentStatement | LocalStatement) {
     const name = variable.name;
     if (statement.type === 'LocalStatement' || !this.isSymbolDefined(name)) {
+      if (statement.type === 'LocalStatement' && this.scopeStack.length === 1) {
+        this.topLevelLocalDefinitions.add(variable.loc!);
+      }
       this.addDefinition(name, variable.loc!, statement.type === 'LocalStatement' ? undefined : this.globalScope());
     } else {
       this.addUsage(name, variable.loc!);

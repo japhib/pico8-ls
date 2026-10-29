@@ -131,6 +131,37 @@ function do_the_thing() print('hi') end`;
       deepEquals(warnings[0], { type: 'Warning', message: 'undefined variable: b' });
     });
 
+    it('adds warning for a top-level local used in a function before it is declared (#37)', () => {
+      const { warnings } = parse(`function _draw()
+  print(a)
+  print(b)
+end
+a = 1
+local b = 1`);
+      deepEquals(warnings, [{ type: 'Warning', message: 'undefined variable: b', bounds: bounds(3, 8, 3, 9) }]);
+    });
+
+    it('adds warning for a top-level local used at the top level before it is declared', () => {
+      const { warnings } = parse('print(b)\nlocal b = 1');
+      deepEquals(warnings, [{ type: 'Warning', message: 'undefined variable: b' }]);
+    });
+
+    it('does not give warning for a top-level local used in a function after it is declared', () => {
+      const { warnings } = parse(`local b = 1
+function _draw()
+  print(b)
+end`);
+      deepEquals(warnings, []);
+    });
+
+    it('does not give warning for a function-level local used in a nested function before the declaration', () => {
+      const { warnings } = parse(`function f()
+  local b = 1
+  return function() return b end
+end`);
+      deepEquals(warnings, []);
+    });
+
     it('does not give warning for "self" usage in double-nested table', () => {
       const { warnings } = parse(`a2 = {
   self_fn = function() self.mem = 0 end,
