@@ -481,6 +481,16 @@ end
       eq(formatLua(input), input);
     });
 
+    it('keeps a comment directly after a function call outside the call (#53)', () => {
+      const input = `
+afunction(parameter)--comment
+x = f(a)--comment`.trim();
+      const expected = `
+afunction(parameter) --comment
+x = f(a) --comment`.trim();
+      eq(formatLua(input), expected);
+    });
+
     it('keeps comments at the end of "if" statement clauses', () => {
       const input = `
 if a < 1 then

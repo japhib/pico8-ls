@@ -34,10 +34,11 @@ export function boundsCompare(a: Bounds, b: Bounds): BoundsCompareResult {
   const bStart = b.start;
   const bEnd = b.end;
 
-  if (aEnd.index < bStart.index) {
+  // End indices are exclusive, so bounds that only touch don't overlap.
+  if (aEnd.index <= bStart.index) {
     // A is before B
     return BoundsCompareResult.BEFORE;
-  } else if (bEnd.index < aStart.index) {
+  } else if (bEnd.index <= aStart.index) {
     // A is after B
     return BoundsCompareResult.AFTER;
   } else {
