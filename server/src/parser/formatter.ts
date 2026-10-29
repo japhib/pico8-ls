@@ -707,11 +707,13 @@ export default class Formatter {
 
       if (clausesWithoutComments.length === 1) {
         const clause = clausesWithoutComments[0] as IfClause;
-        let ret = `if (${this.visitExpression(clause.condition)})`;
         // There can be multiple statements inside even a single-line if
-        for (const stmt of clause.block.body) {
-          ret += ' ' + this.visitStatement(stmt);
+        const body = this.formatBlockOnOneLine(clause.block);
+        if (body === undefined) {
+          // Can't keep it on one line, so format as a regular if statement
+          return this.visitMultilineIfStatement(node);
         }
+        let ret = `if (${this.visitExpression(clause.condition)}) ${body}`;
         // Tack on any comments at the end
         for (const comment of comments) {
           ret += this.newline() + this.visitComment(comment as any as Comment_);
@@ -735,16 +737,45 @@ export default class Formatter {
         const ifClause = node.clauses[0] as IfClause;
         const elseClause = node.clauses[1] ;
 
-        return `if ${this.visitExpression(ifClause.condition)} then ${this.visitStatement(ifClause.block.body[0])} else ${this.visitStatement(elseClause.block.body[0])} end`;
+        const ifBody = this.formatBlockOnOneLine(ifClause.block);
+        const elseBody = this.formatBlockOnOneLine(elseClause.block);
+        if (ifBody !== undefined && elseBody !== undefined) {
+          return `if ${this.visitExpression(ifClause.condition)} then ${ifBody} else ${elseBody} end`;
+        }
       }
     }
 
+    return this.visitMultilineIfStatement(node);
+  }
+
+  visitMultilineIfStatement(node: IfStatement): string {
     let ret = '';
     for (const clause of node.clauses) {
       ret += this.visitGeneralIfClause(clause);
     }
     ret += 'end';
     return ret;
+  }
+
+  // Formats all the statements in a block on a single line, or returns
+  // undefined if they can't all go on one line.
+  formatBlockOnOneLine(block: Block): string | undefined {
+    if (this.options.forceSeparateLines && block.body.length > 1) {
+      return undefined;
+    }
+
+    const statements = [];
+    for (let i = 0; i < block.body.length; i++) {
+      const stmt = block.body[i];
+      // A comment would swallow anything after it on the line
+      if (stmt.type === 'Comment' && i !== block.body.length - 1) {
+        return undefined;
+      }
+      statements.push(this.visitStatement(stmt));
+    }
+
+    const ret = statements.join(' ');
+    return ret.includes('\n') ? undefined : ret;
   }
 
   isSingleLineIfStatement(stmt: IfStatement) {

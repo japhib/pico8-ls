@@ -113,10 +113,16 @@ function registerFormattingCommand(client: LanguageClient, context: ExtensionCon
       ],
     };
 
-    const result: TextEdit = await client.sendRequest(
+    const result: TextEdit | null = await client.sendRequest(
       'workspace/executeCommand',
       params,
     ) ;
+
+    if (!result) {
+      // The server doesn't format a document that has errors in it
+      void window.showErrorMessage('Can\'t format the document. Make sure it doesn\'t have any errors.');
+      return;
+    }
 
     if (result.range && result.newText) {
       await editor.edit((editBuilder: TextEditorEdit) => {

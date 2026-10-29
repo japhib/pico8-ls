@@ -4,6 +4,9 @@
 
 - Fix parse error on the line after a one-line `while (...)` statement (issue [#80](https://github.com/japhib/pico8-ls/issues/80))
 - Fix formatter moving a comment directly after a function call inside the call's parentheses (issue [#53](https://github.com/japhib/pico8-ls/issues/53))
+- Fix parse errors on one-line `if (...)` statements with multiple statements, e.g. `if (a) b() c() else d() e()` (issue [#78](https://github.com/japhib/pico8-ls/issues/78))
+- Fix formatter breaking a one-line `if (...)` that contains a multi-line statement
+- Show a helpful error instead of crashing when the "Format File" commands can't format a file with errors
 
 ## 0.7.0 (9/14/2026)
 

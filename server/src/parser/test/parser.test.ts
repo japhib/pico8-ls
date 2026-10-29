@@ -388,6 +388,79 @@ end`.trim();
     }]);
   });
 
+  it('parses multiple statements in each clause of a one-line if statement (#78)', () => {
+    const input = 'if (a) b() c = 1 else d() e = 2\nf()';
+    const { errors, block: { body } } = parse(input);
+
+    deepEquals(errors, []);
+
+    deepEquals(body, [
+      {
+        type: 'IfStatement',
+        oneLine: true,
+        clauses: [
+          {
+            type: 'IfClause',
+            block: { body: [{ type: 'CallStatement' }, { type: 'AssignmentStatement' }] },
+          },
+          {
+            type: 'ElseClause',
+            block: { body: [{ type: 'CallStatement' }, { type: 'AssignmentStatement' }] },
+          },
+        ],
+      },
+      { type: 'CallStatement' },
+    ]);
+  });
+
+  it('parses nested one-line statements, ending them all at the end of the line', () => {
+    const input = 'if (a) b() if (c) d() e()\nf()';
+    const { errors, block: { body } } = parse(input);
+
+    deepEquals(errors, []);
+
+    deepEquals(body, [
+      {
+        type: 'IfStatement',
+        clauses: [{
+          type: 'IfClause',
+          block: {
+            body: [
+              { type: 'CallStatement' },
+              {
+                type: 'IfStatement',
+                clauses: [{
+                  type: 'IfClause',
+                  block: { body: [{ type: 'CallStatement' }, { type: 'CallStatement' }] },
+                }],
+              },
+            ],
+          },
+        }],
+      },
+      { type: 'CallStatement' },
+    ]);
+  });
+
+  it('parses a one-line if statement containing a multi-line statement', () => {
+    const input = 'if (a) if b then c() elseif d then e() end f()\ng()';
+    const { errors, block: { body } } = parse(input);
+
+    deepEquals(errors, []);
+
+    deepEquals(body, [
+      {
+        type: 'IfStatement',
+        oneLine: true,
+        clauses: [{
+          type: 'IfClause',
+          block: { body: [{ type: 'IfStatement', oneLine: false }, { type: 'CallStatement' }] },
+        }],
+      },
+      { type: 'CallStatement' },
+    ]);
+  });
+
   it('parses PICO-8 one-line if statement with significant newline and multiline `else`', () => {
     const input = `
 if(v.x<-130) del(b,v) else

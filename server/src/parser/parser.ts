@@ -345,12 +345,13 @@ export default class Parser {
           this.errors.push(e);
 
           // Discard tokens until we get to the end of the line or end of the block
+          const prevNewlineSignificant = this.lexer.newlineSignificant;
           this.lexer.newlineSignificant = true;
           while (this.token.type !== TokenType.Newline && !endingFunction(this.token)) {
             this.lexerNext();
           }
 
-          this.lexer.newlineSignificant = false;
+          this.lexer.newlineSignificant = prevNewlineSignificant;
 
           if (this.token.type === TokenType.Newline && !endingFunction(this.token)) {
             // If we got to a newline, consume the newline token and continue parsing.
@@ -609,24 +610,23 @@ export default class Parser {
         // be added anyway for a one-line if statement
         condition.parens = false;
 
-        // Handle special PICO-8 one-line if statement
+        // Handle special PICO-8 one-line if statement. Each clause contains
+        // every statement up to the end of the line (or the `else`).
         this.lexer.withSignificantNewline((cancelSignificantNewline) => {
-          // pseudo-block for the if statement contents
-          marker = this.createLocationMarker();
-          this.pushLocation(marker);
           this.createScope();
           flowContext.pushScope();
-
-          const statement = this.parseStatement(flowContext);
-          if (!statement) {
+          const block = this.parseBlock(flowContext, isEndOfLine);
+          if (block.body.length === 0) {
             errors.raiseUnexpectedToken('statement', this.token);
           }
-
           flowContext.popScope();
           this.destroyScope();
-          clauses.push(this.finishNode(AST.ifClause(condition, this.finishNode(AST.block([ statement ]), true))));
+          clauses.push(this.finishNode(AST.ifClause(condition, block)));
 
           if (this.lexer.consume('else')) {
+            // Include the `else` in the location of ElseClause.
+            this.pushLocation(new Marker(this.previousToken));
+
             let multilineElse = false;
             if (this.lexer.consumeTokenType(TokenType.Newline)) {
               // Weird escape hatch here into multi-line `else` block.
@@ -639,30 +639,19 @@ export default class Parser {
               multilineElse = true;
             }
 
-            marker = this.createLocationMarker();
-            this.pushLocation(marker);
             this.createScope();
             flowContext.pushScope();
-
-            let elseBlock: Block;
+            // For a multi-line `else`, it's a regular block ending with an `end`.
+            // Otherwise it ends at the end of the line.
+            const elseBlock = this.parseBlock(flowContext, multilineElse ? isBlockFollow : isEndOfLine);
             if (multilineElse) {
-              // For a multi-line `else`, it can contain multiple statements and
-              // ends with an `end` so just parse it like a regular block.
-              elseBlock = this.parseBlock(flowContext);
               this.lexer.expect('end');
-            } else {
-              // Otherwise, can only be a single statement.
-              const elseStatement = this.parseStatement(flowContext);
-              if (!elseStatement) {
-                errors.raiseUnexpectedToken('statement', this.token);
-              }
-              // Stick it in a block
-              elseBlock = AST.block([ elseStatement ]), true;
+            } else if (elseBlock.body.length === 0) {
+              errors.raiseUnexpectedToken('statement', this.token);
             }
-
             flowContext.popScope();
             this.destroyScope();
-            clauses.push(this.finishNode(AST.elseClause(this.finishNode(elseBlock))));
+            clauses.push(this.finishNode(AST.elseClause(elseBlock), true));
           }
         });
 

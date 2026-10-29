@@ -111,6 +111,10 @@ export default class Lexer {
       this.newlineSignificant = false;
     }).bind(this);
 
+    // If we're nested inside another one-line statement (e.g. `if (a) if (b) c()`),
+    // the newline also ends the outer statement, so leave it for that one.
+    const nested = this.newlineSignificant;
+
     this.newlineSignificant = true;
     try {
       func(cancelSignificantNewline);
@@ -118,12 +122,16 @@ export default class Lexer {
       // This goes in 'finally' so it doesn't corrupt the state if there's
       // an error during parsing
 
-      // Consume the significant newline
-      if (this.token!.type === TokenType.Newline) {
-        this.next();
-      }
+      if (nested) {
+        this.newlineSignificant = true;
+      } else {
+        // Consume the significant newline
+        if (this.token!.type === TokenType.Newline) {
+          this.next();
+        }
 
-      this.newlineSignificant = false;
+        this.newlineSignificant = false;
+      }
     }
   }
 

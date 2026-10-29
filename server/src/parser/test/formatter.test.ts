@@ -673,6 +673,40 @@ end
       eq(formatLua(input), 'if false then print(\'hi\') else a() end');
     });
 
+    it('keeps multiple statements in a single-line if statement on one line', () => {
+      const input = 'if (a) b() c = 1\nd()';
+      eq(formatLua(input), input);
+    });
+
+    it('formats single-line if statement with multiple statements and "else" into regular if statement', () => {
+      const input = 'if (a) b() c = 1 else d() e = 2';
+      eq(formatLua(input), 'if a then b() c = 1 else d() e = 2 end');
+    });
+
+    it('formats single-line if statement containing a multi-line statement into regular if statement (#78)', () => {
+      const input = 'if (a) if b then c() elseif d then e() end f()\ng()';
+      eq(formatLua(input), `
+if a then
+  if b then
+    c()
+  elseif d then
+    e()
+  end f()
+end
+g()`.trim());
+    });
+
+    it('splits a single-line if statement with multiple statements when forcing separate lines (#78)', () => {
+      const input = 'if (a) b() c = 1\nd()';
+      const formatter = new Formatter({ tabSize: 2, insertSpaces: true, forceSeparateLines: true });
+      eq(formatter.formatChunk(parse(input), input, true)!.formattedText, `
+if a then
+  b()
+  c = 1
+end
+d()`.trim());
+    });
+
     // some regression tests for #48
     it('keeps the statement after a nested single-line if on its own line', () => {
       const input = `
