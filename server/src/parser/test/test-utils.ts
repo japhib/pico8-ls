@@ -31,8 +31,10 @@ export function getLexedTokens(input: string): Token[] {
 export type TestParseOptions = ParserOptions & DefsUsagesOptions & { filename?: string };
 
 export function parse(input: string, opts: TestParseOptions = {}): Chunk & DefinitionsUsagesResult {
-  const filename = opts?.filename || 'main_test_file';
-  const chunk = new Parser(new ResolvedFile(filename, filename), input, opts).parseChunk();
+  // If a filename is given, resolve it the same way #include'd files are
+  // resolved, so they can be compared
+  const file = opts?.filename ? ResolvedFile.fromPath(opts.filename) : new ResolvedFile('main_test_file', 'main_test_file');
+  const chunk = new Parser(file, input, opts).parseChunk();
   const defUsResult = findDefinitionsUsages(chunk, opts);
   return {
     ...chunk,

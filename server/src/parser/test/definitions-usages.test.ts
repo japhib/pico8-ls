@@ -2,6 +2,7 @@ import { strictEqual as eq } from 'assert';
 import { DefinitionsUsagesLookup } from '../definitions-usages';
 import { TokenValue } from '../tokens';
 import { Bounds } from '../types';
+import ResolvedFile from '../file-resolver';
 import { bounds, deepEquals, MockFileResolver, parse, tokenAt } from './test-utils';
 
 // Simulates a Go To Definition request where we hand in a line
@@ -534,6 +535,22 @@ a.b.c.mem()
       deepEquals(usages[1], bounds(1, 6, 1, 7));
       eq(usages[1].start.filename.path, 'other_file.lua');
     });
+
+    it('looks up a symbol in the file it is in, not at the same position in an included file (#61)', () => {
+      const fileResolver = new MockFileResolver();
+      fileResolver.loadFileContents = () => 'function init_tiles() end\ngp = 1';
+
+      const { warnings, definitionsUsages } = parse('#include other_file.lua\ninit_tiles()', { includeFileResolver: fileResolver });
+      deepEquals(warnings, []);
+
+      const mainFile = new ResolvedFile('main_test_file', 'main_test_file');
+      const otherFile = ResolvedFile.fromPath('other_file.lua');
+
+      // `init_tiles` in the main file is on the same line as `gp` in the included file
+      eq(definitionsUsages.lookup(2, 1, mainFile)!.symbolName, 'init_tiles');
+      eq(definitionsUsages.lookup(2, 1, otherFile)!.symbolName, 'gp');
+      eq(definitionsUsages.lookup(2, 5, otherFile), undefined);
+    });
   });
 
   describe('#include statements (in included file)', () => {
@@ -567,9 +584,7 @@ end`;
 
       // Usages:
       // #1: The definition in the including file
-
-      // TODO fix duplicates
-      // eq(usages.length, 2);
+      eq(usages.length, 2);
 
       deepEquals(usages[0], bounds(2, 6, 2, 7));
       eq(usages[0].start.filename.path, 'main.p8');
@@ -601,8 +616,7 @@ end`;
       eq(symbolName, 'a');
 
       // The definition in other_file.lua
-      // TODO fix duplicates
-      deepEquals(definitions, [ bounds(1, 6, 1, 7), bounds(1, 6, 1, 7) ]);
+      deepEquals(definitions, [ bounds(1, 6, 1, 7) ]);
       eq(definitions[0].start.filename.path, 'other_file.lua');
 
       // Usages:

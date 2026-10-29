@@ -8,6 +8,7 @@
 - Fix formatter breaking a one-line `if (...)` that contains a multi-line statement
 - Show a helpful error instead of crashing when the "Format File" commands can't format a file with errors
 - Warn about top-level `local` variables used before they're declared, e.g. in a function defined above the `local` (issue [#37](https://github.com/japhib/pico8-ls/issues/37))
+- Fix Go to Definition, Find References and hover in a file that `#include`s other files sometimes picking a symbol from an included file, or showing duplicate definitions (issue [#61](https://github.com/japhib/pico8-ls/issues/61))
 
 ## 0.7.0 (9/14/2026)
 

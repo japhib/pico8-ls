@@ -550,7 +550,8 @@ function getDefinitionsUsagesForPosition(params: TextDocumentPositionParams): De
   return lookup.lookup(
     // They use 0-index line numbers, we use 1-index
     params.position.line + 1,
-    params.position.character);
+    params.position.character,
+    ResolvedFile.fromFileURL(params.textDocument.uri));
 }
 
 function boundsToLocation(bounds: Bounds): Location {

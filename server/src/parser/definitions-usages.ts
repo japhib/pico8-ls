@@ -6,6 +6,7 @@ import { AssignmentStatement, Chunk, ForGenericStatement, ForNumericStatement, F
 import { Bounds, boundsEqual, boundsSize, CodeLocation } from './types';
 import { ASTVisitor, VisitableASTNode } from './visitor';
 import { BuiltinConstants, Builtins } from './builtins';
+import ResolvedFile from './file-resolver';
 
 export type DefinitionsUsagesResult = {
   definitionsUsages: DefinitionsUsagesLookup,
@@ -21,6 +22,13 @@ export type DefinitionsUsages = {
 
 function emptyDefinitionsUsages(symbolName: string): DefinitionsUsages {
   return { symbolName, definitions: [], usages: [] };
+}
+
+// Only adds the location if it isn't already in the list
+function addLocationIfNotExists(loc: Bounds, list: Bounds[]) {
+  if (!list.some(item => boundsEqual(loc, item))) {
+    list.push(loc);
+  }
 }
 
 export type DefinitionsUsagesWithLocation = {
@@ -63,23 +71,14 @@ export class DefinitionsUsagesLookup {
 
   addLocationsIfNotExists(locs: Bounds[], list: Bounds[]) {
     for (const loc of locs) {
-      let shouldAdd = true;
-
-      // Only adds the location if it isn't already in the list
-      for (const item of list) {
-        if (boundsEqual(loc, item)) {
-          shouldAdd = false;
-          break;
-        }
-      }
-
-      if (shouldAdd) {
-        list.push(loc);
-      }
+      addLocationIfNotExists(loc, list);
     }
   }
 
-  lookup(line: number, column: number): DefinitionsUsages | undefined {
+  // If a filename is given, only matches symbols in that file. (The lookup for
+  // a file also contains the symbols in the files it #includes, which have
+  // their own line numbers.)
+  lookup(line: number, column: number, filename?: ResolvedFile): DefinitionsUsages | undefined {
     const defUsOnLine = this.lines[line];
 
     // Can't find the line, don't bother adding it to the list, just return
@@ -92,7 +91,8 @@ export class DefinitionsUsagesLookup {
     for (const def of defUsOnLine) {
       const matches = line === def.loc.start.line
         && column >= def.loc.start.column
-        && column <= def.loc.end.column;
+        && column <= def.loc.end.column
+        && (!filename || def.loc.start.filename.equals(filename));
 
       // Make sure we find the match with the narrowest bounds
       // TODO: maybe keep the list sorted so this is more efficient
@@ -423,9 +423,11 @@ class DefinitionsUsagesFinder extends ASTVisitor<DefUsageScope> {
 
     let defUs = scopeToAddTo.get(symbolName);
     if (defUs) {
-      // Definition/usages lists already exist, just add this occurrence to the lists
-      defUs.definitions.push(loc);
-      defUs.usages.push(loc);
+      // Definition/usages lists already exist, just add this occurrence to the
+      // lists. (It may already be there if this file is #include'd and we're
+      // re-scanning it with the global scope of the including file.)
+      addLocationIfNotExists(loc, defUs.definitions);
+      addLocationIfNotExists(loc, defUs.usages);
     } else {
       // Definition/usages lists don't already exist. Create them and add to scope.
       defUs = {
@@ -450,17 +452,11 @@ class DefinitionsUsagesFinder extends ASTVisitor<DefUsageScope> {
       return;
     }
 
-    // Don't add the usage if it's the exact same as the most recent one added
-    if (!boundsEqual(loc, defUs.usages[defUs.usages.length - 1])) {
-      defUs.usages.push(loc);
-    }
+    addLocationIfNotExists(loc, defUs.usages);
 
     // if it's a global variable getting reassigned, add it to the definitions list as well
     if (!this.isSymbolLocal(symbolName) && this.isInAssignment() && !this.isInAssignmentTarget()) {
-      // Don't add the usage if it's the exact same as the most recent one added
-      if (!boundsEqual(loc, defUs.definitions[defUs.definitions.length - 1])) {
-        defUs.definitions.push(loc);
-      }
+      addLocationIfNotExists(loc, defUs.definitions);
     }
 
     // Add another reference to the definitions/usages from the current usage location
