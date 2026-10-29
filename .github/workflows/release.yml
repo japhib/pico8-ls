@@ -17,7 +17,7 @@ jobs:
     - uses: actions/checkout@v4
     - uses: actions/setup-node@v4
       with:
-        node-version: '20'
+        node-version: '26'
     - name: Install modules
       run: npm install
     # VSCE_PAT must be an organization-scoped PAT: https://dev.azure.com/PollywogGames/_usersSettings/tokens
@@ -37,7 +37,7 @@ jobs:
     # Make sure we're using node 20+
     - uses: actions/setup-node@v4
       with:
-        node-version: '20'
+        node-version: '26'
     - name: Install modules
       run: npm install
     - name: OVSX package and publish
@@ -58,7 +58,7 @@ jobs:
     - uses: actions/checkout@v4
     - uses: actions/setup-node@v4
       with:
-        node-version: '20'
+        node-version: '26'
     # Install from the lockfiles, and only what the server needs (the root `postinstall`
     # would also install the client's dependencies)
     - name: Install modules
