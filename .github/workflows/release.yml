@@ -4,6 +4,11 @@ on:
   push:
     branches: [release]
 
+# Don't run two releases at once (e.g. two quick pushes to `release`)
+concurrency:
+  group: release
+  cancel-in-progress: false
+
 jobs:
   release-vs-marketplace:
     runs-on: ubuntu-latest
@@ -39,3 +44,46 @@ jobs:
       env:
         OVSX_PAT: ${{ secrets.OVSX_PAT }}
       run: npx ovsx publish
+
+  # Builds the standalone language server (single JS file, run with `node pico8-ls-server.js --stdio`)
+  # and attaches it to the GitHub release for the current version, so editors other than VS Code
+  # (Zed, Neovim, ...) can download it without building from source.
+  release-server-bundle:
+    # Only release once the extension was actually published to the VS Code Marketplace
+    needs: [release-vs-marketplace]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+    # Install from the lockfiles, and only what the server needs (the root `postinstall`
+    # would also install the client's dependencies)
+    - name: Install modules
+      run: |
+        npm ci --ignore-scripts
+        npm rebuild esbuild
+        npm ci --prefix server
+    - name: Bundle server
+      run: |
+        npm run esbuild-server
+        cp server/out-min/main.js pico8-ls-server.js
+    - name: Create release and attach server bundle
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        VERSION=$(node -p "require('./package.json').version")
+        TAG="v$VERSION"
+        if ! gh release view "$TAG" >/dev/null 2>&1; then
+          # Tag the commit that was built, not the head of the default branch
+          gh release create "$TAG" --target "$GITHUB_SHA" --title "$TAG" --generate-notes
+        fi
+        # Never replace the bundle of a version that's already out (e.g. a push to
+        # `release` without a version bump)
+        if gh release view "$TAG" --json assets --jq '.assets[].name' | grep -qx pico8-ls-server.js; then
+          echo "pico8-ls-server.js is already attached to $TAG, not replacing it"
+        else
+          gh release upload "$TAG" pico8-ls-server.js
+        fi
