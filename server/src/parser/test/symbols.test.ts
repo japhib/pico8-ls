@@ -1,6 +1,6 @@
 import { AnonymousFunctionName } from '../statements';
 import { CodeSymbolType } from '../symbols';
-import { locationOfToken, parse, deepEquals, bounds } from './test-utils';
+import { locationOfToken, parse, deepEquals, bounds, MockFileResolver } from './test-utils';
 
 describe('SymbolFinder', () => {
   it('defines a symbol for a function', () => {
@@ -69,13 +69,12 @@ describe('SymbolFinder', () => {
     }]);
   });
 
-  it('repeats symbol for global variable re-assigned later', () => {
+  it('lists a global variable re-assigned later only once', () => {
     const { symbols } = parse(`
     i = 1
     i = 2
     `);
     deepEquals(symbols, [
-      { name: 'i', type: CodeSymbolType.GlobalVariable, children: [] },
       { name: 'i', type: CodeSymbolType.GlobalVariable, children: [] },
     ]);
   });
@@ -85,7 +84,7 @@ describe('SymbolFinder', () => {
     deepEquals(symbols, [{ name: 'i', type: CodeSymbolType.LocalVariable, children: [] }]);
   });
 
-  it('repeats symbol for local variable re-assigned later', () => {
+  it('lists a local variable re-assigned later only once', () => {
     const { symbols } = parse(`
     function inside_a_block()
       local i
@@ -96,7 +95,6 @@ describe('SymbolFinder', () => {
       {
         name: 'inside_a_block',
         children: [
-          { name: 'i', type: CodeSymbolType.LocalVariable },
           { name: 'i', type: CodeSymbolType.LocalVariable },
         ],
       },
@@ -116,9 +114,7 @@ describe('SymbolFinder', () => {
       { name: 'somefn',
         children: [
           { name: 'i', type: CodeSymbolType.LocalVariable },
-          { name: AnonymousFunctionName, type: CodeSymbolType.Function, children: [
-            { name: 'i', type: CodeSymbolType.LocalVariable },
-          ] },
+          { name: AnonymousFunctionName, type: CodeSymbolType.Function, children: [] },
         ] },
     ]);
   });
@@ -199,7 +195,7 @@ describe('SymbolFinder', () => {
     ]);
   });
 
-  it('repeats symbols for local/global variable re-use', () => {
+  it('lists re-used local and global variables only once', () => {
     const { symbols } = parse(`
     function somefn()
       some_global = 0
@@ -211,10 +207,77 @@ describe('SymbolFinder', () => {
     deepEquals(symbols, [
       { name: 'somefn', type: CodeSymbolType.Function, children: [
         { name: 'i', type: CodeSymbolType.LocalVariable },
-        { name: 'i', type: CodeSymbolType.LocalVariable },
       ] },
       { name: 'some_global', type: CodeSymbolType.GlobalVariable },
-      { name: 'some_global', type: CodeSymbolType.GlobalVariable },
+    ]);
+  });
+
+  it('lists a global assigned in several functions only once', () => {
+    const { symbols } = parse(`
+    function _update() end
+    function _init()
+      score = 0
+      _update = update_game
+    end
+    function update_game()
+      score = score + 1
+    end
+    `);
+    deepEquals(symbols, [
+      { name: '_update', type: CodeSymbolType.Function },
+      { name: '_init', type: CodeSymbolType.Function, children: [] },
+      { name: 'score', type: CodeSymbolType.GlobalVariable },
+      { name: 'update_game', type: CodeSymbolType.Function, children: [] },
+    ]);
+  });
+
+  it('keeps same-named locals in different scopes apart', () => {
+    const { symbols } = parse(`
+    function a()
+      local i = 1
+      i = 2
+      do
+        local i = 3
+      end
+    end
+    function b()
+      local i = 4
+    end
+    `);
+    deepEquals(symbols, [
+      { name: 'a', children: [
+        { name: 'i', type: CodeSymbolType.LocalVariable },
+        { name: 'i', type: CodeSymbolType.LocalVariable },
+      ] },
+      { name: 'b', children: [{ name: 'i', type: CodeSymbolType.LocalVariable }] },
+    ]);
+  });
+
+  it('treats a file-level local as the same local throughout the file', () => {
+    const { symbols } = parse(`
+    local game = {}
+    game = {}
+    function _init()
+      game.score = 0
+    end
+    `);
+    deepEquals(symbols, [
+      { name: 'game', type: CodeSymbolType.LocalVariable },
+      { name: '_init', type: CodeSymbolType.Function, children: [] },
+      { name: 'game.score', type: CodeSymbolType.LocalVariable },
+    ]);
+  });
+
+  it('does not treat an assignment after a for loop as the loop variable', () => {
+    const { symbols } = parse(`
+    function f()
+      for x=1,2 do end
+      x = 5
+    end
+    `);
+    deepEquals(symbols, [
+      { name: 'f', children: [{ name: 'x', type: CodeSymbolType.LocalVariable }] },
+      { name: 'x', type: CodeSymbolType.GlobalVariable },
     ]);
   });
 
@@ -298,6 +361,64 @@ describe('SymbolFinder', () => {
         { name: 'loc_tab.nested', type: CodeSymbolType.LocalVariable },
         { name: 'loc_tab.nested.third_value', type: CodeSymbolType.LocalVariable },
       ] },
+    ]);
+  });
+
+  it('lists table members and keys re-assigned later only once', () => {
+    const { symbols } = parse(`
+    t = { a = 1 }
+    t = { a = 2 }
+    t.b = 1
+    t.b = 2
+    `);
+    deepEquals(symbols, [
+      { name: 't', type: CodeSymbolType.GlobalVariable, children: [
+        { name: 'a', type: CodeSymbolType.LocalVariable },
+      ] },
+      { name: 't.b', type: CodeSymbolType.GlobalVariable },
+    ]);
+  });
+
+  it('keeps keys of tables that are not assigned to a variable apart', () => {
+    const { symbols } = parse(`
+    function spawn(update)
+      add(enemies, { update = function(self) end })
+      add(enemies, { update = function(self, dt) end })
+    end
+    `);
+    deepEquals(symbols, [
+      { name: 'spawn', children: [
+        { name: 'update', type: CodeSymbolType.LocalVariable },
+        { name: 'update', type: CodeSymbolType.Function, detail: '(self)' },
+        { name: 'update', type: CodeSymbolType.Function, detail: '(self,dt)' },
+      ] },
+    ]);
+  });
+
+  it('lists each function assigned to a name separately', () => {
+    const { symbols } = parse(`
+    x = function(a) end
+    x = function(b) end
+    t = { f = function(c) end }
+    t = { f = function(d) end }
+    `);
+    deepEquals(symbols, [
+      { name: 'x', type: CodeSymbolType.Function, detail: '(a)' },
+      { name: 'x', type: CodeSymbolType.Function, detail: '(b)' },
+      { name: 't', children: [
+        { name: 'f', type: CodeSymbolType.Function, detail: '(c)' },
+        { name: 'f', type: CodeSymbolType.Function, detail: '(d)' },
+      ] },
+    ]);
+  });
+
+  it('keeps the main file entry when an included file assigns the same global first', () => {
+    const fileResolver = new MockFileResolver();
+    fileResolver.loadFileContents = () => 'shared = 1';
+    const { symbols } = parse('#include other.lua\nshared = 5', { includeFileResolver: fileResolver });
+    deepEquals(symbols.map(s => [ s.name, s.loc.start.filename.path ]), [
+      [ 'shared', 'other.lua' ],
+      [ 'shared', 'main_test_file' ],
     ]);
   });
 
@@ -430,6 +551,23 @@ end`;
       deepEquals(symbols, [
         { name: 'somefn' },
         { name: 'self.val' },
+      ]);
+    });
+
+    it('on a nested local table', () => {
+      const { symbols } = parse(`
+      function mk()
+        local o = { sub = {} }
+        function o.sub:run() self.k = 1 end
+      end
+      `);
+      deepEquals(symbols, [
+        { name: 'mk', children: [
+          { name: 'o', type: CodeSymbolType.LocalVariable },
+          { name: 'o.sub.run', type: CodeSymbolType.Function, children: [
+            { name: 'o.sub.k', type: CodeSymbolType.LocalVariable },
+          ] },
+        ] },
       ]);
     });
   });
