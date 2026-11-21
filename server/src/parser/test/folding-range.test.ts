@@ -114,6 +114,41 @@ end
     ]);
   });
 
+  it('creates folding ranges for multi-line table constructors', () => {
+    const code = `
+t = {
+  a = {},
+  b = {
+    c = 2,
+  },
+  d = foo(
+    1),
+}
+`.trim();
+    const ranges = getFoldingRanges(code);
+    deepEquals(ranges, [
+      { startLine: 0, endLine: 7 },
+      { startLine: 2, endLine: 4 },
+      { startLine: 5, endLine: 6 },
+    ]);
+  });
+
+  it('creates folding ranges for multi-line assignments', () => {
+    const code = `
+local x = foo(
+  1,
+  2)
+y = [[
+text
+]]
+`.trim();
+    const ranges = getFoldingRanges(code);
+    deepEquals(ranges, [
+      { startLine: 0, endLine: 2 },
+      { startLine: 3, endLine: 5 },
+    ]);
+  });
+
   it('creates folding ranges for nested blocks', () => {
     const code = `
 function my_func()

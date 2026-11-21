@@ -1,10 +1,13 @@
 import { FoldingRange } from 'vscode-languageserver/node';
+import { TableConstructorExpression, TableKey, TableKeyString } from './expressions';
 import {
+  AssignmentStatement,
   DoStatement,
   ForGenericStatement,
   ForNumericStatement,
   FunctionDeclaration,
   IfStatement,
+  LocalStatement,
   RepeatStatement,
   WhileStatement,
 } from './statements';
@@ -12,6 +15,7 @@ import { ASTVisitor } from './visitor';
 
 export class FoldingRangeVisitor extends ASTVisitor<void> {
   public ranges: FoldingRange[] = [];
+  private seen = new Set<string>();
 
   createDefaultScope(): void {
     // This visitor doesn't manage scope, so this is a no-op.
@@ -22,8 +26,22 @@ export class FoldingRangeVisitor extends ASTVisitor<void> {
     // LSP lines are 0-based, parser lines are 1-based
     const s = startLine - 1;
     const e = endLine - 1;
-    if (s < e) {
+    const key = `${s}-${e}`;
+    if (s < e && !this.seen.has(key)) {
+      this.seen.add(key);
       this.ranges.push({ startLine: s, endLine: e });
+    }
+  }
+
+  override visitLocalStatement(node: LocalStatement): void {
+    if (node.loc) {
+      this.addExplicitRange(node.loc.start.line, node.loc.end.line);
+    }
+  }
+
+  override visitAssignmentStatement(node: AssignmentStatement): void {
+    if (node.loc) {
+      this.addExplicitRange(node.loc.start.line, node.loc.end.line);
     }
   }
 
@@ -85,6 +103,24 @@ export class FoldingRangeVisitor extends ASTVisitor<void> {
   }
 
   override visitFunctionDeclaration(node: FunctionDeclaration): void {
+    if (node.loc) {
+      this.addExplicitRange(node.loc.start.line, node.loc.end.line);
+    }
+  }
+
+  override visitTableConstructorExpression(node: TableConstructorExpression): void {
+    if (node.loc) {
+      this.addExplicitRange(node.loc.start.line, node.loc.end.line);
+    }
+  }
+
+  override visitTableKeyString(node: TableKeyString): void {
+    if (node.loc) {
+      this.addExplicitRange(node.loc.start.line, node.loc.end.line);
+    }
+  }
+
+  override visitTableKey(node: TableKey): void {
     if (node.loc) {
       this.addExplicitRange(node.loc.start.line, node.loc.end.line);
     }
