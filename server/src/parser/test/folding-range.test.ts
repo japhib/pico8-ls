@@ -1,11 +1,11 @@
-import { deepEquals, parse, getTestFileContents } from './test-utils';
+import { deepEquals, parse, getTestFileContents, TestFilesResolver, TestParseOptions } from './test-utils';
 import { FoldingRangeVisitor } from '../folding-range-visitor';
 import { FoldingRange } from 'vscode-languageserver/node';
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import { getFoldingRegions, getSectionFoldingRegions } from '../folding-regions';
 
-function getFoldingRanges(code: string): FoldingRange[] {
-  const ast = parse(code);
+function getFoldingRanges(code: string, opts: TestParseOptions = {}): FoldingRange[] {
+  const ast = parse(code, opts);
   const visitor = new FoldingRangeVisitor();
   visitor.visit(ast);
   return visitor.ranges;
@@ -185,6 +185,63 @@ end
     deepEquals(ranges, [
       { startLine: 0, endLine: 3 },
       { startLine: 1, endLine: 2 },
+    ]);
+  });
+
+  it('only creates folding ranges for blocks in the main file when it #includes other files', () => {
+    const fileResolver = new TestFilesResolver({
+      'lib.lua': `
+x = 1
+
+function lib_fn()
+  print("lib")
+  print("lib")
+end
+#include nested.lua
+`.trim(),
+      'nested.lua': `
+-- padding
+if a then
+  print(a)
+end
+local t = {
+  a = {
+    1,
+  },
+  [b] = {
+    2,
+  },
+}
+g = {
+  1,
+}
+while a do
+  print(a)
+end
+do
+  print(a)
+end
+repeat
+  print(a)
+until a
+for i = 1, 2 do
+  print(i)
+end
+for k, v in pairs(t) do
+  print(k)
+end
+`.trim(),
+    });
+
+    const code = `
+#include lib.lua
+function main_fn()
+  print("main")
+end
+`.trim();
+    const ranges = getFoldingRanges(code, { includeFileResolver: fileResolver });
+    deepEquals(ranges, [
+      { startLine: 1, endLine: 3 },
     ]);
   });
 });

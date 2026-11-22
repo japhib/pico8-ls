@@ -1,5 +1,6 @@
 import { AnonymousFunctionName } from '../statements';
-import { CodeSymbolType } from '../symbols';
+import { CodeSymbolType, symbolsInFile } from '../symbols';
+import ResolvedFile from '../file-resolver';
 import { locationOfToken, parse, deepEquals, bounds, MockFileResolver } from './test-utils';
 
 describe('SymbolFinder', () => {
@@ -420,6 +421,14 @@ describe('SymbolFinder', () => {
       [ 'shared', 'other.lua' ],
       [ 'shared', 'main_test_file' ],
     ]);
+  });
+
+  it('symbolsInFile leaves out symbols from #included files', () => {
+    const fileResolver = new MockFileResolver();
+    fileResolver.loadFileContents = () => 'function lib_fn()\nend';
+    const { symbols } = parse('#include other.lua\nfunction main_fn()\nend', { includeFileResolver: fileResolver });
+    const mainFile = new ResolvedFile('main_test_file', 'main_test_file');
+    deepEquals(symbolsInFile(symbols, mainFile).map(s => s.name), [ 'main_fn' ]);
   });
 
   it('handles member expressions referencing parameters appropriately', () => {
