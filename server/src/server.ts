@@ -8,7 +8,7 @@ import {
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import Parser from './parser/parser';
 import { Bounds, boundsToString } from './parser/types';
-import { CodeSymbolType, CodeSymbol } from './parser/symbols';
+import { CodeSymbolType, CodeSymbol, symbolsInFile } from './parser/symbols';
 import {
   DefinitionsUsages, DefinitionsUsagesLookup, DefUsageScope, findDefinitionsUsages,
 } from './parser/definitions-usages';
@@ -479,12 +479,14 @@ function parseTextDocument(textDocument: TextDocument): ProjectDocument | undefi
     // parse document
     const text = textDocument.getText();
     documentTextCache.set(textDocument.uri, textDocument);
-    const parser = new Parser(ResolvedFile.fromFileURL(textDocument.uri), text, { includeFileResolver: fileResolver });
+    const file = ResolvedFile.fromFileURL(textDocument.uri);
+    const parser = new Parser(file, text, { includeFileResolver: fileResolver });
     const chunk = parser.parse();
     const { errors, symbols, includes } = chunk;
 
-    // Set document info in caches
-    const symbolInfo: DocumentSymbol[] = symbols.map(sym => toDocumentSymbol(textDocument, sym));
+    // Set document info in caches. Symbols from #include-d files are left out:
+    // their locations are in those files, not in this document.
+    const symbolInfo: DocumentSymbol[] = symbolsInFile(symbols, file).map(sym => toDocumentSymbol(textDocument, sym));
     const foldingRegions = getFoldingRegions(textDocument, chunk.comments || []);
     const rootSymbols: DocumentSymbol[] = [];
     const regionSymbols: DocumentSymbol[] = foldingRegions.map(region => {
