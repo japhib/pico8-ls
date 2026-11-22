@@ -13,6 +13,8 @@ import {
 } from './statements';
 import { ASTVisitor } from './visitor';
 
+// Nodes from #include-d files are skipped (`node.included`): their line numbers
+// refer to those files, not to the file being folded.
 export class FoldingRangeVisitor extends ASTVisitor<void> {
   public ranges: FoldingRange[] = [];
   private seen = new Set<string>();
@@ -34,19 +36,19 @@ export class FoldingRangeVisitor extends ASTVisitor<void> {
   }
 
   override visitLocalStatement(node: LocalStatement): void {
-    if (node.loc) {
+    if (node.loc && !node.included) {
       this.addExplicitRange(node.loc.start.line, node.loc.end.line);
     }
   }
 
   override visitAssignmentStatement(node: AssignmentStatement): void {
-    if (node.loc) {
+    if (node.loc && !node.included) {
       this.addExplicitRange(node.loc.start.line, node.loc.end.line);
     }
   }
 
   override visitIfStatement(node: IfStatement): void {
-    if (node.loc) {
+    if (node.loc && !node.included) {
       for (let i = 0; i < node.clauses.length; i++) {
         const currentClause = node.clauses[i];
         const nextClause = (i + 1 < node.clauses.length) ? node.clauses[i+1] : null;
@@ -73,55 +75,55 @@ export class FoldingRangeVisitor extends ASTVisitor<void> {
   }
 
   override visitWhileStatement(node: WhileStatement): void {
-    if (node.loc) {
+    if (node.loc && !node.included) {
       this.addExplicitRange(node.loc.start.line, node.loc.end.line);
     }
   }
 
   override visitDoStatement(node: DoStatement): void {
-    if (node.loc) {
+    if (node.loc && !node.included) {
       this.addExplicitRange(node.loc.start.line, node.loc.end.line);
     }
   }
 
   override visitRepeatStatement(node: RepeatStatement): void {
-    if (node.loc) {
+    if (node.loc && !node.included) {
       this.addExplicitRange(node.loc.start.line, node.loc.end.line);
     }
   }
 
   override visitForNumericStatement(node: ForNumericStatement): void {
-    if (node.loc) {
+    if (node.loc && !node.included) {
       this.addExplicitRange(node.loc.start.line, node.loc.end.line);
     }
   }
 
   override visitForGenericStatement(node: ForGenericStatement): void {
-    if (node.loc) {
+    if (node.loc && !node.included) {
       this.addExplicitRange(node.loc.start.line, node.loc.end.line);
     }
   }
 
   override visitFunctionDeclaration(node: FunctionDeclaration): void {
-    if (node.loc) {
+    if (node.loc && !node.included) {
       this.addExplicitRange(node.loc.start.line, node.loc.end.line);
     }
   }
 
   override visitTableConstructorExpression(node: TableConstructorExpression): void {
-    if (node.loc) {
+    if (node.loc && !node.included) {
       this.addExplicitRange(node.loc.start.line, node.loc.end.line);
     }
   }
 
   override visitTableKeyString(node: TableKeyString): void {
-    if (node.loc) {
+    if (node.loc && !node.included) {
       this.addExplicitRange(node.loc.start.line, node.loc.end.line);
     }
   }
 
   override visitTableKey(node: TableKey): void {
-    if (node.loc) {
+    if (node.loc && !node.included) {
       this.addExplicitRange(node.loc.start.line, node.loc.end.line);
     }
   }

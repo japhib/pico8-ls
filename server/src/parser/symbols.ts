@@ -2,6 +2,7 @@
 
 import { getMemberExpressionName, Identifier, MemberExpression, TableConstructorExpression, TableKeyString } from './expressions';
 import { AssignmentStatement, Chunk, ForGenericStatement, ForNumericStatement, FunctionDeclaration, getFunctionDeclarationName, LabelStatement, LocalStatement } from './statements';
+import ResolvedFile from './file-resolver';
 import { Bounds } from './types';
 import { ASTVisitor } from './visitor';
 
@@ -32,6 +33,13 @@ export type CodeSymbol = {
 
 export function findSymbols(chunk: Chunk): CodeSymbol[] {
   return new SymbolFinder(chunk).findSymbols();
+}
+
+// Symbols found while parsing a file also include the symbols of any files it
+// #includes, whose locations refer to those other files. Returns only the
+// top-level symbols that are declared in `file`.
+export function symbolsInFile(symbols: CodeSymbol[], file: ResolvedFile): CodeSymbol[] {
+  return symbols.filter(symbol => symbol.loc.start.filename.equals(file));
 }
 
 class SymbolScope {
