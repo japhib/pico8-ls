@@ -1,5 +1,5 @@
 import * as path from 'path';
-import { ExtensionContext, Position, Range, TextEdit, TextEditorEdit, commands, languages, window, workspace } from 'vscode';
+import { ExtensionContext, OutputChannel, Position, Range, TextEdit, TextEditorEdit, commands, languages, window, workspace } from 'vscode';
 import { CloseAction, ErrorAction, ExecuteCommandParams, LanguageClient, LanguageClientOptions, Message, ServerOptions, TransportKind } from 'vscode-languageclient/node';
 import SemanticTokenProvider, { legend } from './semantic-token-provider';
 
@@ -11,6 +11,12 @@ type FormatterOptions = {
   insertSpaces: boolean,
   // Force each statement to be on a separate line.
   forceSeparateLines?: boolean,
+};
+
+type Pico8LanguageClientContext = {
+  asAbsolutePath?(relativePath: string): string;
+  overrideServerPath?: string;
+  outputChannel?: OutputChannel,
 };
 
 export function activate(context: ExtensionContext): void {
@@ -26,12 +32,7 @@ export function activate(context: ExtensionContext): void {
     legend,
   );
 
-  const client = new LanguageClient(
-    'pico8-ls',
-    'PICO-8 LS',
-    getServerOptions(context),
-    getClientOptions(),
-  );
+  const client = createLanguageClient(context);
 
   // register commands
   registerFormattingCommand(client, context, 'pico8formatFile', false);
@@ -44,11 +45,21 @@ export function activate(context: ExtensionContext): void {
   context.subscriptions.push(disposable);
 }
 
+export function createLanguageClient(context: Pico8LanguageClientContext) {
+  return new LanguageClient(
+    'pico8-ls',
+    'PICO-8 LS',
+    getServerOptions(context),
+    getClientOptions(context),
+  );
+}
+
 // Get options for running Node language server
-function getServerOptions(context: ExtensionContext): ServerOptions {
-  const serverModule = context.asAbsolutePath(path.join('server', 'out-min', 'main.js'));
+function getServerOptions(context: Pico8LanguageClientContext): ServerOptions {
+  const serverModule = context.overrideServerPath ?? context.asAbsolutePath!(path.join('server', 'out-min', 'main.js'));
 
   // --inspect=6009: runs the server in Node's Inspector mode so VS Code can attach to the server for debugging
+  // TODO only use debugOptions when debugging
   const debugOptions = {
     execArgv: [ '--nolazy', '--inspect=6009' ],
   };
@@ -65,13 +76,16 @@ function getServerOptions(context: ExtensionContext): ServerOptions {
   };
 }
 
-function getClientOptions(): LanguageClientOptions {
-  return {
+function getClientOptions(ctx: Pico8LanguageClientContext): LanguageClientOptions {
+  const opts: LanguageClientOptions = {
+    outputChannel: ctx.outputChannel,
+
     // Register the server for PICO-8 documents
     documentSelector: [
       { scheme: 'file', language: 'pico-8' },
       { scheme: 'file', language: 'pico-8-lua' },
     ],
+
     synchronize: {
       // Notify the server about file changes to .pico8ls files in the workspace
       // (we'll use that file for config later on)
@@ -88,6 +102,8 @@ function getClientOptions(): LanguageClientOptions {
       },
     },
   };
+
+  return opts;
 }
 
 function registerFormattingCommand(client: LanguageClient, context: ExtensionContext, commandName: string, forceSeparateLines: boolean): void {
